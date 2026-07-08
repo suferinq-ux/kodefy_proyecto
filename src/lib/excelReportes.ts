@@ -1,0 +1,848 @@
+'use client';
+
+import ExcelJS from 'exceljs';
+import { saveAs } from 'file-saver';
+import type { Venta, InventarioDiario, Gasto, BebidasDetalle } from './database.types';
+import type { EstadisticaProducto, DesgloseMetodoPago, ConsumoPollosDia, DistribucionTipoVenta, ComparativaSemanal } from './reportes';
+import { formatearFraccionPollo } from './utils';
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
+
+const C = {
+    red: 'C8102E', darkRed: '8B0000', gold: 'F2C94C', cream: 'FFF8F0',
+    brown: '4A2C1A', white: 'FFFFFF', lightGray: 'F5F5F5', medGray: 'E0E0E0',
+    darkGray: '333333', green: '27AE60', lightGreen: 'E8F5E9', blue: '2196F3',
+    lightBlue: 'E3F2FD', orange: 'FF9800', lightOrange: 'FFF3E0', purple: '9C27B0',
+    lightPurple: 'F3E5F5', yellow: 'FFF9C4', cyan: '00BCD4', lightCyan: 'E0F7FA',
+};
+
+interface ReportesExportData {
+    periodo: string;
+    metricas: { totalIngresos: number; cantidadPedidos: number; promedioPorPedido: number; pollosVendidos: number };
+    ventas: Venta[];
+    topProductos: EstadisticaProducto[];
+    desgloseMetodoPago: DesgloseMetodoPago[];
+    consumoPollos: ConsumoPollosDia[];
+    distribucionTipo: DistribucionTipoVenta[];
+    comparativa: ComparativaSemanal | null;
+    ventasPorHora: { hora: string; total: number; cantidad: number }[];
+    inventarios: InventarioDiario[];
+    gastos: Gasto[];
+    stockResumen?: {
+        pollosIniciales: number;
+        pollosVendidos: number;
+        pollosCena: number;
+        pollosGolpeados: number;
+        pollosFinalReal: number;
+        papasIniciales: number;
+        papasFinales: number;
+        chichaInicial?: number;
+        chichaVendida?: number;
+        chichaFinalReal?: number;
+        bebidasFinales?: BebidasDetalle | null;
+    };
+    caja?: {
+        inicial: number;
+        ventasEfectivo: number;
+        ventasDigital: number;
+        gastosEfectivo: number;
+        gastosDigital: number;
+        efectivoEnCaja: number;
+    };
+}
+
+// =========== HELPER FUNCTIONS ===========
+
+function fillRange(ws: ExcelJS.Worksheet, r: number, c1: number, c2: number, bgColor: string) {
+    for (let c = c1; c <= c2; c++) {
+        ws.getCell(r, c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } };
+    }
+}
+
+function styledCell(ws: ExcelJS.Worksheet, r: number, c: number, value: string | number, opts: {
+    bg?: string; font?: Partial<ExcelJS.Font>; align?: Partial<ExcelJS.Alignment>; border?: Partial<ExcelJS.Borders>;
+    merge?: [number, number, number, number];
+}) {
+    if (opts.merge) {
+        ws.mergeCells(opts.merge[0], opts.merge[1], opts.merge[2], opts.merge[3]);
+    }
+    const cell = ws.getCell(r, c);
+    cell.value = value;
+    if (opts.bg) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: opts.bg } };
+    if (opts.font) cell.font = opts.font as ExcelJS.Font;
+    if (opts.align) cell.alignment = opts.align as ExcelJS.Alignment;
+    if (opts.border) cell.border = opts.border as ExcelJS.Borders;
+}
+
+function sectionTitle(ws: ExcelJS.Worksheet, row: number, colStart: number, colEnd: number, text: string, bgColor: string) {
+    ws.mergeCells(row, colStart, row, colEnd);
+    const cell = ws.getCell(row, colStart);
+    cell.value = text;
+    cell.font = { bold: true, size: 11, color: { argb: C.white } };
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } };
+    cell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+    ws.getRow(row).height = 28;
+}
+
+function labelValue(ws: ExcelJS.Worksheet, row: number, colLabel: number, colLabelEnd: number, colVal: number, colValEnd: number, label: string, value: string | number, bg: string = C.white, bold: boolean = false) {
+    ws.mergeCells(row, colLabel, row, colLabelEnd);
+    const lc = ws.getCell(row, colLabel);
+    lc.value = label;
+    lc.font = { size: 10, color: { argb: C.darkGray } };
+    lc.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bg } };
+    lc.alignment = { vertical: 'middle', indent: 1 };
+    lc.border = { bottom: { style: 'hair', color: { argb: C.medGray } } };
+
+    ws.mergeCells(row, colVal, row, colValEnd);
+    const vc = ws.getCell(row, colVal);
+    vc.value = value;
+    vc.font = { size: 10, bold, color: { argb: bold ? C.darkRed : C.darkGray } };
+    vc.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bg } };
+    vc.alignment = { vertical: 'middle', horizontal: 'right' };
+    vc.border = { bottom: { style: 'hair', color: { argb: C.medGray } } };
+
+    ws.getRow(row).height = 22;
+}
+
+function totalRowBlock(ws: ExcelJS.Worksheet, row: number, colStart: number, colMid: number, colEnd: number, label: string, value: string, bgColor: string, fontColor: string = C.white) {
+    ws.mergeCells(row, colStart, row, colMid);
+    ws.mergeCells(row, colMid + 1, row, colEnd);
+    ws.getRow(row).height = 28;
+    const lc = ws.getCell(row, colStart);
+    lc.value = label;
+    lc.font = { bold: true, size: 11, color: { argb: fontColor } };
+    lc.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } };
+    lc.alignment = { vertical: 'middle', indent: 1 };
+
+    const vc = ws.getCell(row, colMid + 1);
+    vc.value = value;
+    vc.font = { bold: true, size: 13, color: { argb: fontColor } };
+    vc.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } };
+    vc.alignment = { vertical: 'middle', horizontal: 'right' };
+}
+
+export async function generarReporteExcelReportes(data: ReportesExportData) {
+    const wb = new ExcelJS.Workbook();
+    wb.creator = "Rodrigo's - Brasas & Broasters POS";
+    wb.created = new Date();
+
+    // ==================== HOJA 1: RESUMEN (HORIZONTAL) ====================
+    const ws1 = wb.addWorksheet('Resumen', {
+        properties: { tabColor: { argb: C.red } },
+    });
+    // 12 columnas: LEFT (1-6) | GAP (7) | RIGHT (8-12)
+    ws1.columns = [
+        { width: 4 },   // 1
+        { width: 16 },  // 2
+        { width: 14 },  // 3
+        { width: 14 },  // 4
+        { width: 14 },  // 5
+        { width: 14 },  // 6
+        { width: 3 },   // 7 - gap
+        { width: 4 },   // 8
+        { width: 16 },  // 9
+        { width: 14 },  // 10
+        { width: 14 },  // 11
+        { width: 14 },  // 12
+    ];
+
+    let row = 1;
+
+    // ===== TÍTULO PRINCIPAL =====
+    styledCell(ws1, row, 1, `🐔  Rodrigo's - Brasas & Broasters CHICKEN — REPORTE  🐔`, {
+        bg: C.red,
+        font: { bold: true, size: 18, color: { argb: C.white } },
+        align: { vertical: 'middle', horizontal: 'center' },
+        merge: [row, 1, row, 12],
+    });
+    ws1.getRow(row).height = 42;
+    row++;
+
+    styledCell(ws1, row, 1, `Período: ${data.periodo}`, {
+        bg: C.brown,
+        font: { bold: true, size: 12, color: { argb: C.gold } },
+        align: { vertical: 'middle', horizontal: 'center' },
+        merge: [row, 1, row, 12],
+    });
+    ws1.getRow(row).height = 30;
+    row++;
+
+    ws1.getRow(row).height = 10;
+    row++;
+
+    // ===== ROW SECTION 1: MÉTRICAS (LEFT) + CUADRE DE CAJA (RIGHT) =====
+    const section1Start = row;
+
+    // LEFT: Métricas
+    sectionTitle(ws1, row, 1, 6, '📊  MÉTRICAS PRINCIPALES', C.red);
+    // RIGHT: Cuadre de Caja (if available)
+    if (data.caja) {
+        sectionTitle(ws1, row, 8, 12, '💵  CUADRE DE CAJA', C.green);
+    }
+    row++;
+
+    // LEFT: Métricas data
+    labelValue(ws1, row, 1, 3, 4, 6, '💰 Ingresos Totales', `S/ ${data.metricas.totalIngresos.toFixed(2)}`, C.cream, true);
+    if (data.caja) {
+        labelValue(ws1, row, 8, 10, 11, 12, '(+) Caja Inicial (Base)', `S/ ${data.caja.inicial.toFixed(2)}`, C.lightGreen);
+    }
+    row++;
+
+    labelValue(ws1, row, 1, 3, 4, 6, '📦 Total Pedidos', `${data.metricas.cantidadPedidos}`, C.white);
+    if (data.caja) {
+        labelValue(ws1, row, 8, 10, 11, 12, '(+) Ventas Efectivo', `S/ ${data.caja.ventasEfectivo.toFixed(2)}`, C.white);
+    }
+    row++;
+
+    labelValue(ws1, row, 1, 3, 4, 6, '🎫 Ticket Promedio', `S/ ${data.metricas.promedioPorPedido.toFixed(2)}`, C.cream);
+    if (data.caja) {
+        labelValue(ws1, row, 8, 10, 11, 12, '(-) Gastos Efectivo', `- S/ ${data.caja.gastosEfectivo.toFixed(2)}`, 'FFEBEE');
+    }
+    row++;
+
+    labelValue(ws1, row, 1, 3, 4, 6, '🍗 Pollos Vendidos', formatearFraccionPollo(data.metricas.pollosVendidos), C.white, true);
+    if (data.caja) {
+        totalRowBlock(ws1, row, 8, 10, 12, '(=) EFECTIVO EN CAJA', `S/ ${data.caja.efectivoEnCaja.toFixed(2)}`, C.green);
+    }
+    row++;
+
+    // Caja - Digital section
+    if (data.caja) {
+        // Empty left side, continue right side
+        labelValue(ws1, row, 8, 10, 11, 12, '💳 Ventas Digitales', `S/ ${data.caja.ventasDigital.toFixed(2)}`, C.lightBlue);
+        row++;
+        labelValue(ws1, row, 8, 10, 11, 12, '(-) Gastos Digitales', `- S/ ${data.caja.gastosDigital.toFixed(2)}`, 'FFEBEE');
+        row++;
+        const saldoBanco = data.caja.ventasDigital - data.caja.gastosDigital;
+        totalRowBlock(ws1, row, 8, 10, 12, '(=) SALDO BANCO', `S/ ${saldoBanco.toFixed(2)}`, C.blue);
+        row++;
+    }
+
+    ws1.getRow(row).height = 10;
+    row++;
+
+    // ===== ROW SECTION 1.5: INVENTARIO DETALLADO (POLLOS Y PAPAS) =====
+    if (data.stockResumen) {
+        sectionTitle(ws1, row, 1, 12, '🍗  CONTROL DE INVENTARIO Y MERMA', C.orange);
+        row++;
+
+        // Headers
+        const INV_H_BG = C.lightOrange;
+        styledCell(ws1, row, 1, 'Concepto', { bg: INV_H_BG, font: { bold: true, size: 10, color: { argb: C.darkGray } }, align: { vertical: 'middle', indent: 1 }, merge: [row, 1, row, 2] });
+        styledCell(ws1, row, 3, 'Cantidad', { bg: INV_H_BG, font: { bold: true, size: 10, color: { argb: C.darkGray } }, align: { vertical: 'middle', horizontal: 'center' }, merge: [row, 3, row, 4] });
+        styledCell(ws1, row, 5, 'Detalle', { bg: INV_H_BG, font: { bold: true, size: 10, color: { argb: C.darkGray } }, align: { vertical: 'middle', indent: 1 }, merge: [row, 5, row, 12] });
+        row++;
+
+        // Pollos Logic
+        const { pollosIniciales, pollosVendidos, pollosCena, pollosGolpeados, pollosFinalReal } = data.stockResumen;
+        const pollosEsperados = pollosIniciales - pollosVendidos; // Teórico
+        const diferenciaPollos = (pollosFinalReal + pollosCena + pollosGolpeados) - pollosEsperados;
+
+        labelValue(ws1, row, 1, 2, 3, 4, 'Pollos Iniciales', formatearFraccionPollo(pollosIniciales), C.white);
+        styledCell(ws1, row, 5, 'Stock al inicio del día', { bg: C.white, font: { size: 9, color: { argb: '666666' } }, align: { vertical: 'middle', indent: 1 }, merge: [row, 5, row, 12] });
+        row++;
+
+        labelValue(ws1, row, 1, 2, 3, 4, 'Pollos Vendidos', formatearFraccionPollo(pollosVendidos), C.lightGray);
+        styledCell(ws1, row, 5, 'Ventas registradas en sistema', { bg: C.lightGray, font: { size: 9, color: { argb: '666666' } }, align: { vertical: 'middle', indent: 1 }, merge: [row, 5, row, 12] });
+        row++;
+
+        labelValue(ws1, row, 1, 2, 3, 4, 'Cena Personal', formatearFraccionPollo(pollosCena), C.white);
+        styledCell(ws1, row, 5, 'Consumo autorizado (No es pérdida)', { bg: C.white, font: { size: 9, color: { argb: '666666' } }, align: { vertical: 'middle', indent: 1 }, merge: [row, 5, row, 12] });
+        row++;
+
+        labelValue(ws1, row, 1, 2, 3, 4, 'Golpeados (Merma)', formatearFraccionPollo(pollosGolpeados), C.white);
+        styledCell(ws1, row, 5, 'Pollo en mal estado (Merma Justificada)', { bg: C.white, font: { size: 9, color: { argb: '666666' } }, align: { vertical: 'middle', indent: 1 }, merge: [row, 5, row, 12] });
+        row++;
+
+        labelValue(ws1, row, 1, 2, 3, 4, 'Stock Final Real', formatearFraccionPollo(pollosFinalReal), C.lightGray, true);
+        styledCell(ws1, row, 5, 'Conteo físico (Aderezados + Caja)', { bg: C.lightGray, font: { size: 9, color: { argb: '666666' } }, align: { vertical: 'middle', indent: 1 }, merge: [row, 5, row, 12] });
+        row++;
+
+        // Diferencia row
+        const diffColor = diferenciaPollos === 0 ? C.lightGreen : (diferenciaPollos > 0 ? C.lightGreen : 'FFEBEE');
+        const diffText = `${diferenciaPollos > 0 ? '+' : ''}${formatearFraccionPollo(diferenciaPollos)}`;
+        labelValue(ws1, row, 1, 2, 3, 4, 'Diferencia', diffText, diffColor, true);
+        styledCell(ws1, row, 5, diferenciaPollos === 0 ? 'Cuadre Perfecto' : (diferenciaPollos > 0 ? 'Sobrante (Positivo)' : 'Faltante (Pérdida)'), { bg: diffColor, font: { size: 9, bold: true, color: { argb: diferenciaPollos >= 0 ? C.green : C.red } }, align: { vertical: 'middle', indent: 1 }, merge: [row, 5, row, 12] });
+        row++;
+
+        // Papas Logic
+        const { papasIniciales, papasFinales } = data.stockResumen;
+        const consumoPapas = papasIniciales - papasFinales;
+
+        ws1.getRow(row).height = 10;
+        row++;
+
+        labelValue(ws1, row, 1, 2, 3, 4, 'Papas Iniciales', `${papasIniciales} Kg`, C.cream);
+        styledCell(ws1, row, 5, '', { bg: C.cream, merge: [row, 5, row, 12] });
+        row++;
+
+        labelValue(ws1, row, 1, 2, 3, 4, 'Papas Finales', `${papasFinales} Kg`, C.white);
+        styledCell(ws1, row, 5, '', { bg: C.white, merge: [row, 5, row, 12] });
+        row++;
+
+        labelValue(ws1, row, 1, 2, 3, 4, 'Consumo Papas', `${consumoPapas.toFixed(2)} Kg`, C.lightOrange, true);
+        styledCell(ws1, row, 5, 'Consumo aproximado del día', { bg: C.lightOrange, font: { size: 9, color: { argb: C.brown } }, align: { vertical: 'middle', indent: 1 }, merge: [row, 5, row, 12] });
+        row++;
+
+        // Chicha Logic
+        if (data.stockResumen.chichaInicial !== undefined) {
+            const { chichaInicial, chichaVendida, chichaFinalReal } = data.stockResumen;
+            const chichaFinalTeorico = chichaInicial - (chichaVendida || 0);
+
+            ws1.getRow(row).height = 10;
+            row++;
+
+            styledCell(ws1, row, 1, '🟣  INVENTARIO CHICHA MORADA', {
+                bg: C.purple,
+                font: { bold: true, size: 11, color: { argb: C.white } },
+                align: { vertical: 'middle', horizontal: 'left', indent: 1 },
+                merge: [row, 1, row, 12],
+            });
+            row++;
+
+            labelValue(ws1, row, 1, 2, 3, 4, 'Chicha Inicial', `${chichaInicial.toFixed(2)} L`, C.cream);
+            styledCell(ws1, row, 5, 'Litros preparados/disponibles al inicio', { bg: C.cream, font: { size: 9, color: { argb: '666666' } }, align: { vertical: 'middle', indent: 1 }, merge: [row, 5, row, 12] });
+            row++;
+
+            labelValue(ws1, row, 1, 2, 3, 4, 'Chicha Vendida', `${(chichaVendida || 0).toFixed(2)} L`, C.white);
+            styledCell(ws1, row, 5, 'Consumo calculado por el POS', { bg: C.white, font: { size: 9, color: { argb: '666666' } }, align: { vertical: 'middle', indent: 1 }, merge: [row, 5, row, 12] });
+            row++;
+
+            if (chichaFinalReal !== undefined) {
+                labelValue(ws1, row, 1, 2, 3, 4, 'Chicha Sobrante Real', `${chichaFinalReal.toFixed(2)} L`, C.lightPurple, true);
+                const diffChicha = chichaFinalReal - chichaFinalTeorico;
+                const chichaDiffColor = diffChicha === 0 ? C.lightGreen : (diffChicha > 0 ? C.lightGreen : 'FFEBEE');
+                styledCell(ws1, row, 5, `Diferencia: ${diffChicha > 0 ? '+' : ''}${diffChicha.toFixed(2)} L`, { bg: chichaDiffColor, font: { size: 9, bold: true }, align: { vertical: 'middle', indent: 1 }, merge: [row, 5, row, 12] });
+            } else {
+                labelValue(ws1, row, 1, 2, 3, 4, 'Stock Teórico Final', `${chichaFinalTeorico.toFixed(2)} L`, C.lightGray, true);
+            }
+            row++;
+        }
+
+        ws1.getRow(row).height = 10;
+        row++;
+
+        // ===== BEBIDAS SOBRANTES (FROM LAST DAY) =====
+        if (data.stockResumen.bebidasFinales) {
+            sectionTitle(ws1, row, 1, 12, '🥤  STOCK DE BEBIDAS (CIERRE)', C.blue);
+            row++;
+
+            const MARCA_LABEL: Record<string, string> = {
+                inca_kola: 'Inca Kola', coca_cola: 'Coca Cola', sprite: 'Sprite', fanta: 'Fanta', agua_mineral: 'Agua Mineral',
+            };
+            const TIPO_LABEL: Record<string, string> = {
+                personal_retornable: 'Personal Ret.', descartable: 'Descartable', gordita: 'Gordita',
+                litro: '1L', litro_medio: '1.5L', tres_litros: '3L', mediana: '2.25L',
+                personal: '600ml', grande: '2.5L', medio_litro: '500ml'
+            };
+            const MARCA_COLORS: Record<string, string> = {
+                inca_kola: C.yellow, coca_cola: 'FFEBEE', sprite: C.lightGreen, fanta: C.lightOrange, agua_mineral: C.lightBlue,
+            };
+
+            const bebidas = data.stockResumen.bebidasFinales;
+            // We'll render them in columns. 
+            // Logic: Iterate brands, then items.
+
+            for (const [marca, tipos] of Object.entries(bebidas)) {
+                if (!tipos) continue;
+                const tiposObj = tipos as Record<string, number>;
+                const items = Object.entries(tiposObj).filter(([, q]) => q !== undefined); // Show all even if 0? better show all to check stock
+
+                if (items.length > 0) {
+                    const bgColor = MARCA_COLORS[marca] || C.lightGray;
+                    const totalMarca = items.reduce((sum, [, q]) => sum + (q || 0), 0);
+
+                    // Brand Header line
+                    styledCell(ws1, row, 1, `${MARCA_LABEL[marca] || marca} (Total: ${totalMarca})`, {
+                        bg: bgColor,
+                        font: { bold: true, size: 10, color: { argb: C.darkGray } },
+                        align: { vertical: 'middle', indent: 1 },
+                        merge: [row, 1, row, 12]
+                    });
+                    ws1.getRow(row).height = 20;
+                    row++;
+
+                    // Items in a grid (3 columns: Item-Qty | Item-Qty | Item-Qty)
+                    const itemsPerRow = 3;
+                    const rowsNeeded = Math.ceil(items.length / itemsPerRow);
+
+                    for (let r = 0; r < rowsNeeded; r++) {
+                        ws1.getRow(row).height = 18;
+                        for (let c = 0; c < itemsPerRow; c++) {
+                            const itemIdx = r * itemsPerRow + c;
+                            if (itemIdx < items.length) {
+                                const [tipo, qty] = items[itemIdx];
+                                const colStart = c * 4 + 1; // 1, 5, 9
+
+                                labelValue(ws1, row, colStart, colStart + 2, colStart + 3, colStart + 3,
+                                    TIPO_LABEL[tipo] || tipo,
+                                    qty || 0,
+                                    C.white
+                                );
+                            }
+                        }
+                        row++;
+                    }
+                }
+            }
+            ws1.getRow(row).height = 10;
+            row++;
+        }
+    }
+
+    // ===== ROW SECTION 2: COMPARATIVA SEMANAL (FULL WIDTH) =====
+    if (data.comparativa) {
+        styledCell(ws1, row, 1, '📈  COMPARATIVA SEMANAL', {
+            bg: C.brown,
+            font: { bold: true, size: 11, color: { argb: C.white } },
+            align: { vertical: 'middle', horizontal: 'left', indent: 1 },
+            merge: [row, 1, row, 12],
+        });
+        ws1.getRow(row).height = 28;
+        row++;
+
+        // 3 columns side by side for Esta semana / Semana Anterior / Diferencia
+        // Col 1-4: Esta semana
+        styledCell(ws1, row, 1, 'Esta Semana', {
+            bg: C.lightGreen,
+            font: { size: 9, color: { argb: '666666' } },
+            align: { vertical: 'middle', horizontal: 'center' },
+            merge: [row, 1, row, 4],
+        });
+        // Col 5-8: Semana Anterior
+        styledCell(ws1, row, 5, 'Semana Anterior', {
+            bg: C.cream,
+            font: { size: 9, color: { argb: '666666' } },
+            align: { vertical: 'middle', horizontal: 'center' },
+            merge: [row, 5, row, 8],
+        });
+        // Col 9-12: Variación
+        styledCell(ws1, row, 9, 'Variación', {
+            bg: data.comparativa.esPositivo ? C.lightGreen : 'FFEBEE',
+            font: { size: 9, color: { argb: '666666' } },
+            align: { vertical: 'middle', horizontal: 'center' },
+            merge: [row, 9, row, 12],
+        });
+        ws1.getRow(row).height = 18;
+        row++;
+
+        // Values
+        styledCell(ws1, row, 1, `S/ ${data.comparativa.semanaActual.toFixed(2)}`, {
+            bg: C.lightGreen,
+            font: { bold: true, size: 14, color: { argb: C.darkGray } },
+            align: { vertical: 'middle', horizontal: 'center' },
+            merge: [row, 1, row, 4],
+        });
+        styledCell(ws1, row, 5, `S/ ${data.comparativa.semanaAnterior.toFixed(2)}`, {
+            bg: C.cream,
+            font: { bold: true, size: 14, color: { argb: C.darkGray } },
+            align: { vertical: 'middle', horizontal: 'center' },
+            merge: [row, 5, row, 8],
+        });
+        const varText = `${data.comparativa.esPositivo ? '+' : ''}${data.comparativa.porcentajeCambio.toFixed(1)}%  (S/ ${data.comparativa.diferencia.toFixed(2)})`;
+        styledCell(ws1, row, 9, varText, {
+            bg: data.comparativa.esPositivo ? C.lightGreen : 'FFEBEE',
+            font: { bold: true, size: 14, color: { argb: data.comparativa.esPositivo ? C.green : C.red } },
+            align: { vertical: 'middle', horizontal: 'center' },
+            merge: [row, 9, row, 12],
+        });
+        ws1.getRow(row).height = 32;
+        row++;
+
+        ws1.getRow(row).height = 10;
+        row++;
+    }
+
+    // ===== ROW SECTION 3: MÉTODOS DE PAGO (LEFT) + TIPO DE VENTA + GASTOS (RIGHT) =====
+    {
+        const METODO_BG: Record<string, string> = {
+            'Efectivo': C.lightGreen, 'Yape': C.lightPurple, 'Plin': C.lightCyan, 'Tarjeta': C.lightBlue,
+        };
+
+        // LEFT: Métodos de Pago
+        sectionTitle(ws1, row, 1, 6, '💳  MÉTODOS DE PAGO', C.purple);
+        // RIGHT: Tipo de Venta
+        sectionTitle(ws1, row, 8, 12, '🏠  TIPO DE VENTA', C.brown);
+        row++;
+
+        const mpRows = data.desgloseMetodoPago.length;
+        const dtRows = data.distribucionTipo.length;
+        const maxRows = Math.max(mpRows, dtRows);
+
+        for (let i = 0; i < maxRows; i++) {
+            ws1.getRow(row).height = 22;
+            // LEFT: Método de pago
+            if (i < mpRows) {
+                const mp = data.desgloseMetodoPago[i];
+                const bg = METODO_BG[mp.metodo] || C.white;
+                labelValue(ws1, row, 1, 3, 4, 6, `${mp.metodo} (${mp.porcentaje.toFixed(0)}%)`, `S/ ${mp.total.toFixed(2)}  —  ${mp.cantidad} ventas`, bg);
+            }
+            // RIGHT: Tipo de venta
+            if (i < dtRows) {
+                const dt = data.distribucionTipo[i];
+                labelValue(ws1, row, 8, 10, 11, 12, `${dt.tipo} (${dt.porcentaje.toFixed(0)}%)`, `${dt.cantidad} pedidos — S/ ${dt.total.toFixed(2)}`, C.cream);
+            }
+            row++;
+        }
+
+        // Total of payment methods
+        totalRowBlock(ws1, row, 1, 3, 6, '💰 TOTAL', `S/ ${data.metricas.totalIngresos.toFixed(2)}`, C.red);
+        row++;
+
+        ws1.getRow(row).height = 10;
+        row++;
+    }
+
+    // ===== ROW SECTION 4: GASTOS (IF ANY - FULL WIDTH COMPACT) =====
+    if (data.gastos.length > 0) {
+        const totalGastosVal = data.gastos.reduce((s, g) => s + g.monto, 0);
+        styledCell(ws1, row, 1, `📤  GASTOS DEL PERÍODO: S/ ${totalGastosVal.toFixed(2)}`, {
+            bg: C.orange,
+            font: { bold: true, size: 11, color: { argb: C.white } },
+            align: { vertical: 'middle', horizontal: 'left', indent: 1 },
+            merge: [row, 1, row, 12],
+        });
+        ws1.getRow(row).height = 28;
+        row++;
+
+        // Show gastos in 2 columns side by side
+        const half = Math.ceil(data.gastos.length / 2);
+        for (let i = 0; i < half; i++) {
+            ws1.getRow(row).height = 20;
+            const g1 = data.gastos[i];
+            labelValue(ws1, row, 1, 4, 5, 6, `• ${g1.descripcion}`, `S/ ${g1.monto.toFixed(2)}`, i % 2 === 0 ? C.lightOrange : C.white);
+
+            const g2Idx = i + half;
+            if (g2Idx < data.gastos.length) {
+                const g2 = data.gastos[g2Idx];
+                labelValue(ws1, row, 8, 10, 11, 12, `• ${g2.descripcion}`, `S/ ${g2.monto.toFixed(2)}`, i % 2 === 0 ? C.lightOrange : C.white);
+            }
+            row++;
+        }
+
+        ws1.getRow(row).height = 10;
+        row++;
+    }
+
+    // ===== ROW SECTION 5: VENTAS POR HORA (LEFT) + TOP PRODUCTOS (RIGHT) =====
+    {
+        const hasHoras = data.ventasPorHora.length > 0;
+        const hasProducts = data.topProductos.length > 0;
+
+        if (hasHoras || hasProducts) {
+            // Headers
+            if (hasHoras) {
+                sectionTitle(ws1, row, 1, 6, '🕐  VENTAS POR HORA', C.blue);
+            }
+            if (hasProducts) {
+                sectionTitle(ws1, row, 8, 12, '⭐  PRODUCTOS VENDIDOS', C.brown);
+            }
+            row++;
+
+            // Sub-headers
+            if (hasHoras) {
+                styledCell(ws1, row, 1, 'Hora', { bg: '1565C0', font: { bold: true, size: 10, color: { argb: C.white } }, align: { vertical: 'middle', horizontal: 'center' }, merge: [row, 1, row, 2] });
+                styledCell(ws1, row, 3, 'Pedidos', { bg: '1565C0', font: { bold: true, size: 10, color: { argb: C.white } }, align: { vertical: 'middle', horizontal: 'center' }, merge: [row, 3, row, 4] });
+                styledCell(ws1, row, 5, 'Total S/', { bg: '1565C0', font: { bold: true, size: 10, color: { argb: C.white } }, align: { vertical: 'middle', horizontal: 'center' }, merge: [row, 5, row, 6] });
+            }
+            if (hasProducts) {
+                styledCell(ws1, row, 8, '#', { bg: '5D4037', font: { bold: true, size: 10, color: { argb: C.white } }, align: { vertical: 'middle', horizontal: 'center' } });
+                styledCell(ws1, row, 9, 'Producto', { bg: '5D4037', font: { bold: true, size: 10, color: { argb: C.white } }, align: { vertical: 'middle', indent: 1 }, merge: [row, 9, row, 10] });
+                styledCell(ws1, row, 11, 'Cant.', { bg: '5D4037', font: { bold: true, size: 10, color: { argb: C.white } }, align: { vertical: 'middle', horizontal: 'center' } });
+                styledCell(ws1, row, 12, 'Ingresos', { bg: '5D4037', font: { bold: true, size: 10, color: { argb: C.white } }, align: { vertical: 'middle', horizontal: 'center' } });
+            }
+            ws1.getRow(row).height = 24;
+            row++;
+
+            // Data rows
+            const maxHoraIdx = hasHoras ? data.ventasPorHora.reduce((max, h, i, arr) => h.cantidad > arr[max].cantidad ? i : max, 0) : -1;
+            const horasLen = data.ventasPorHora.length;
+            // Show ALL products, not limited to 15
+            const productsLen = data.topProductos.length;
+            const MEDAL_BG = [C.yellow, C.lightGray, C.lightOrange];
+            const maxDataRows = Math.max(horasLen, productsLen);
+
+            for (let i = 0; i < maxDataRows; i++) {
+                ws1.getRow(row).height = 20;
+
+                // LEFT: Hora
+                if (i < horasLen) {
+                    const h = data.ventasPorHora[i];
+                    const isPeak = i === maxHoraIdx;
+                    const bg = isPeak ? C.lightOrange : (i % 2 === 0 ? C.white : C.lightBlue);
+
+                    styledCell(ws1, row, 1, h.hora, { bg, font: { size: 10, bold: isPeak, color: { argb: C.darkGray } }, align: { vertical: 'middle', horizontal: 'center' }, merge: [row, 1, row, 2] });
+                    styledCell(ws1, row, 3, h.cantidad, { bg, font: { size: 10, bold: isPeak, color: { argb: C.darkGray } }, align: { vertical: 'middle', horizontal: 'center' }, merge: [row, 3, row, 4] });
+                    styledCell(ws1, row, 5, `S/ ${h.total.toFixed(2)}`, { bg, font: { size: 10, bold: isPeak, color: { argb: C.darkGray } }, align: { vertical: 'middle', horizontal: 'center' }, merge: [row, 5, row, 6] });
+                }
+
+                // RIGHT: Producto
+                if (i < productsLen) {
+                    const p = data.topProductos[i];
+                    const bg = i < 3 ? MEDAL_BG[i] : (i % 2 === 0 ? C.white : C.lightGray);
+
+                    styledCell(ws1, row, 8, i + 1, { bg, font: { bold: i < 3, size: 10, color: { argb: C.darkGray } }, align: { vertical: 'middle', horizontal: 'center' } });
+                    styledCell(ws1, row, 9, p.nombre_producto, { bg, font: { bold: i < 3, size: 10, color: { argb: C.darkGray } }, align: { vertical: 'middle', indent: 1 }, merge: [row, 9, row, 10] });
+                    // Use cantidad_total (real units) instead of veces_vendido (order count)
+                    styledCell(ws1, row, 11, p.cantidad_total, { bg, font: { size: 10, bold: true, color: { argb: C.darkGray } }, align: { vertical: 'middle', horizontal: 'center' } });
+                    styledCell(ws1, row, 12, `S/ ${Number(p.ingresos_total).toFixed(0)}`, { bg, font: { bold: true, size: 10, color: { argb: C.darkGray } }, align: { vertical: 'middle', horizontal: 'center' } });
+                }
+
+                row++;
+            }
+
+            ws1.getRow(row).height = 10;
+            row++;
+        }
+    }
+
+    // ===== ROW SECTION 6: CONSUMO DE POLLOS (FULL WIDTH, COMPACT TABLE) =====
+    if (data.consumoPollos.length > 0) {
+        styledCell(ws1, row, 1, '🍗  CONSUMO DE POLLOS POR DÍA', {
+            bg: C.red,
+            font: { bold: true, size: 11, color: { argb: C.white } },
+            align: { vertical: 'middle', horizontal: 'left', indent: 1 },
+            merge: [row, 1, row, 12],
+        });
+        ws1.getRow(row).height = 28;
+        row++;
+
+        // Show in multiple columns across the 12-col width (4 per row: Fecha-Pollos | Fecha-Pollos | Fecha-Pollos | Fecha-Pollos)
+        // Each pair takes 3 cols = 12 cols / 3 per pair = 4 pairs
+        const pollosPerRow = 4;
+        const pollosData = data.consumoPollos;
+
+        // Headers for each group
+        for (let g = 0; g < pollosPerRow; g++) {
+            const colStart = g * 3 + 1;
+            styledCell(ws1, row, colStart, 'Fecha', {
+                bg: C.darkRed,
+                font: { bold: true, size: 9, color: { argb: C.white } },
+                align: { vertical: 'middle', horizontal: 'center' },
+                merge: [row, colStart, row, colStart + 1],
+            });
+            styledCell(ws1, row, colStart + 2, 'Pollos', {
+                bg: C.darkRed,
+                font: { bold: true, size: 9, color: { argb: C.white } },
+                align: { vertical: 'middle', horizontal: 'center' },
+            });
+        }
+        ws1.getRow(row).height = 22;
+        row++;
+
+        const totalPollosRows = Math.ceil(pollosData.length / pollosPerRow);
+        for (let r = 0; r < totalPollosRows; r++) {
+            ws1.getRow(row).height = 20;
+            for (let g = 0; g < pollosPerRow; g++) {
+                const idx = r * pollosPerRow + g;
+                if (idx < pollosData.length) {
+                    const cp = pollosData[idx];
+                    const colStart = g * 3 + 1;
+                    const bg = r % 2 === 0 ? C.cream : C.white;
+
+                    styledCell(ws1, row, colStart, format(new Date(cp.fecha), 'dd/MM/yyyy'), {
+                        bg,
+                        font: { size: 10, color: { argb: C.darkGray } },
+                        align: { vertical: 'middle', horizontal: 'center' },
+                        merge: [row, colStart, row, colStart + 1],
+                    });
+                    styledCell(ws1, row, colStart + 2, formatearFraccionPollo(cp.pollos), {
+                        bg,
+                        font: { size: 10, bold: true, color: { argb: C.darkGray } },
+                        align: { vertical: 'middle', horizontal: 'center' },
+                    });
+                }
+            }
+            row++;
+        }
+
+        const promedio = pollosData.reduce((s, d) => s + d.pollos, 0) / pollosData.length;
+        styledCell(ws1, row, 1, `📊 Promedio Diario: ${formatearFraccionPollo(promedio)}`, {
+            bg: C.orange,
+            font: { bold: true, size: 11, color: { argb: C.white } },
+            align: { vertical: 'middle', horizontal: 'center' },
+            merge: [row, 1, row, 6],
+        });
+        styledCell(ws1, row, 7, `Total: ${formatearFraccionPollo(pollosData.reduce((s, d) => s + d.pollos, 0))} pollos`, {
+            bg: C.orange,
+            font: { bold: true, size: 11, color: { argb: C.white } },
+            align: { vertical: 'middle', horizontal: 'center' },
+            merge: [row, 7, row, 12],
+        });
+        ws1.getRow(row).height = 28;
+        row++;
+
+        ws1.getRow(row).height = 10;
+        row++;
+    }
+
+    // ===== ROW SECTION 7: INVENTARIO DETALLADO POR DÍA =====
+    if (data.inventarios.length > 0) {
+        styledCell(ws1, row, 1, '📦  INVENTARIO DETALLADO POR DÍA', {
+            bg: C.brown,
+            font: { bold: true, size: 11, color: { argb: C.white } },
+            align: { vertical: 'middle', horizontal: 'left', indent: 1 },
+            merge: [row, 1, row, 12],
+        });
+        ws1.getRow(row).height = 28;
+        row++;
+
+        // Table headers
+        const invHeaders = ['Fecha', 'Pollos Ini.', 'Pollos Sobr.', 'Cena Personal', 'Golpeados', 'Papas Ini.', 'Papas Fin.', 'Estado'];
+        const invCols = [
+            [1, 2],   // Fecha
+            [3, 3],   // Pollos Ini
+            [4, 4],   // Pollos Sobrantes
+            [5, 5],   // Cena Personal
+            [6, 7],   // Golpeados
+            [8, 9],   // Papas Ini
+            [10, 10], // Papas Final
+            [11, 12], // Estado
+        ];
+
+        for (let h = 0; h < invHeaders.length; h++) {
+            const [cs, ce] = invCols[h];
+            if (cs !== ce) ws1.mergeCells(row, cs, row, ce);
+            const cell = ws1.getCell(row, cs);
+            cell.value = invHeaders[h];
+            cell.font = { bold: true, size: 9, color: { argb: C.white } };
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '5D4037' } };
+            cell.alignment = { vertical: 'middle', horizontal: 'center' };
+        }
+        ws1.getRow(row).height = 24;
+        row++;
+
+        for (let i = 0; i < data.inventarios.length; i++) {
+            const inv = data.inventarios[i];
+            const bg = i % 2 === 0 ? C.white : C.cream;
+
+            const vals = [
+                format(new Date(inv.fecha), 'dd/MM/yyyy'),
+                `${inv.pollos_enteros || 0}`,
+                `${inv.stock_pollos_real ?? '-'}`,
+                `${inv.cena_personal ?? 0}`,
+                `${inv.pollos_golpeados ?? 0}`,
+                `${inv.papas_iniciales ?? '-'} Kg`,
+                `${inv.papas_finales ?? '-'} Kg`,
+                inv.estado === 'cerrado' ? '✅ Cerrado' : '🔓 Abierto',
+            ];
+
+            for (let h = 0; h < vals.length; h++) {
+                const [cs, ce] = invCols[h];
+                if (cs !== ce) ws1.mergeCells(row, cs, row, ce);
+                const cell = ws1.getCell(row, cs);
+                cell.value = vals[h];
+                cell.font = { size: 10, color: { argb: C.darkGray } };
+                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bg } };
+                cell.alignment = { vertical: 'middle', horizontal: 'center' };
+                cell.border = { bottom: { style: 'hair', color: { argb: C.medGray } } };
+            }
+            ws1.getRow(row).height = 20;
+            row++;
+        }
+
+        ws1.getRow(row).height = 10;
+        row++;
+    }
+
+    // Footer
+    styledCell(ws1, row, 1, `Generado automáticamente por Rodrigo's - Brasas & Broasters POS — ${new Date().toLocaleString('es-PE')}`, {
+        font: { size: 8, italic: true, color: { argb: '999999' } },
+        align: { vertical: 'middle', horizontal: 'center' },
+        merge: [row, 1, row, 12],
+    });
+
+    // ==================== HOJA 2: DETALLE DE TRANSACCIONES ====================
+    const ws2 = wb.addWorksheet('Transacciones', {
+        properties: { tabColor: { argb: C.blue } },
+    });
+
+    ws2.columns = [
+        { header: 'Fecha', width: 14 },
+        { header: 'Hora', width: 10 },
+        { header: 'ID Pedido', width: 14 },
+        { header: 'Tipo', width: 14 },
+        { header: 'Productos', width: 40 },
+        { header: 'Método Pago', width: 14 },
+        { header: 'Total (S/)', width: 14 },
+    ];
+
+    // Style header
+    const headerRow = ws2.getRow(1);
+    headerRow.height = 28;
+    headerRow.eachCell((cell) => {
+        cell.font = { bold: true, size: 11, color: { argb: C.white } };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C.red } };
+        cell.alignment = { vertical: 'middle', horizontal: 'center' };
+        cell.border = { bottom: { style: 'thin', color: { argb: C.darkRed } } };
+    });
+
+    const METODO_COLOR: Record<string, string> = {
+        'efectivo': C.lightGreen, 'yape': C.lightPurple, 'plin': C.lightCyan, 'tarjeta': C.lightBlue,
+    };
+
+    data.ventas.forEach((v, i) => {
+        const items = v.items.map(item => `${item.cantidad}x ${item.nombre}`).join(', ');
+        let metodoPagoDisplay = (v.metodo_pago || 'efectivo').charAt(0).toUpperCase() + (v.metodo_pago || 'efectivo').slice(1);
+        if (v.metodo_pago === 'mixto' && v.pago_dividido) {
+            const desglose = Object.entries(v.pago_dividido)
+                .filter(([, m]) => m && m > 0)
+                .map(([k, m]) => `${k}: S/${m?.toFixed(2)}`)
+                .join(' + ');
+            metodoPagoDisplay = `Mixto (${desglose})`;
+        }
+        const r = ws2.addRow([
+            format(new Date(v.created_at), 'dd/MM/yyyy'),
+            format(new Date(v.created_at), 'HH:mm'),
+            `#${v.id.slice(0, 8)}`,
+            v.mesa_id ? `Mesa ${v.mesa_id}` : 'Para Llevar',
+            items,
+            metodoPagoDisplay,
+            v.total.toFixed(2),
+        ]);
+
+        const bg = i % 2 === 0 ? C.white : C.lightGray;
+        r.eachCell((cell, colNum) => {
+            cell.font = { size: 10, color: { argb: C.darkGray } };
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bg } };
+            cell.alignment = { vertical: 'middle' };
+            cell.border = { bottom: { style: 'hair', color: { argb: C.medGray } } };
+
+            if (colNum === 7) {
+                cell.font = { bold: true, size: 10, color: { argb: C.darkGray } };
+                cell.alignment = { vertical: 'middle', horizontal: 'right' };
+                cell.numFmt = '#,##0.00';
+            }
+            if (colNum === 6) {
+                const metodo = (v.metodo_pago || 'efectivo').toLowerCase();
+                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: METODO_COLOR[metodo] || bg } };
+                cell.alignment = { vertical: 'middle', horizontal: 'center' };
+            }
+        });
+        r.height = 20;
+    });
+
+    // Total row
+    if (data.ventas.length > 0) {
+        const totalR = ws2.addRow(['', '', '', '', '', 'TOTAL:', data.metricas.totalIngresos.toFixed(2)]);
+        totalR.height = 28;
+        totalR.eachCell((cell, colNum) => {
+            if (colNum >= 6) {
+                cell.font = { bold: true, size: 12, color: { argb: C.white } };
+                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C.red } };
+                cell.alignment = { vertical: 'middle', horizontal: colNum === 7 ? 'right' : 'right' };
+            }
+        });
+    }
+
+    // Auto-filter
+    ws2.autoFilter = { from: { row: 1, column: 1 }, to: { row: data.ventas.length + 1, column: 7 } };
+
+    // ==================== GENERATE ====================
+    const buffer = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const fileName = `Rodrigo_Reporte_${data.periodo.replace(/[\/\s,]/g, '_')}.xlsx`;
+    saveAs(blob, fileName);
+
+    return fileName;
+}

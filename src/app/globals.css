@@ -1,0 +1,218 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+@import "tailwindcss";
+
+:root {
+  --background: #fdfcfb;
+  --foreground: #0c0a09;
+
+  /* Theme Variables (injected dynamically) */
+  --theme-primary: #2563eb; /* default blue */
+  --theme-secondary: #1e40af; /* default dark blue */
+  
+  /* Fallback Brand Palette for neutral areas (like login/super-admin) */
+  --kodefy-dark: #0f172a;
+  --kodefy-accent: #3b82f6;
+
+  /* Status Colors */
+  --status-income: #16a34a;
+  --status-orders: #2563eb;
+  --status-avg: #ca8a04;
+  --status-sold: #dc2626;
+
+  /* Touch & Accessibility */
+  --touch-target: 48px;
+  --input-font-size: 16px; /* Prevents iOS auto-zoom */
+
+  --border-light: #f1f5f9;
+  --border-main: #e2e8f0;
+
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
+
+  --transition-smooth: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-theme-primary: var(--theme-primary);
+  --color-theme-secondary: var(--theme-secondary);
+  --color-theme-accent: var(--kodefy-accent);
+  --color-theme-dark: var(--kodefy-dark);
+
+  /* Compatibility Aliases */
+  --color-rodrigo-terracotta: var(--theme-primary);
+  --color-rodrigo-mustard: var(--theme-secondary);
+  --color-rodrigo-brown: #4a3728;
+
+  --font-sans: 'Plus Jakarta Sans', ui-sans-serif, system-ui, -apple-system, sans-serif;
+}
+
+/* ─── DARK MODE ─── */
+.dark body {
+  background: #020617;
+  color: #e2e8f0;
+}
+
+.dark {
+  --border-light: #1e293b;
+  --border-main: #334155;
+}
+
+/* ─── BASE ─── */
+body {
+  background: #f8fafc;
+  color: #0f172a;
+  font-family: var(--font-sans);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden; /* Prevents side-scrolling app-wide */
+  width: 100%;
+}
+
+/* Dark mode overrides for body */
+.dark body {
+  background: #020617;
+  color: #e2e8f0;
+}
+
+/* Force 16px min font for inputs on mobile */
+input, select, textarea {
+  font-size: 16px !important;
+}
+
+@media (min-width: 768px) {
+  input, select, textarea {
+    font-size: 14px !important; /* Smaller on desktop for better fit */
+  }
+}
+
+/* ─── GLASSMORPHISM ─── */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px) saturate(180%);
+  -webkit-backdrop-filter: blur(12px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+  border-radius: var(--radius-lg);
+}
+
+.dark .glass-panel {
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid rgba(51, 65, 85, 0.4);
+}
+
+.glass-card {
+  background: #ffffff;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  transition: var(--transition-smooth);
+}
+
+.dark .glass-card {
+  background: #1e293b;
+  border-color: #334155;
+}
+
+.glass-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.05), 0 8px 10px -6px rgb(0 0 0 / 0.05);
+  border-color: var(--theme-primary);
+}
+
+.dark .glass-card:hover {
+  box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.2);
+}
+
+/* ─── BUTTONS ─── */
+.btn-premium {
+  min-height: var(--touch-target);
+  padding: 0 1.5rem;
+  background: var(--theme-primary);
+  color: #fff;
+  font-weight: 700;
+  border-radius: var(--radius-md);
+  transition: var(--transition-smooth);
+  box-shadow: 0 4px 14px 0 rgba(37, 99, 235, 0.3); /* fallback blue shadow */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.btn-premium:hover {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+}
+
+.btn-premium:active {
+  transform: scale(0.98);
+}
+
+/* ─── GLASS EFFECTS ─── */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+}
+
+.dark .glass-panel {
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid rgba(51, 65, 85, 0.4);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2);
+}
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.dark .glass-card {
+  background: rgba(30, 41, 59, 0.9);
+  border: 1px solid rgba(51, 65, 85, 0.3);
+}
+
+/* ─── UTILITIES ─── */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Responsive Table Helper */
+.responsive-table-container {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ─── ANIMATIONS ─── */
+@keyframes pulse-slow {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+/* ─── LOGO CAROUSEL MASK ─── */
+.mask-gradient {
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent 0%,
+    black 15%,
+    black 85%,
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to right,
+    transparent 0%,
+    black 15%,
+    black 85%,
+    transparent 100%
+  );
+}

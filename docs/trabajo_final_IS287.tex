@@ -1,0 +1,1127 @@
+% ============================================================
+% TRABAJO FINAL - IS-287 DISEÑO DE SOFTWARE
+% Implementación de un Sistema Web SaaS para la Gestión
+% de Puntos de Venta en Negocios Gastronómicos
+% Metodología ICONIX
+% ============================================================
+
+\documentclass[12pt, a4paper]{article}
+
+% --- Paquetes ---
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish]{babel}
+\usepackage{mathptmx}                % Times New Roman
+\usepackage[left=2.54cm, right=2.54cm, top=2.54cm, bottom=2.54cm]{geometry}
+\usepackage{setspace}                 % Interlineado
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{tabularx}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{listings}
+\usepackage{amsmath}
+\usepackage{tikz}
+\usepackage{tocloft}
+\usepackage{parskip}
+\usepackage{natbib}
+
+% --- Configuración APA 7 ---
+\doublespacing
+\setlength{\parindent}{1.27cm}
+\setlength{\parskip}{0pt}
+
+% --- Configuración de hyperlinks ---
+\hypersetup{
+    colorlinks=true,
+    linkcolor=black,
+    urlcolor=blue,
+    citecolor=black
+}
+
+% --- Configuración de encabezados y pies ---
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\footnotesize IS-287 Diseño de Software}
+\fancyhead[R]{\footnotesize Kodefy Tech SaaS}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+% --- Configuración de secciones ---
+\titleformat{\section}{\normalfont\bfseries\large}{\thesection.}{0.5em}{}
+\titleformat{\subsection}{\normalfont\bfseries\normalsize}{\thesubsection.}{0.5em}{}
+\titleformat{\subsubsection}{\normalfont\bfseries\small}{\thesubsubsection.}{0.5em}{}
+
+% --- Configuración de código fuente ---
+\lstset{
+    basicstyle=\ttfamily\footnotesize,
+    breaklines=true,
+    frame=single,
+    backgroundcolor=\color{gray!10},
+    keywordstyle=\color{blue},
+    commentstyle=\color{green!50!black},
+    stringstyle=\color{red!70!black},
+    numbers=left,
+    numberstyle=\tiny\color{gray},
+    showstringspaces=false,
+    tabsize=2
+}
+
+% --- Placeholder para imágenes ---
+\newcommand{\imagenplaceholder}[2]{%
+    \begin{figure}[H]
+        \centering
+        \fbox{\begin{minipage}{0.85\textwidth}
+            \centering
+            \vspace{3cm}
+            \textit{\textbf{[INSERTAR IMAGEN]}}\\[0.5cm]
+            \textit{#2}
+            \vspace{3cm}
+        \end{minipage}}
+        \caption{#1}
+        \label{fig:#1}
+    \end{figure}
+}
+
+% ============================================================
+\begin{document}
+
+% ============================================================
+% CARÁTULA
+% ============================================================
+\begin{titlepage}
+    \begin{center}
+
+        % --- Logo de la universidad ---
+        \vspace*{0.5cm}
+
+        % [INSERTAR LOGO DE LA UNIVERSIDAD AQUÍ]
+        \fbox{\begin{minipage}{3cm}
+            \centering
+            \vspace{1cm}
+            \textit{Logo}\\
+            \textit{UNSCH}
+            \vspace{1cm}
+        \end{minipage}}
+
+        \vspace{0.8cm}
+
+        {\large \textbf{UNIVERSIDAD NACIONAL DE SAN CRISTÓBAL DE HUAMANGA}}\\[0.3cm]
+        {\normalsize FACULTAD DE INGENIERÍA DE MINAS, GEOLOGÍA Y CIVIL}\\[0.2cm]
+        {\normalsize ESCUELA PROFESIONAL DE INGENIERÍA DE SISTEMAS}\\[1.5cm]
+
+        \rule{12cm}{0.5pt}\\[0.4cm]
+        {\LARGE \textbf{Implementación de un Sistema Web SaaS para la Gestión de Puntos de Venta en Negocios Gastronómicos: Enfoque ICONIX}}\\[0.3cm]
+        \rule{12cm}{0.5pt}\\[1.5cm]
+
+        {\large \textbf{TRABAJO FINAL}}\\[0.3cm]
+        {\normalsize Asignatura: IS-287 Diseño de Software}\\[1.5cm]
+
+        {\normalsize \textbf{Presentado por:}}\\[0.3cm]
+        \begin{tabular}{l}
+            INTEGRANTE 1 — Apellidos y Nombres \\
+            INTEGRANTE 2 — Apellidos y Nombres \\
+            INTEGRANTE 3 — Apellidos y Nombres \\
+            INTEGRANTE 4 — Apellidos y Nombres \\
+            INTEGRANTE 5 — Apellidos y Nombres \\
+        \end{tabular}\\[1.5cm]
+
+        {\normalsize \textbf{Docente:}}\\[0.2cm]
+        {\normalsize [Nombre del docente]}\\[1.5cm]
+
+        {\normalsize Ayacucho -- Perú}\\[0.2cm]
+        {\normalsize 2026}
+
+    \end{center}
+\end{titlepage}
+
+% ============================================================
+% ÍNDICE
+% ============================================================
+\newpage
+\tableofcontents
+\newpage
+\listoffigures
+\newpage
+\listoftables
+\newpage
+
+% ============================================================
+% 1. ASPECTOS GENERALES DEL PROYECTO
+% ============================================================
+\section{Aspectos Generales del Proyecto}
+
+\subsection{Título del Proyecto}
+
+Implementación de un Sistema Web SaaS para la Gestión de Puntos de Venta en Negocios Gastronómicos, aplicando la metodología ICONIX.
+
+\subsection{Introducción y Justificación}
+
+En los últimos años, la digitalización de los procesos comerciales ha pasado de ser una ventaja competitiva a convertirse en una necesidad operativa, particularmente en el sector gastronómico peruano. Muchos negocios de comida ---pollerías, restaurantes, cevicherías--- siguen operando con métodos manuales: cuadernos de registro, cálculos a mano para el cierre de caja y control de inventario basado en la memoria del encargado. Estas prácticas, además de ser ineficientes, generan pérdidas económicas por errores humanos y dificultan la toma de decisiones informadas.
+
+El presente proyecto nace de la observación directa de esta problemática. Tras interactuar con dueños de pollerías locales, identificamos que las soluciones existentes en el mercado resultaban demasiado costosas, excesivamente complejas o simplemente no se adaptaban a la realidad operativa de un negocio pequeño. Un sistema de punto de venta convencional suele requerir instalación local, licencias mensuales elevadas y soporte técnico especializado, elementos que resultan prohibitivos para un emprendedor con márgenes ajustados.
+
+Frente a este panorama, decidimos desarrollar \textbf{Kodefy Tech SaaS}, una plataforma web progresiva (PWA) con arquitectura multi-inquilino que permite a múltiples negocios operar de forma independiente dentro de una misma infraestructura. El sistema fue diseñado con un enfoque guiado por casos de uso, adoptando la metodología ICONIX por su capacidad de mantener un diseño minimalista pero riguroso, sin la sobrecarga documental de RUP ni la informalidad excesiva de algunas prácticas ágiles.
+
+La elección de ICONIX responde a una decisión pragmática: necesitábamos una metodología que nos permitiera trazar con claridad el camino desde los requisitos hasta el código, manteniendo diagramas concretos y verificables en cada fase. ICONIX cumple exactamente con eso al proponer un proceso iterativo centrado en la trazabilidad entre casos de uso, diagramas de robustez y diagramas de secuencia.
+
+\subsection{Objetivos del Proyecto}
+
+\subsubsection*{Objetivo General}
+
+Diseñar e implementar un sistema web SaaS de punto de venta orientado a negocios gastronómicos, empleando la metodología ICONIX para garantizar la trazabilidad entre los requisitos del usuario y la implementación final del software.
+
+\subsubsection*{Objetivos Específicos}
+
+\begin{itemize}[leftmargin=2cm]
+    \item Construir un modelo de dominio que capture con precisión las entidades y relaciones propias de la gestión gastronómica (productos, inventario, ventas, mesas, delivery).
+    \item Especificar los casos de uso críticos del sistema, detallando flujos básicos, alternativos y de excepción para cada operación.
+    \item Elaborar diagramas de robustez que transformen los casos de uso en una arquitectura de objetos boundary--control--entity.
+    \item Desarrollar diagramas de secuencia detallados que definan la interacción entre objetos a nivel de métodos y parámetros.
+    \item Implementar el sistema utilizando Next.js, React, Supabase y TypeScript, verificando la correspondencia entre el diseño y el código resultante.
+    \item Validar el producto mediante pruebas de caja negra y pruebas unitarias que cubran los escenarios definidos en los casos de uso.
+\end{itemize}
+
+\subsection{Alcance y Limitaciones}
+
+\subsubsection*{Alcance}
+
+El sistema abarca los siguientes procesos operativos de un negocio gastronómico:
+
+\begin{itemize}[leftmargin=2cm]
+    \item Apertura y cierre de caja con control de inventario diario (pollos, bebidas, chicha, papas).
+    \item Punto de venta con soporte para pedidos en mesa, para llevar y delivery.
+    \item Gestión de mesas en tiempo real.
+    \item Vista de cocina para la preparación de pedidos.
+    \item Módulo de delivery con seguimiento de repartidores mediante geolocalización.
+    \item Generación de reportes y estadísticas de ventas.
+    \item Panel de super administrador para la gestión multi-inquilino.
+    \item Impresión de tickets por red y por interfaz POS.
+    \item Autenticación basada en roles (administrador, cajero, mozo, cocinero, repartidor).
+\end{itemize}
+
+\subsubsection*{Limitaciones}
+
+Esta primera versión (MVP) presenta las siguientes restricciones:
+
+\begin{itemize}[leftmargin=2cm]
+    \item No se incluye integración con pasarelas de pago electrónico (Visa, Mastercard). Los métodos de pago registrados (efectivo, Yape, Plin, tarjeta) se manejan de forma declarativa.
+    \item No se implementa facturación electrónica ante SUNAT.
+    \item El módulo de delivery depende de la API de OpenRouteService para el cálculo de rutas, lo que requiere conectividad a internet.
+    \item El sistema está optimizado para el rubro de pollerías, aunque la arquitectura SaaS permite extenderlo a otros giros gastronómicos con ajustes mínimos.
+\end{itemize}
+
+% ============================================================
+% FASE 1: MODELADO DEL DOMINIO Y REQUISITOS
+% ============================================================
+\newpage
+\section*{Fase 1: Modelado del Dominio y Requisitos (Análisis de Requisitos)}
+\addcontentsline{toc}{section}{Fase 1: Modelado del Dominio y Requisitos}
+
+\textit{Esta fase establece el vocabulario común del sistema y define qué debe hacer el software. Aquí identificamos las entidades del negocio, sus relaciones y los escenarios de interacción con los usuarios.}
+
+\section{Modelado del Dominio (Domain Modeling)}
+
+\subsection{Glosario de Términos}
+
+\begin{longtable}{>{\bfseries}p{4cm} p{10cm}}
+    \toprule
+    \textbf{Término} & \textbf{Definición} \\
+    \midrule
+    \endfirsthead
+    \toprule
+    \textbf{Término} & \textbf{Definición} \\
+    \midrule
+    \endhead
+    \bottomrule
+    \endfoot
+
+    Negocio (Tenant) & Entidad que representa a un establecimiento gastronómico dentro de la plataforma. Cada negocio opera de manera aislada con sus propios datos, productos y usuarios. \\[0.3cm]
+
+    Slug & Identificador único legible en la URL que distingue a cada negocio dentro de la plataforma (por ejemplo, \texttt{/pocholos}). \\[0.3cm]
+
+    Punto de Venta (POS) & Módulo central del sistema donde el cajero o mozo registra los pedidos, selecciona productos y procesa el cobro. \\[0.3cm]
+
+    Apertura de Caja & Procedimiento inicial del día donde se registra el inventario disponible (pollos, bebidas, dinero base) antes de comenzar las operaciones. \\[0.3cm]
+
+    Cierre de Caja & Procedimiento de fin de jornada donde se consolidan las ventas, se compara el inventario real con el teórico y se registran observaciones. \\[0.3cm]
+
+    Inventario Diario & Registro que almacena las cantidades iniciales y finales de cada producto para un día específico en un negocio. \\[0.3cm]
+
+    Mesa & Representación virtual de una mesa física del establecimiento, con estados de libre u ocupada. \\[0.3cm]
+
+    Venta & Transacción comercial que registra los productos vendidos, el monto total, el método de pago y el tipo de pedido. \\[0.3cm]
+
+    Delivery & Modalidad de pedido donde el producto se entrega en la dirección indicada por el cliente, con seguimiento de repartidor. \\[0.3cm]
+
+    Repartidor & Usuario con rol específico encargado de transportar pedidos de tipo delivery. Su ubicación se rastrea en tiempo real. \\[0.3cm]
+
+    RLS (Row Level Security) & Mecanismo de seguridad a nivel de base de datos que garantiza el aislamiento de datos entre negocios (inquilinos). \\[0.3cm]
+
+    Super Administrador & Usuario con privilegios globales que puede gestionar todos los negocios, crear tenants y supervisar la plataforma completa. \\[0.3cm]
+
+    PWA & Aplicación Web Progresiva. Tecnología que permite que la aplicación web se comporte como una aplicación nativa en dispositivos móviles. \\[0.3cm]
+
+    Multi-inquilino (Multi-tenant) & Arquitectura de software donde una única instancia de la aplicación sirve a múltiples organizaciones (inquilinos), manteniendo sus datos aislados. \\[0.3cm]
+
+    Gasto & Egreso económico registrado durante la jornada (compra de insumos, pagos a proveedores, etc.). \\
+
+\end{longtable}
+
+\subsection{Diagrama de Clases del Dominio}
+
+El diagrama de clases del dominio identifica las entidades principales del negocio, sus atributos y las asociaciones entre ellas. Siguiendo las convenciones de ICONIX, este diagrama no incluye métodos ni clases de control; su propósito es establecer el vocabulario compartido del equipo.
+
+\imagenplaceholder{Diagrama de Clases del Dominio}{Diagrama UML que muestra las entidades: Negocio, UserProfile, Producto, Categoría, Mesa, Venta, ItemVenta, InventarioDiario, Gasto, ConfiguracionNegocio, RepartidorUbicacion. Incluir las relaciones de composición y asociación entre entidades con sus cardinalidades (1..*, 0..1, etc.).}
+
+Las entidades identificadas son:
+
+\begin{itemize}[leftmargin=2cm]
+    \item \textbf{Negocio}: Entidad raíz del modelo multi-inquilino. Contiene nombre, slug, logo, colores de tema y estado.
+    \item \textbf{UserProfile}: Perfil de usuario vinculado a Supabase Auth. Tiene rol, estado activo y referencia al negocio.
+    \item \textbf{Producto}: Artículo comercializable con tipo (pollo, bebida, complemento, promoción), precio y fracción de pollo para control de inventario.
+    \item \textbf{Categoría}: Agrupación lógica de productos dentro de un negocio.
+    \item \textbf{Mesa}: Representación de una mesa física con número y estado.
+    \item \textbf{Venta}: Registro transaccional que contiene los ítems vendidos (JSONB), total, método de pago, tipo de pedido y referencias a mesa y repartidor.
+    \item \textbf{InventarioDiario}: Registro diario con cantidades iniciales y finales de inventario.
+    \item \textbf{Gasto}: Registro de egresos con descripción, monto y método de pago.
+    \item \textbf{ConfiguracionNegocio}: Parámetros operativos del negocio (teléfono, IPs de impresoras, modo de impresión).
+    \item \textbf{RepartidorUbicacion}: Coordenadas GPS del repartidor para seguimiento en tiempo real.
+\end{itemize}
+
+% ============================================================
+% 3. MODELADO DE CASOS DE USO
+% ============================================================
+\section{Modelado de Casos de Uso (Use Case Modeling)}
+
+\subsection{Diagrama de Casos de Uso General}
+
+\imagenplaceholder{Diagrama de Casos de Uso General}{Diagrama UML de casos de uso que muestre los actores: Administrador, Cajero, Mozo, Cocinero, Repartidor y Super Administrador. Incluir los casos de uso principales: Iniciar Sesión, Abrir Caja, Registrar Venta, Gestionar Mesas, Visualizar Pedidos en Cocina, Realizar Delivery, Cerrar Caja, Generar Reportes, Gestionar Negocios (Super Admin). Usar relaciones include y extend donde corresponda.}
+
+Los actores identificados en el sistema son:
+
+\begin{itemize}[leftmargin=2cm]
+    \item \textbf{Administrador}: Acceso completo a todos los módulos del negocio.
+    \item \textbf{Cajero}: Opera el punto de venta, apertura/cierre de caja, inventario y reportes.
+    \item \textbf{Mozo}: Registra pedidos desde las mesas y visualiza el estado de la cocina.
+    \item \textbf{Cocinero}: Únicamente accede a la vista de cocina para ver los pedidos pendientes.
+    \item \textbf{Repartidor}: Gestiona entregas de delivery y comparte su ubicación.
+    \item \textbf{Super Administrador}: Gestiona todos los negocios de la plataforma, crea tenants y supervisa el sistema global.
+\end{itemize}
+
+\subsection{Fichas de Especificación de Casos de Uso (Detallado)}
+
+A continuación se presentan las fichas de especificación para los casos de uso críticos del sistema.
+
+% --- CU-01 ---
+\begin{table}[H]
+\centering
+\caption{Ficha de especificación: Iniciar Sesión}
+\begin{tabularx}{\textwidth}{|l|X|}
+    \hline
+    \textbf{ID} & CU-01 \\ \hline
+    \textbf{Nombre} & Iniciar Sesión \\ \hline
+    \textbf{Actor principal} & Administrador, Cajero, Mozo, Cocinero, Repartidor \\ \hline
+    \textbf{Precondiciones} & El usuario debe tener una cuenta registrada y activa en el sistema. \\ \hline
+    \textbf{Postcondiciones} & El usuario accede al dashboard correspondiente a su rol y negocio. \\ \hline
+    \textbf{Flujo básico} &
+    \begin{enumerate}[nosep, leftmargin=*]
+        \item El usuario accede a la pantalla de login.
+        \item Ingresa su correo electrónico y contraseña.
+        \item El sistema valida las credenciales contra Supabase Auth.
+        \item El sistema obtiene el perfil del usuario (rol, negocio\_id, estado).
+        \item Se redirige al dashboard del negocio correspondiente (\texttt{/[slug]/dashboard}).
+    \end{enumerate} \\ \hline
+    \textbf{Flujos alternativos} &
+    \begin{itemize}[nosep, leftmargin=*]
+        \item \textbf{FA1 -- Super Admin}: Si el usuario es super administrador, se redirige a \texttt{/super-admin}.
+        \item \textbf{FA2 -- Recordar contraseña}: El usuario selecciona ``Olvidé mi contraseña'' y recibe un correo de restablecimiento.
+    \end{itemize} \\ \hline
+    \textbf{Excepciones} &
+    \begin{itemize}[nosep, leftmargin=*]
+        \item \textbf{E1}: Credenciales incorrectas --- se muestra mensaje de error.
+        \item \textbf{E2}: Usuario inactivo --- se deniega el acceso.
+        \item \textbf{E3}: Negocio suspendido --- se notifica que el negocio no está disponible.
+    \end{itemize} \\ \hline
+\end{tabularx}
+\end{table}
+
+% --- CU-02 ---
+\begin{table}[H]
+\centering
+\caption{Ficha de especificación: Abrir Caja (Apertura del Día)}
+\begin{tabularx}{\textwidth}{|l|X|}
+    \hline
+    \textbf{ID} & CU-02 \\ \hline
+    \textbf{Nombre} & Abrir Caja (Apertura del Día) \\ \hline
+    \textbf{Actor principal} & Administrador, Cajero \\ \hline
+    \textbf{Precondiciones} & El usuario ha iniciado sesión. No existe apertura para la fecha actual. \\ \hline
+    \textbf{Postcondiciones} & Se crea un registro de inventario diario con estado ``abierto'' y las cantidades iniciales. \\ \hline
+    \textbf{Flujo básico} &
+    \begin{enumerate}[nosep, leftmargin=*]
+        \item El usuario accede al módulo de apertura.
+        \item El sistema verifica que no exista apertura previa para el día.
+        \item El usuario ingresa: pollos enteros, dinero base, bebidas por marca/tamaño, papas iniciales, chicha (litros).
+        \item El sistema registra el inventario diario en la base de datos.
+        \item Se confirma la apertura y se habilitan los módulos de venta.
+    \end{enumerate} \\ \hline
+    \textbf{Flujos alternativos} &
+    \begin{itemize}[nosep, leftmargin=*]
+        \item \textbf{FA1}: Ya existe apertura --- se redirige al dashboard mostrando los datos del día.
+    \end{itemize} \\ \hline
+    \textbf{Excepciones} &
+    \begin{itemize}[nosep, leftmargin=*]
+        \item \textbf{E1}: Error de conexión a base de datos --- se muestra mensaje de reintento.
+    \end{itemize} \\ \hline
+\end{tabularx}
+\end{table}
+
+% --- CU-03 ---
+\begin{table}[H]
+\centering
+\caption{Ficha de especificación: Registrar Venta}
+\begin{tabularx}{\textwidth}{|l|X|}
+    \hline
+    \textbf{ID} & CU-03 \\ \hline
+    \textbf{Nombre} & Registrar Venta \\ \hline
+    \textbf{Actor principal} & Cajero, Mozo \\ \hline
+    \textbf{Precondiciones} & La caja del día debe estar abierta. El catálogo de productos debe estar cargado. \\ \hline
+    \textbf{Postcondiciones} & Se registra la venta, se actualiza el inventario y se genera el ticket. \\ \hline
+    \textbf{Flujo básico} &
+    \begin{enumerate}[nosep, leftmargin=*]
+        \item El usuario accede al módulo POS.
+        \item Selecciona el tipo de pedido: mesa, para llevar o delivery.
+        \item Si es mesa, selecciona la mesa disponible.
+        \item Agrega productos al carrito (selección de categoría, producto, cantidad).
+        \item Para productos tipo pollo, puede especificar parte y tipo de trozado.
+        \item El sistema calcula el subtotal y total en tiempo real.
+        \item El usuario selecciona el método de pago (efectivo, Yape, Plin, tarjeta, mixto).
+        \item Si es pago mixto, ingresa los montos por cada medio.
+        \item Confirma la venta.
+        \item El sistema registra la transacción, descuenta del inventario y cambia el estado de la mesa a ``ocupada''.
+        \item Se muestra la opción de imprimir ticket.
+    \end{enumerate} \\ \hline
+    \textbf{Flujos alternativos} &
+    \begin{itemize}[nosep, leftmargin=*]
+        \item \textbf{FA1 -- Delivery}: Se solicita dirección, se calcula distancia y costo de envío, se asigna repartidor.
+        \item \textbf{FA2 -- Agregar notas}: El usuario puede agregar observaciones al pedido.
+    \end{itemize} \\ \hline
+    \textbf{Excepciones} &
+    \begin{itemize}[nosep, leftmargin=*]
+        \item \textbf{E1}: Stock insuficiente de pollos --- se muestra advertencia.
+        \item \textbf{E2}: No hay mesas libres --- se sugiere pedido ``para llevar''.
+        \item \textbf{E3}: Error al guardar --- la venta no se registra y se notifica al usuario.
+    \end{itemize} \\ \hline
+\end{tabularx}
+\end{table}
+
+% --- CU-04 ---
+\begin{table}[H]
+\centering
+\caption{Ficha de especificación: Gestionar Mesas}
+\begin{tabularx}{\textwidth}{|l|X|}
+    \hline
+    \textbf{ID} & CU-04 \\ \hline
+    \textbf{Nombre} & Gestionar Mesas \\ \hline
+    \textbf{Actor principal} & Cajero, Mozo \\ \hline
+    \textbf{Precondiciones} & El usuario ha iniciado sesión y tiene permisos para el módulo de mesas. \\ \hline
+    \textbf{Postcondiciones} & Las mesas reflejan su estado actual (libre/ocupada) y los pedidos asociados. \\ \hline
+    \textbf{Flujo básico} &
+    \begin{enumerate}[nosep, leftmargin=*]
+        \item El usuario accede al módulo de mesas.
+        \item El sistema muestra la cuadrícula de mesas con su estado visual (color).
+        \item Al seleccionar una mesa ocupada, se muestran los pedidos activos.
+        \item El usuario puede liberar la mesa tras el pago.
+    \end{enumerate} \\ \hline
+    \textbf{Excepciones} &
+    \begin{itemize}[nosep, leftmargin=*]
+        \item \textbf{E1}: Error de carga en tiempo real --- se refresca manualmente.
+    \end{itemize} \\ \hline
+\end{tabularx}
+\end{table}
+
+% --- CU-05 ---
+\begin{table}[H]
+\centering
+\caption{Ficha de especificación: Visualizar Pedidos en Cocina}
+\begin{tabularx}{\textwidth}{|l|X|}
+    \hline
+    \textbf{ID} & CU-05 \\ \hline
+    \textbf{Nombre} & Visualizar Pedidos en Cocina \\ \hline
+    \textbf{Actor principal} & Cocinero \\ \hline
+    \textbf{Precondiciones} & Existen pedidos con estado ``pendiente''. \\ \hline
+    \textbf{Postcondiciones} & El pedido cambia de estado a ``listo'' cuando el cocinero lo marca. \\ \hline
+    \textbf{Flujo básico} &
+    \begin{enumerate}[nosep, leftmargin=*]
+        \item El cocinero accede a la vista de cocina.
+        \item Se muestran los pedidos pendientes en tarjetas ordenadas por antigüedad.
+        \item Cada tarjeta muestra: número de mesa/pedido, ítems, notas especiales.
+        \item El cocinero marca el pedido como ``listo''.
+        \item Se notifica al mozo o cajero mediante actualización en tiempo real.
+    \end{enumerate} \\ \hline
+    \textbf{Excepciones} &
+    \begin{itemize}[nosep, leftmargin=*]
+        \item \textbf{E1}: Desconexión del realtime --- se muestra indicador offline.
+    \end{itemize} \\ \hline
+\end{tabularx}
+\end{table}
+
+% --- CU-06 ---
+\begin{table}[H]
+\centering
+\caption{Ficha de especificación: Cerrar Caja}
+\begin{tabularx}{\textwidth}{|l|X|}
+    \hline
+    \textbf{ID} & CU-06 \\ \hline
+    \textbf{Nombre} & Cerrar Caja (Cierre del Día) \\ \hline
+    \textbf{Actor principal} & Administrador, Cajero \\ \hline
+    \textbf{Precondiciones} & Existe una apertura activa para el día. \\ \hline
+    \textbf{Postcondiciones} & El inventario se marca como ``cerrado'' y se registran los valores de cierre. \\ \hline
+    \textbf{Flujo básico} &
+    \begin{enumerate}[nosep, leftmargin=*]
+        \item El usuario accede al módulo de cierre.
+        \item El sistema presenta el resumen del día: ventas totales, desglose por método de pago, gastos registrados.
+        \item El usuario ingresa los valores reales: stock de pollos restante, gaseosas, papas finales, dinero en caja.
+        \item El sistema calcula las diferencias (sobrante/faltante).
+        \item El usuario agrega observaciones y confirma el cierre.
+        \item Se genera opción de enviar resumen por WhatsApp.
+    \end{enumerate} \\ \hline
+    \textbf{Excepciones} &
+    \begin{itemize}[nosep, leftmargin=*]
+        \item \textbf{E1}: Existen pedidos pendientes de pago --- se advierte antes de cerrar.
+    \end{itemize} \\ \hline
+\end{tabularx}
+\end{table}
+
+% --- CU-07 ---
+\begin{table}[H]
+\centering
+\caption{Ficha de especificación: Gestionar Delivery}
+\begin{tabularx}{\textwidth}{|l|X|}
+    \hline
+    \textbf{ID} & CU-07 \\ \hline
+    \textbf{Nombre} & Gestionar Delivery \\ \hline
+    \textbf{Actor principal} & Mozo, Repartidor \\ \hline
+    \textbf{Precondiciones} & Existe un pedido de tipo ``delivery'' registrado. \\ \hline
+    \textbf{Postcondiciones} & El pedido es entregado al cliente y se actualiza el estado. \\ \hline
+    \textbf{Flujo básico} &
+    \begin{enumerate}[nosep, leftmargin=*]
+        \item El mozo registra un pedido de tipo delivery con dirección y datos del cliente.
+        \item El sistema calcula la distancia y costo de envío usando OpenRouteService.
+        \item Se asigna un repartidor disponible.
+        \item El repartidor recibe la notificación y comparte su ubicación en tiempo real.
+        \item El radar de delivery muestra la posición del repartidor sobre el mapa (Leaflet).
+        \item El repartidor marca la entrega como completada.
+    \end{enumerate} \\ \hline
+    \textbf{Excepciones} &
+    \begin{itemize}[nosep, leftmargin=*]
+        \item \textbf{E1}: No hay repartidores disponibles --- el pedido queda en estado ``buscando repartidor''.
+        \item \textbf{E2}: Error en API de rutas --- se permite ingresar costo manual.
+    \end{itemize} \\ \hline
+\end{tabularx}
+\end{table}
+
+% --- CU-08 ---
+\begin{table}[H]
+\centering
+\caption{Ficha de especificación: Generar Reportes}
+\begin{tabularx}{\textwidth}{|l|X|}
+    \hline
+    \textbf{ID} & CU-08 \\ \hline
+    \textbf{Nombre} & Generar Reportes \\ \hline
+    \textbf{Actor principal} & Administrador, Cajero \\ \hline
+    \textbf{Precondiciones} & Existen ventas registradas en el sistema. \\ \hline
+    \textbf{Postcondiciones} & Se muestra el reporte solicitado con opción de exportación. \\ \hline
+    \textbf{Flujo básico} &
+    \begin{enumerate}[nosep, leftmargin=*]
+        \item El usuario accede al módulo de reportes.
+        \item Selecciona el tipo de reporte y rango de fechas.
+        \item El sistema consulta las ventas y genera gráficos con Recharts.
+        \item Se muestran métricas: ventas totales, ticket promedio, productos más vendidos, desglose por método de pago.
+        \item El usuario puede exportar el reporte a Excel (ExcelJS).
+    \end{enumerate} \\ \hline
+    \textbf{Excepciones} &
+    \begin{itemize}[nosep, leftmargin=*]
+        \item \textbf{E1}: Sin datos para el rango --- se muestra mensaje informativo.
+    \end{itemize} \\ \hline
+\end{tabularx}
+\end{table}
+
+% ============================================================
+% 4. PROTOTIPOS DE INTERFAZ DE USUARIO
+% ============================================================
+\section{Prototipos de Interfaz de Usuario (Storyboarding)}
+
+\subsection{Diseño de Wireframes / Mockups}
+
+A continuación se presentan las pantallas principales del sistema, cada una vinculada directamente con los casos de uso especificados en la sección anterior.
+
+\imagenplaceholder{Pantalla de Login}{Captura de la interfaz de inicio de sesión. Formulario centrado con campos de email y contraseña, botón de acceso, enlace para recuperar contraseña y enlace de registro. Fondo con degradado oscuro y logo del sistema.}
+
+\imagenplaceholder{Dashboard Principal}{Captura del dashboard tras iniciar sesión. Muestra tarjetas de métricas (ventas del día, pollos vendidos, ticket promedio), barra lateral de navegación con los módulos según el rol, e indicadores de estado del inventario.}
+
+\imagenplaceholder{Módulo POS - Punto de Venta}{Captura de la interfaz de punto de venta. Grid de categorías y productos a la izquierda, carrito de compras a la derecha, selector de tipo de pedido (mesa/llevar/delivery), selector de método de pago y botón de confirmar venta.}
+
+\imagenplaceholder{Vista de Cocina}{Captura de la vista de cocina. Tarjetas de pedidos pendientes organizadas cronológicamente, cada tarjeta muestra mesa, ítems, notas y botón para marcar como listo.}
+
+\imagenplaceholder{Módulo de Mesas}{Captura de la cuadrícula de mesas. Cada mesa representada como un cuadro con número, estado (color verde=libre, rojo=ocupada) y los pedidos asociados al hacer clic.}
+
+\imagenplaceholder{Radar de Delivery}{Captura del mapa de delivery con Leaflet. Muestra la ubicación del negocio, las posiciones de los repartidores en tiempo real y las rutas trazadas hacia los destinos de entrega.}
+
+\imagenplaceholder{Módulo de Reportes}{Captura del módulo de reportes con gráficos de Recharts. Incluye gráfico de barras de ventas por día, gráfico circular de métodos de pago, tabla resumen y botón de exportar a Excel.}
+
+\imagenplaceholder{Apertura de Caja}{Captura del formulario de apertura. Campos para pollos enteros, dinero base, inventario de bebidas por marca y tamaño, papas iniciales y litros de chicha.}
+
+\imagenplaceholder{Panel Super Administrador}{Captura del panel de super administrador. Lista de negocios registrados con estado, acciones para crear, editar y suspender tenants, estadísticas globales.}
+
+\subsection{Mapa de Navegación del Usuario}
+
+\imagenplaceholder{Mapa de Navegación}{Diagrama de flujo que muestra la navegación entre pantallas del sistema. Inicio: Landing Page $\rightarrow$ Login $\rightarrow$ Dashboard. Desde Dashboard: POS, Mesas, Cocina, Apertura, Cierre, Ventas, Reportes, Delivery, Configuración. Flujo del Super Admin separado: Login $\rightarrow$ Panel Super Admin $\rightarrow$ Gestión de Negocios.}
+
+% ============================================================
+% FASE 2: ANÁLISIS DE ROBUSTEZ Y DISEÑO PRELIMINAR
+% ============================================================
+\newpage
+\section*{Fase 2: Análisis de Robustez y Diseño Preliminar}
+\addcontentsline{toc}{section}{Fase 2: Análisis de Robustez y Diseño Preliminar}
+
+\textit{El puente crítico de ICONIX. Aquí se descubre el ``cómo'' combinando las pantallas y las entidades del dominio antes de escribir código. Cada caso de uso se descompone en objetos de frontera, control y entidad.}
+
+\section{Diagramas de Robustez (Robustness Diagrams)}
+
+\subsection{Reglas de Análisis de Robustez Aplicadas}
+
+En el análisis de robustez seguimos la sintaxis estándar de ICONIX:
+
+\begin{itemize}[leftmargin=2cm]
+    \item Los \textbf{Actores} solo interactúan con objetos \textit{Boundary} (interfaces de usuario).
+    \item Los objetos \textit{Boundary} se comunican con objetos \textit{Control} (lógica de negocio, validaciones).
+    \item Los objetos \textit{Control} acceden a objetos \textit{Entity} (entidades del dominio, datos persistentes).
+    \item Los \textit{Boundary} nunca acceden directamente a las \textit{Entity}; siempre existe un \textit{Control} intermedio.
+\end{itemize}
+
+\subsection{Modelado de Robustez por Caso de Uso}
+
+\subsubsection{CU-01: Iniciar Sesión}
+
+\imagenplaceholder{Diagrama de Robustez - Iniciar Sesión}{
+Boundary: PantallaLogin (formulario email/contraseña).
+Control: ControladorAutenticacion (valida credenciales, obtiene perfil, determina redirección).
+Entity: SupabaseAuth (sesión), UserProfile (perfil de usuario), Negocio (datos del tenant).
+Flujo: Actor $\rightarrow$ PantallaLogin $\rightarrow$ ControladorAutenticacion $\rightarrow$ SupabaseAuth + UserProfile $\rightarrow$ PantallaLogin (redirección al dashboard).}
+
+\textbf{Objetos identificados:}
+\begin{itemize}[leftmargin=2cm]
+    \item \textit{Boundary}: \texttt{PantallaLogin}, \texttt{PantallaDashboard}
+    \item \textit{Control}: \texttt{ControladorAutenticacion} (función \texttt{login()} en \texttt{auth.ts})
+    \item \textit{Entity}: \texttt{SupabaseAuth.Session}, \texttt{UserProfile}, \texttt{Negocio}
+\end{itemize}
+
+\subsubsection{CU-02: Abrir Caja}
+
+\imagenplaceholder{Diagrama de Robustez - Abrir Caja}{
+Boundary: PantallaApertura (formulario de inventario inicial).
+Control: ControladorInventario (verifica si existe apertura, crea registro diario).
+Entity: InventarioDiario.
+Flujo: Actor $\rightarrow$ PantallaApertura $\rightarrow$ ControladorInventario $\rightarrow$ InventarioDiario $\rightarrow$ PantallaApertura (confirmación).}
+
+\subsubsection{CU-03: Registrar Venta}
+
+\imagenplaceholder{Diagrama de Robustez - Registrar Venta}{
+Boundary: PantallaPOS (grid de productos, carrito), SelectorMesa, SelectorPago.
+Control: ControladorVentas (calcula totales, valida stock, procesa pago, actualiza inventario), ControladorCarrito (agrega/elimina ítems).
+Entity: Producto, Venta, ItemVenta, Mesa, InventarioDiario.
+Flujo: Actor $\rightarrow$ PantallaPOS $\rightarrow$ ControladorCarrito $\rightarrow$ Producto; Actor $\rightarrow$ SelectorPago $\rightarrow$ ControladorVentas $\rightarrow$ Venta + InventarioDiario + Mesa.}
+
+\subsubsection{CU-05: Visualizar Pedidos en Cocina}
+
+\imagenplaceholder{Diagrama de Robustez - Vista Cocina}{
+Boundary: PantallaCocina (tarjetas de pedidos), TicketCocina.
+Control: ControladorPedidos (filtra pendientes, actualiza estado, suscripción realtime).
+Entity: Venta (con estado\_pedido = pendiente).
+Flujo: Supabase Realtime $\rightarrow$ ControladorPedidos $\rightarrow$ PantallaCocina; Actor $\rightarrow$ PantallaCocina $\rightarrow$ ControladorPedidos $\rightarrow$ Venta (cambia estado a listo).}
+
+\subsubsection{CU-06: Cerrar Caja}
+
+\imagenplaceholder{Diagrama de Robustez - Cerrar Caja}{
+Boundary: PantallaCierre (resumen del día, formulario de stock real).
+Control: ControladorCierre (consulta ventas del día, calcula diferencias, cierra inventario).
+Entity: InventarioDiario, Venta (agregadas del día), Gasto.
+Flujo: Actor $\rightarrow$ PantallaCierre $\rightarrow$ ControladorCierre $\rightarrow$ Venta + Gasto + InventarioDiario $\rightarrow$ PantallaCierre (resumen con diferencias).}
+
+\subsubsection{CU-07: Gestionar Delivery}
+
+\imagenplaceholder{Diagrama de Robustez - Delivery}{
+Boundary: PantallaDelivery (mapa Leaflet, formulario dirección), RadarDelivery.
+Control: ControladorDelivery (calcula ruta con ORS API, asigna repartidor, actualiza ubicación).
+Entity: Venta (tipo delivery), RepartidorUbicacion, Negocio (config delivery).
+Flujo: Actor $\rightarrow$ PantallaDelivery $\rightarrow$ ControladorDelivery $\rightarrow$ ORS API + RepartidorUbicacion + Venta.}
+
+\subsection{Actualización del Modelo del Dominio}
+
+Tras el análisis de robustez, se identificaron los siguientes refinamientos al modelo de dominio:
+
+\begin{itemize}[leftmargin=2cm]
+    \item Se confirmó que \texttt{Venta.items} almacena los productos como JSONB, con estructura de \texttt{ItemVenta} que incluye detalles de preparación (parte, trozado, notas).
+    \item Se añadió el campo \texttt{pago\_dividido} como JSONB en \texttt{Venta} para soportar pagos mixtos.
+    \item Se refinó \texttt{BebidasDetalle} como estructura JSONB anidada para el control granular de inventario de bebidas por marca y tamaño.
+    \item Se identificó la necesidad de \texttt{ConfiguracionNegocio} como entidad separada para los parámetros operativos.
+    \item Se incorporó \texttt{estado\_delivery} con sus transiciones: buscando\_repartidor $\rightarrow$ asignado $\rightarrow$ en\_camino $\rightarrow$ entregado.
+\end{itemize}
+
+% ============================================================
+% FASE 3: DISEÑO DETALLADO
+% ============================================================
+\newpage
+\section*{Fase 3: Diseño Detallado}
+\addcontentsline{toc}{section}{Fase 3: Diseño Detallado}
+
+\textit{Aquí se define la arquitectura exacta del software y el comportamiento temporal de los objetos. Los diagramas de secuencia traducen cada caso de uso en una secuencia precisa de llamadas a métodos.}
+
+\section{Diagramas de Secuencia (Sequence Diagrams)}
+
+\subsection{Mapeo de Controladores a Métodos}
+
+La siguiente tabla resume cómo los objetos de control identificados durante el análisis de robustez se tradujeron en funciones y módulos concretos del código:
+
+\begin{table}[H]
+\centering
+\caption{Mapeo de controladores a métodos}
+\begin{tabularx}{\textwidth}{|l|l|X|}
+    \hline
+    \textbf{Control (Robustez)} & \textbf{Módulo} & \textbf{Métodos principales} \\ \hline
+    ControladorAutenticacion & \texttt{lib/auth.ts} & \texttt{login()}, \texttt{getCurrentUser()}, \texttt{logout()} \\ \hline
+    ControladorInventario & \texttt{hooks/useInventario.ts} & \texttt{abrirCaja()}, \texttt{fetchInventario()}, \texttt{cerrarCaja()} \\ \hline
+    ControladorVentas & \texttt{lib/ventas.ts} & \texttt{registrarVenta()}, \texttt{getVentasDelDia()}, \texttt{actualizarEstadoPedido()} \\ \hline
+    ControladorMesas & \texttt{hooks/useMesas.ts} & \texttt{fetchMesas()}, \texttt{liberarMesa()}, \texttt{ocuparMesa()} \\ \hline
+    ControladorReportes & \texttt{lib/reportes.ts} & \texttt{getResumenDiario()}, \texttt{getVentasPorRango()}, \texttt{getProductosMasVendidos()} \\ \hline
+    ControladorDelivery & Componentes Delivery & \texttt{calcularRuta()}, \texttt{asignarRepartidor()}, \texttt{actualizarUbicacion()} \\ \hline
+    ControladorExportacion & \texttt{lib/excelReport.ts} & \texttt{generarReporteExcel()}, \texttt{exportarVentas()} \\ \hline
+\end{tabularx}
+\end{table}
+
+\subsection{Diagramas de Secuencia Detallados}
+
+\subsubsection{CU-01: Iniciar Sesión}
+
+\imagenplaceholder{Diagrama de Secuencia - Iniciar Sesión}{
+Participantes: Usuario, PantallaLogin, AuthContext, auth.ts (login), supabase.auth, user\_profiles (tabla), PantallaDashboard.
+Secuencia:
+1. Usuario $\rightarrow$ PantallaLogin: ingresa email, password
+2. PantallaLogin $\rightarrow$ AuthContext: handleLogin(email, password)
+3. AuthContext $\rightarrow$ auth.ts: login(\{email, password\})
+4. auth.ts $\rightarrow$ supabase.auth: signInWithPassword()
+5. supabase.auth $\rightarrow$ auth.ts: return authData (user, session)
+6. auth.ts $\rightarrow$ user\_profiles: SELECT * WHERE id = authData.user.id
+7. user\_profiles $\rightarrow$ auth.ts: return profile
+8. auth.ts $\rightarrow$ AuthContext: return \{success, usuario\}
+9. AuthContext $\rightarrow$ PantallaDashboard: redirect(/[slug]/dashboard)
+}
+
+\subsubsection{CU-03: Registrar Venta}
+
+\imagenplaceholder{Diagrama de Secuencia - Registrar Venta}{
+Participantes: Cajero, PantallaPOS, CarritoState, ventas.ts, Supabase (ventas), Supabase (inventario\_diario), Supabase (mesas).
+Secuencia:
+1. Cajero $\rightarrow$ PantallaPOS: selecciona productos
+2. PantallaPOS $\rightarrow$ CarritoState: addItem(producto, cantidad)
+3. CarritoState: calcula subtotal, total
+4. Cajero $\rightarrow$ PantallaPOS: selecciona mesa, método pago, confirma
+5. PantallaPOS $\rightarrow$ ventas.ts: registrarVenta(negocioId, items, total, metodoPago, mesaId)
+6. ventas.ts $\rightarrow$ Supabase(ventas): INSERT venta
+7. ventas.ts $\rightarrow$ Supabase(inventario): UPDATE pollos, gaseosas restantes
+8. ventas.ts $\rightarrow$ Supabase(mesas): UPDATE estado='ocupada'
+9. Supabase $\rightarrow$ ventas.ts: return venta creada
+10. ventas.ts $\rightarrow$ PantallaPOS: return \{success, venta\}
+11. PantallaPOS $\rightarrow$ ReceiptModal: muestra ticket
+}
+
+\subsubsection{CU-06: Cerrar Caja}
+
+\imagenplaceholder{Diagrama de Secuencia - Cerrar Caja}{
+Participantes: Admin, PantallaCierre, useInventario, Supabase (ventas), Supabase (gastos), Supabase (inventario\_diario).
+Secuencia:
+1. Admin $\rightarrow$ PantallaCierre: accede al módulo
+2. PantallaCierre $\rightarrow$ useInventario: fetchResumenDia()
+3. useInventario $\rightarrow$ Supabase(ventas): SELECT SUM(total), desglose por método
+4. useInventario $\rightarrow$ Supabase(gastos): SELECT SUM(monto) del día
+5. useInventario $\rightarrow$ PantallaCierre: return resumen
+6. Admin: ingresa stock real, dinero real, observaciones
+7. Admin $\rightarrow$ PantallaCierre: confirmar cierre
+8. PantallaCierre $\rightarrow$ useInventario: cerrarCaja(datos cierre)
+9. useInventario $\rightarrow$ Supabase(inventario): UPDATE estado='cerrado', campos de cierre
+10. Supabase $\rightarrow$ PantallaCierre: confirmación
+}
+
+% ============================================================
+% 7. DIAGRAMA DE CLASES TÉCNICO
+% ============================================================
+\section{Diagrama de Clases Estático Detallado (Diseño Final)}
+
+\subsection{Arquitectura del Sistema}
+
+El sistema sigue una \textbf{arquitectura por capas} adaptada al ecosistema de Next.js, con separación clara de responsabilidades:
+
+\begin{itemize}[leftmargin=2cm]
+    \item \textbf{Capa de Presentación} (\texttt{src/app/}, \texttt{src/components/}): Páginas y componentes React que manejan la interfaz de usuario. Incluye el enrutamiento basado en el sistema de archivos de Next.js con rutas dinámicas (\texttt{[slug]}).
+    \item \textbf{Capa de Lógica de Negocio} (\texttt{src/hooks/}, \texttt{src/contexts/}): Hooks personalizados y contextos de React que encapsulan la lógica operativa (inventario, ventas, mesas, métricas).
+    \item \textbf{Capa de Servicios/Datos} (\texttt{src/lib/}, \texttt{src/services/}): Módulos que interactúan directamente con Supabase, manejan autenticación, roles, reportes y exportación.
+    \item \textbf{Capa de API} (\texttt{src/app/api/}): Rutas API de Next.js para operaciones del servidor (administración, tareas cron, impresión, configuración).
+    \item \textbf{Capa de Persistencia}: Supabase (PostgreSQL) con Row Level Security para aislamiento multi-inquilino.
+\end{itemize}
+
+\imagenplaceholder{Diagrama de Arquitectura por Capas}{Diagrama que muestra las cinco capas del sistema con sus componentes principales y las flechas de dependencia entre capas. La capa de presentación en la parte superior, seguida de lógica de negocio, servicios, API y persistencia en la base.}
+
+\subsection{Diagrama de Clases Técnico}
+
+\imagenplaceholder{Diagrama de Clases Técnico Completo}{Diagrama UML técnico con tipos de datos específicos de TypeScript. Incluir:
+- Negocio (id: UUID, nombre: string, slug: string, estado: 'activo'|'suspendido', ...)
+- UserProfile (id: UUID, negocio\_id: UUID, rol: UserRole, es\_super\_admin: boolean, ...)
+- Producto (id: UUID, tipo: 'pollo'|'bebida'|'complemento'|'promocion', precio: number, fraccion\_pollo: number, ...)
+- Venta (id: UUID, items: ItemVenta[], total: number, metodo\_pago: string, tipo\_pedido: string, ...)
+- InventarioDiario (id: UUID, pollos\_enteros: number, bebidas\_detalle: BebidasDetalle, ...)
+- Mesa (id: number, numero: number, estado: 'libre'|'ocupada')
+- ConfiguracionNegocio, Gasto, RepartidorUbicacion, Categoria
+Con métodos completos de los módulos lib y hooks, relaciones con cardinalidad.}
+
+La siguiente tabla detalla las clases principales con sus atributos tipados:
+
+\begin{table}[H]
+\centering
+\caption{Clases técnicas principales con tipos de datos}
+\footnotesize
+\begin{tabularx}{\textwidth}{|l|X|l|}
+    \hline
+    \textbf{Clase} & \textbf{Atributos principales} & \textbf{Módulo} \\ \hline
+    Negocio & id: UUID, nombre: string, slug: string, color\_primario: string, estado: enum & database.types.ts \\ \hline
+    UserProfile & id: UUID, negocio\_id: UUID, nombre: string, rol: UserRole, es\_super\_admin: boolean & database.types.ts \\ \hline
+    Producto & id: UUID, nombre: string, tipo: enum, precio: number, fraccion\_pollo: number, categoria\_id: UUID & database.types.ts \\ \hline
+    Venta & id: UUID, items: ItemVenta[], total: number, metodo\_pago: enum, tipo\_pedido: enum, mesa\_id: number & database.types.ts \\ \hline
+    InventarioDiario & id: UUID, fecha: Date, pollos\_enteros: number, bebidas\_detalle: JSONB, estado: enum & database.types.ts \\ \hline
+    Mesa & id: number, numero: number, estado: enum & database.types.ts \\ \hline
+    Gasto & id: UUID, descripcion: string, monto: number, fecha: Date, metodo\_pago: enum & database.types.ts \\ \hline
+\end{tabularx}
+\end{table}
+
+Las clases controladoras, interfaces de usuario y clases de persistencia se mapean de la siguiente forma:
+
+\begin{itemize}[leftmargin=2cm]
+    \item \textbf{Interfaces de Usuario (Boundary)}: Componentes React en \texttt{src/components/} --- \texttt{Navbar}, \texttt{Sidebar}, \texttt{PedidoCard}, \texttt{ReceiptModal}, \texttt{TableSelector}, \texttt{DeliverySelector}, \texttt{MetricCard}, \texttt{ProductOptionsModal}, etc.
+    \item \textbf{Controladores (Control)}: Hooks en \texttt{src/hooks/} --- \texttt{useInventario}, \texttt{useVentas}, \texttt{useMesas}, \texttt{useMetricas}, \texttt{useBebidasConfig}, \texttt{useEstadisticasProductos}.
+    \item \textbf{Servicios de Acceso a Datos (DAO)}: Módulos en \texttt{src/lib/} --- \texttt{supabase.ts} (cliente), \texttt{ventas.ts} (operaciones CRUD), \texttt{inventario.ts} (gestión de stock), \texttt{reportes.ts} (consultas agregadas).
+\end{itemize}
+
+% ============================================================
+% FASE 4: IMPLEMENTACIÓN Y PRUEBAS
+% ============================================================
+\newpage
+\section*{Fase 4: Implementación y Pruebas}
+\addcontentsline{toc}{section}{Fase 4: Implementación y Pruebas}
+
+\textit{La traducción de los modelos a código fuente limpio y ejecutable. Aquí se documenta el stack tecnológico, la estructura del proyecto y las pruebas realizadas.}
+
+\section{Construcción del Software (Implementation)}
+
+\subsection{Entorno de Desarrollo y Stack Tecnológico}
+
+La selección de cada tecnología responde a criterios de productividad, rendimiento y adecuación al problema:
+
+\begin{table}[H]
+\centering
+\caption{Stack tecnológico del proyecto}
+\begin{tabularx}{\textwidth}{|l|l|X|}
+    \hline
+    \textbf{Capa} & \textbf{Tecnología} & \textbf{Justificación} \\ \hline
+    Frontend & Next.js 16 + React 19 & Framework full-stack con SSR, enrutamiento basado en archivos y optimización automática. React 19 incorpora el compilador nativo que mejora el rendimiento sin intervención manual. \\ \hline
+    Lenguaje & TypeScript 5 & Tipado estático que reduce errores en tiempo de desarrollo y mejora la autocompletación del IDE. \\ \hline
+    Estilos & Tailwind CSS 4 & Framework de utilidades CSS que acelera el prototipado y mantiene consistencia visual. \\ \hline
+    Base de Datos & Supabase (PostgreSQL) & BaaS con autenticación integrada, Row Level Security para multi-tenancy, suscripciones en tiempo real y hosting gratuito para MVP. \\ \hline
+    Animaciones & Framer Motion + GSAP & Framer Motion para transiciones de página y componentes. GSAP para animaciones complejas del landing page. \\ \hline
+    Mapas & Leaflet + React-Leaflet & Librería de mapas de código abierto, ligera y personalizable para el módulo de delivery. \\ \hline
+    Gráficos & Recharts & Biblioteca de gráficos basada en React y D3, ideal para dashboards y reportes. \\ \hline
+    Exportación & ExcelJS & Generación de archivos Excel en el cliente para exportar reportes de ventas y cierres. \\ \hline
+    Impresión & ESC/POS & Protocolo de impresión térmica para tickets de venta y cocina, con soporte para impresoras en red. \\ \hline
+    API de Rutas & OpenRouteService & Servicio abierto para cálculo de rutas y distancias en el módulo de delivery. \\ \hline
+    Deploy & Vercel & Plataforma de despliegue optimizada para Next.js, con CDN global y CI/CD automático. Región: São Paulo (gru1). \\ \hline
+\end{tabularx}
+\end{table}
+
+\subsection{Mapeo de Persistencia}
+
+La base de datos utiliza PostgreSQL a través de Supabase, con un esquema relacional diseñado para multi-tenancy. El aislamiento de datos se garantiza mediante Row Level Security (RLS), donde cada registro está vinculado a un \texttt{negocio\_id} y las políticas verifican la pertenencia del usuario autenticado.
+
+\begin{table}[H]
+\centering
+\caption{Tablas principales de la base de datos}
+\begin{tabularx}{\textwidth}{|l|l|X|}
+    \hline
+    \textbf{Tabla} & \textbf{Clave Primaria} & \textbf{Descripción} \\ \hline
+    negocios & UUID (auto) & Registro de cada tenant de la plataforma. \\ \hline
+    user\_profiles & UUID (FK auth.users) & Perfiles de usuario con rol y negocio asignado. \\ \hline
+    productos & UUID (auto) & Catálogo de productos por negocio. \\ \hline
+    categorias & UUID (auto) & Categorías de productos. \\ \hline
+    ventas & UUID (auto) & Registro de transacciones con ítems en JSONB. \\ \hline
+    mesas & SERIAL & Mesas físicas del establecimiento. \\ \hline
+    inventario\_diario & UUID (auto) & Control de stock diario (unique: negocio\_id + fecha). \\ \hline
+    gastos & UUID (auto) & Egresos registrados durante la jornada. \\ \hline
+    configuracion\_negocio & UUID (auto) & Parámetros operativos (IPs de impresora, teléfono). \\ \hline
+    repartidor\_ubicacion & UUID (FK user\_profiles) & Geolocalización en tiempo real de repartidores. \\ \hline
+\end{tabularx}
+\end{table}
+
+\imagenplaceholder{Diagrama Entidad-Relación de la Base de Datos}{Diagrama ER que muestra las 10 tablas principales con sus relaciones de clave foránea. Relaciones: negocios (1) $\rightarrow$ (*) user\_profiles, productos, categorias, ventas, mesas, inventario\_diario, gastos, configuracion\_negocio. user\_profiles (1) $\rightarrow$ (0..1) repartidor\_ubicacion. ventas (*) $\rightarrow$ (0..1) mesas. productos (*) $\rightarrow$ (0..1) categorias.}
+
+\subsection{Estructura del Código Fuente}
+
+La organización del proyecto sigue la convención de Next.js App Router con separación por responsabilidades:
+
+\begin{lstlisting}[language=bash, caption={Árbol de directorios del proyecto}]
+kodefy_saas/
+|-- src/
+|   |-- app/                        # Paginas (Vistas)
+|   |   |-- [slug]/                 # Rutas dinamicas por negocio
+|   |   |   |-- apertura/           # Modulo apertura de caja
+|   |   |   |-- cierre/             # Modulo cierre de caja
+|   |   |   |-- cocina/             # Vista de cocina
+|   |   |   |-- configuracion/      # Ajustes del negocio
+|   |   |   |-- dashboard/          # Panel principal
+|   |   |   |-- delivery/           # Modulo delivery
+|   |   |   |-- mantenimiento/      # Gestion de productos
+|   |   |   |-- mesas/              # Gestion de mesas
+|   |   |   |-- pos/                # Punto de venta
+|   |   |   |-- reportes/           # Reportes y estadisticas
+|   |   |   |-- ventas/             # Historial de ventas
+|   |   |   \-- layout.tsx          # Layout del tenant
+|   |   |-- api/                    # Rutas API (backend)
+|   |   |   |-- admin/              # Endpoints de administracion
+|   |   |   |-- cron/               # Tareas programadas
+|   |   |   |-- imprimir-cocina/    # API de impresion
+|   |   |   \-- setup/              # Configuracion inicial
+|   |   |-- login/                  # Pagina de login
+|   |   |-- register/               # Pagina de registro
+|   |   |-- super-admin/            # Panel super administrador
+|   |   |-- page.tsx                # Landing page
+|   |   \-- layout.tsx              # Layout raiz
+|   |-- components/                 # Componentes reutilizables
+|   |   |-- Navbar.tsx              # Barra de navegacion
+|   |   |-- Sidebar.tsx             # Menu lateral
+|   |   |-- PedidoCard.tsx          # Tarjeta de pedido
+|   |   |-- ReceiptModal.tsx        # Modal de ticket
+|   |   |-- TableSelector.tsx       # Selector de mesas
+|   |   |-- DeliverySelector.tsx    # Selector de delivery
+|   |   |-- ProductOptionsModal.tsx # Opciones de producto
+|   |   \-- ...                     # 25+ componentes
+|   |-- contexts/                   # Contextos React
+|   |   |-- AuthContext.tsx         # Estado de autenticacion
+|   |   \-- BusinessContext.tsx     # Contexto del negocio
+|   |-- hooks/                      # Hooks personalizados
+|   |   |-- useInventario.ts        # Logica de inventario
+|   |   |-- useVentas.ts            # Logica de ventas
+|   |   |-- useMesas.ts             # Logica de mesas
+|   |   |-- useMetricas.ts          # Calculo de metricas
+|   |   \-- useBebidasConfig.ts     # Config. de bebidas
+|   |-- lib/                        # Utilidades y servicios
+|   |   |-- auth.ts                 # Autenticacion
+|   |   |-- ventas.ts               # Operaciones de ventas
+|   |   |-- inventario.ts           # Gestion de inventario
+|   |   |-- reportes.ts             # Generacion de reportes
+|   |   |-- excelReport.ts          # Exportacion a Excel
+|   |   |-- roles.ts                # Permisos por rol
+|   |   |-- supabase.ts             # Cliente Supabase
+|   |   \-- database.types.ts       # Tipos TypeScript
+|   \-- services/                   # Servicios externos
+|       \-- apiPeruService.ts       # API de consulta RUC/DNI
+|-- sql/                            # Scripts SQL
+|-- supabase/                       # Configuracion Supabase
+|-- public/                         # Archivos estaticos
+|-- package.json
+|-- tsconfig.json
+|-- next.config.ts
+\-- vercel.json                     # Configuracion de deploy
+\end{lstlisting}
+
+% ============================================================
+% 9. PLAN DE PRUEBAS
+% ============================================================
+\section{Plan de Pruebas (Testing)}
+
+\subsection{Pruebas de Unidad (Unit Testing)}
+
+Las pruebas unitarias se enfocan en las funciones críticas de la capa de servicios, verificando que la lógica de negocio se comporte correctamente de forma aislada.
+
+\begin{table}[H]
+\centering
+\caption{Casos de prueba unitaria}
+\begin{tabularx}{\textwidth}{|l|l|X|l|}
+    \hline
+    \textbf{ID} & \textbf{Módulo} & \textbf{Descripción} & \textbf{Resultado} \\ \hline
+    PU-01 & auth.ts & Login con credenciales válidas retorna usuario con rol & Esperado: success=true \\ \hline
+    PU-02 & auth.ts & Login con credenciales inválidas retorna error & Esperado: success=false \\ \hline
+    PU-03 & roles.ts & hasPermission('cajero', 'pos') retorna true & Esperado: true \\ \hline
+    PU-04 & roles.ts & hasPermission('cocinero', 'pos') retorna false & Esperado: false \\ \hline
+    PU-05 & roles.ts & isReadOnly('invitado') retorna true & Esperado: true \\ \hline
+    PU-06 & ventas.ts & Cálculo de total con múltiples ítems & Esperado: suma correcta \\ \hline
+    PU-07 & inventario.ts & Descuento de stock tras venta de pollo & Esperado: stock actualizado \\ \hline
+    PU-08 & reportes.ts & Agregación de ventas por método de pago & Esperado: totales correctos \\ \hline
+\end{tabularx}
+\end{table}
+
+\subsection{Casos de Prueba de Caja Negra}
+
+Las pruebas de caja negra validan el comportamiento del sistema desde la perspectiva del usuario, basándose en los flujos básicos y alternativos de los casos de uso.
+
+\begin{longtable}{|l|p{3.5cm}|p{4cm}|p{3.5cm}|l|}
+    \caption{Matriz de pruebas de caja negra} \\
+    \hline
+    \textbf{ID} & \textbf{Caso de Uso} & \textbf{Entrada} & \textbf{Resultado Esperado} & \textbf{Estado} \\ \hline
+    \endfirsthead
+    \hline
+    \textbf{ID} & \textbf{Caso de Uso} & \textbf{Entrada} & \textbf{Resultado Esperado} & \textbf{Estado} \\ \hline
+    \endhead
+    \hline
+    \endfoot
+
+    PCN-01 & Iniciar Sesión & Email y contraseña válidos & Redirección a dashboard & Aprobado \\ \hline
+    PCN-02 & Iniciar Sesión & Contraseña incorrecta & Mensaje de error & Aprobado \\ \hline
+    PCN-03 & Abrir Caja & Datos de inventario completos & Apertura exitosa, mods habilitados & Aprobado \\ \hline
+    PCN-04 & Abrir Caja & Intento con apertura existente & Redirección a dashboard & Aprobado \\ \hline
+    PCN-05 & Registrar Venta & Pedido en mesa con pago efectivo & Venta registrada, mesa ocupada & Aprobado \\ \hline
+    PCN-06 & Registrar Venta & Pedido delivery con dirección & Venta con costo envío calculado & Aprobado \\ \hline
+    PCN-07 & Registrar Venta & Pago mixto (Yape + efectivo) & Desglose correcto registrado & Aprobado \\ \hline
+    PCN-08 & Vista Cocina & Nuevo pedido ingresado & Tarjeta aparece automáticamente & Aprobado \\ \hline
+    PCN-09 & Vista Cocina & Marcar pedido como listo & Estado cambia, notificación & Aprobado \\ \hline
+    PCN-10 & Cerrar Caja & Stock real ingresado & Diferencias calculadas correctamente & Aprobado \\ \hline
+    PCN-11 & Generar Reportes & Rango de fechas válido & Gráficos y métricas mostrados & Aprobado \\ \hline
+    PCN-12 & Exportar Excel & Clic en exportar & Archivo .xlsx descargado & Aprobado \\ \hline
+    PCN-13 & Gestionar Mesas & Mesa ocupada, clic en liberar & Estado cambia a libre & Aprobado \\ \hline
+    PCN-14 & Acceso por Rol & Cocinero intenta acceder a POS & Acceso denegado, redirección & Aprobado \\ \hline
+    PCN-15 & Super Admin & Crear nuevo negocio & Tenant creado con slug único & Aprobado \\ \hline
+\end{longtable}
+
+% ============================================================
+% CONCLUSIONES, RECOMENDACIONES Y ANEXOS
+% ============================================================
+\newpage
+\section*{Conclusiones, Recomendaciones y Anexos}
+\addcontentsline{toc}{section}{Conclusiones, Recomendaciones y Anexos}
+
+\section{Evaluación del Proyecto}
+
+\subsection{Conclusiones}
+
+El desarrollo de Kodefy Tech SaaS permitió constatar varios aspectos relevantes tanto desde la perspectiva técnica como metodológica:
+
+\begin{enumerate}[leftmargin=2cm]
+    \item \textbf{Trazabilidad verificable con ICONIX.} La metodología demostró ser particularmente útil para mantener la coherencia entre lo que el usuario pidió y lo que finalmente se implementó. Cada caso de uso tiene un diagrama de robustez que lo descompone y un diagrama de secuencia que lo traduce a llamadas reales de código. Esta trazabilidad no fue un ejercicio académico: nos permitió detectar inconsistencias en el diseño antes de llegar a la codificación, ahorrando tiempo de depuración.
+
+    \item \textbf{Multi-tenancy efectiva con RLS.} La decisión de utilizar Row Level Security de PostgreSQL para el aislamiento de datos resultó acertada. Los negocios operan de manera completamente independiente sin necesidad de bases de datos separadas ni lógica adicional en el backend. Las políticas de RLS actúan como una capa de seguridad transparente que garantiza que un usuario nunca pueda acceder a datos de otro tenant, incluso si manipula las peticiones desde el cliente.
+
+    \item \textbf{Arquitectura adaptada al contexto.} La combinación de Next.js con Supabase permitió construir un sistema completo sin necesidad de un servidor backend independiente. Las rutas API de Next.js cubren las operaciones administrativas, mientras que el cliente Supabase maneja las operaciones CRUD directamente desde el frontend con la protección de RLS. Esta arquitectura reduce costos de infraestructura y simplifica el despliegue.
+
+    \item \textbf{Producto funcional y desplegado.} El sistema no quedó en prototipo. Está desplegado en Vercel y ha sido probado en un escenario real con la pollería ``Pocholo's'', validando la viabilidad del enfoque SaaS para negocios gastronómicos pequeños.
+
+    \item \textbf{Trabajo colaborativo estructurado.} La distribución del trabajo entre los cinco integrantes del equipo se facilitó gracias a la separación por capas y módulos. Cada miembro pudo trabajar en componentes específicos (POS, cocina, delivery, reportes, administración) con interfaces claras entre módulos.
+\end{enumerate}
+
+\subsection{Recomendaciones}
+
+Para futuras iteraciones del proyecto, se sugieren las siguientes mejoras:
+
+\begin{itemize}[leftmargin=2cm]
+    \item \textbf{Facturación electrónica}: Integrar con la API de SUNAT para emisión de boletas y facturas electrónicas, requisito legal para negocios formales en Perú.
+    \item \textbf{Módulo de fidelización}: Implementar un sistema de puntos o descuentos por cliente frecuente, aprovechando la data de ventas acumulada.
+    \item \textbf{Aplicación móvil nativa}: Aunque la PWA funciona bien, una app nativa mejoraría la experiencia del repartidor con acceso optimizado al GPS y notificaciones push.
+    \item \textbf{Analítica avanzada}: Incorporar predicciones de demanda basadas en históricos de ventas para optimizar la planificación de inventario.
+    \item \textbf{Soporte offline completo}: Implementar sincronización bidireccional con Service Workers para permitir operaciones sin conexión a internet y reconciliar datos al reconectarse.
+    \item \textbf{Escalabilidad}: Evaluar la migración a una arquitectura de microservicios si el número de tenants supera los límites del esquema actual.
+\end{itemize}
+
+% ============================================================
+% REFERENCIAS BIBLIOGRÁFICAS
+% ============================================================
+\section{Referencias Bibliográficas}
+
+\begin{hangparas}{1.27cm}{1}
+
+Rosenberg, D., \& Stephens, M. (2007). \textit{Use case driven object modeling with UML: Theory and practice}. Apress.
+
+Rosenberg, D., \& Scott, K. (1999). \textit{Use case driven object modeling with UML: A practical approach}. Addison-Wesley.
+
+Jacobson, I., Christerson, M., Jonsson, P., \& Övergaard, G. (1992). \textit{Object-oriented software engineering: A use case driven approach}. Addison-Wesley.
+
+Pressman, R. S. (2014). \textit{Ingeniería del software: Un enfoque práctico} (8.ª ed.). McGraw-Hill.
+
+Sommerville, I. (2016). \textit{Software engineering} (10.ª ed.). Pearson.
+
+Fowler, M. (2004). \textit{UML distilled: A brief guide to the standard object modeling language} (3.ª ed.). Addison-Wesley.
+
+Next.js. (2026). \textit{Next.js documentation}. Vercel. \url{https://nextjs.org/docs}
+
+Supabase. (2026). \textit{Supabase documentation: Row level security}. \url{https://supabase.com/docs/guides/auth/row-level-security}
+
+React. (2026). \textit{React documentation}. Meta Platforms. \url{https://react.dev}
+
+PostgreSQL Global Development Group. (2026). \textit{PostgreSQL 16 documentation}. \url{https://www.postgresql.org/docs/16/}
+
+American Psychological Association. (2020). \textit{Publication manual of the American Psychological Association} (7.ª ed.). \url{https://doi.org/10.1037/0000165-000}
+
+Vercel. (2026). \textit{Vercel deployment documentation}. \url{https://vercel.com/docs}
+
+\end{hangparas}
+
+% ============================================================
+% ANEXOS
+% ============================================================
+\section{Anexos}
+
+\subsection*{Anexo A: Enlace al Repositorio}
+
+El código fuente del proyecto se encuentra disponible en el siguiente repositorio:
+
+\begin{center}
+    \fbox{\parbox{12cm}{\centering
+        \textit{[INSERTAR URL DEL REPOSITORIO]}\\
+        Ejemplo: \texttt{https://github.com/usuario/kodefy-saas}
+    }}
+\end{center}
+
+\subsection*{Anexo B: Script de Creación de Base de Datos}
+
+El script completo de creación del esquema multi-tenant se encuentra en el archivo \texttt{supabase\_schema\_multitenant.sql} del repositorio. Incluye:
+
+\begin{itemize}[leftmargin=2cm]
+    \item Creación de extensiones (uuid-ossp).
+    \item Definición de las 10 tablas principales con sus restricciones.
+    \item Habilitación de Row Level Security en todas las tablas.
+    \item Funciones auxiliares: \texttt{get\_user\_negocio\_id()} e \texttt{is\_super\_admin()}.
+    \item Generación dinámica de políticas RLS para todas las tablas multi-tenant.
+\end{itemize}
+
+\subsection*{Anexo C: Datos de Prueba (Seeders)}
+
+Los archivos SQL de datos de prueba se encuentran en el directorio \texttt{sql/} del repositorio:
+
+\begin{itemize}[leftmargin=2cm]
+    \item \texttt{load\_pocholos\_products.sql}: Catálogo completo de productos de la pollería de prueba.
+    \item \texttt{insert\_bebidas\_completas.sql}: Inventario inicial de bebidas por marca y tamaño.
+    \item \texttt{catalogo\_bebidas.sql}: Configuración de marcas y tipos de bebidas.
+\end{itemize}
+
+\subsection*{Anexo D: Capturas del Sistema en Producción}
+
+\imagenplaceholder{Captura 1 - Landing Page en producción}{Captura de pantalla del landing page de Kodefy Tech SaaS desplegado en Vercel, mostrando la interfaz de bienvenida con animaciones GSAP.}
+
+\imagenplaceholder{Captura 2 - POS en operación real}{Captura del punto de venta siendo utilizado en la pollería Pocholo's, mostrando el catálogo de productos cargado y un pedido en proceso.}
+
+\imagenplaceholder{Captura 3 - Panel de administración multi-tenant}{Captura del panel de super administrador mostrando los negocios registrados en la plataforma con sus estados y métricas globales.}
+
+% ============================================================
+\end{document}

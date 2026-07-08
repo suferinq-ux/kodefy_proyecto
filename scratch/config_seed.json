@@ -1,0 +1,20 @@
+[
+  {
+    "negocio_id": "880a239c-acb7-48a8-ad46-a537e2e4290f",
+    "razon_social": "ROJAS PALOMINO LADY LAURA",
+    "direccion": "AV. INDEPENDENCIA MZA. A LOTE. 06 URB. LUIS CARRANZA AYARZA",
+    "ruc": "10700899948",
+    "mensaje_boleta": "La Pasión Hecha Sazón",
+    "serie_boleta": "B001",
+    "numero_correlativo": 200
+  },
+  {
+    "negocio_id": "dd5661ca-b1c9-4905-9523-4e732c588ea7",
+    "razon_social": "RODRIGO'S BRASAS & BROASTERS",
+    "direccion": "JR. HUASCAR 422, AYACUCHO - HUAMANGA",
+    "ruc": "20601234567",
+    "mensaje_boleta": "¡Gracias por su preferencia!",
+    "serie_boleta": "B001",
+    "numero_correlativo": 1
+  }
+]
