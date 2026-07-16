@@ -18,7 +18,7 @@ import {
   KeyRound,
   Lock,
 } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { Dialog } from '@/components/ui/dialog';
 import { PatternLock } from '@/components/ui/PatternLock';
@@ -99,6 +99,89 @@ export default function SuperAdminDashboard() {
   const [patternStep, setPatternStep] = useState<1 | 2>(1);
   const [tempPattern, setTempPattern] = useState<number[]>([]);
   const [patternError, setPatternError] = useState(false);
+
+  // Mobile 2FA session approval states
+  const [pendingSession, setPendingSession] = useState<any>(null);
+  const [sessionActionLoading, setSessionActionLoading] = useState(false);
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    
+    const checkPendingSessions = async () => {
+      if (!userEmail) return;
+      
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        
+        const { data, error } = await supabase
+          .from('login_sessions')
+          .select('*')
+          .eq('user_id', user.id)
+          .eq('status', 'pending')
+          .order('created_at', { ascending: false })
+          .limit(1);
+
+        if (!error && data && data.length > 0) {
+          if (!pendingSession || pendingSession.id !== data[0].id) {
+            setPendingSession(data[0]);
+          }
+        } else {
+          setPendingSession(null);
+        }
+      } catch (err) {
+        console.error('Error checking pending sessions:', err);
+      }
+    };
+
+    if (userEmail) {
+      checkPendingSessions();
+      interval = setInterval(checkPendingSessions, 3000);
+    }
+
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [userEmail, pendingSession]);
+
+  const handleSessionAction = async (status: 'approved' | 'rejected') => {
+    if (!pendingSession) return;
+    setSessionActionLoading(true);
+    
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      
+      if (!token) {
+        toast.error('Sesión no encontrada. Vuelve a iniciar sesión.');
+        return;
+      }
+
+      const res = await fetch('/api/auth/session/approve', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          sessionId: pendingSession.id,
+          status
+        })
+      });
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Error al procesar la solicitud.');
+      }
+
+      toast.success(status === 'approved' ? 'Inicio de sesión autorizado.' : 'Inicio de sesión rechazado.');
+      setPendingSession(null);
+    } catch (err: any) {
+      toast.error('Error: ' + err.message);
+    } finally {
+      setSessionActionLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -781,6 +864,60 @@ export default function SuperAdminDashboard() {
           </button>
         </div>
       </Dialog>
+
+      {/* Floating Pending Session Notification Banner */}
+      <AnimatePresence>
+        {pendingSession && (
+          <motion.div
+            initial={{ opacity: 0, y: -50, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -50, scale: 0.9 }}
+            className="fixed top-6 left-1/2 -translate-x-1/2 z-[9999] w-full max-w-md px-4"
+          >
+            <div className="bg-slate-900 text-white rounded-2xl p-5 shadow-2xl border border-slate-700 flex flex-col gap-4">
+              <div className="flex gap-3">
+                <div className="w-10 h-10 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center flex-shrink-0 animate-pulse">
+                  <Shield size={20} />
+                </div>
+                <div>
+                  <h4 className="text-xs font-black uppercase tracking-wider text-blue-400">
+                    Verificación de Seguridad
+                  </h4>
+                  <p className="text-sm font-bold mt-1">
+                    ¿Estás intentando iniciar sesión en otro equipo?
+                  </p>
+                  <p className="text-[10px] text-slate-400 font-medium mt-1 font-mono">
+                    Dispositivo: {pendingSession.user_agent || 'Desconocido'}
+                  </p>
+                </div>
+              </div>
+              
+              <div className="flex gap-3">
+                <button
+                  disabled={sessionActionLoading}
+                  onClick={() => handleSessionAction('rejected')}
+                  className="flex-1 py-2 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-red-400 border border-slate-700 transition-all disabled:opacity-50"
+                >
+                  No, bloquear
+                </button>
+                <button
+                  disabled={sessionActionLoading}
+                  onClick={() => handleSessionAction('approved')}
+                  className="flex-1 py-2 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white transition-all shadow-md shadow-blue-500/20 disabled:opacity-50 flex items-center justify-center gap-1.5"
+                >
+                  {sessionActionLoading ? (
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  ) : (
+                    <>
+                      Sí, aprobar
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

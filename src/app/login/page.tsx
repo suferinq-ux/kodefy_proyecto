@@ -28,19 +28,28 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+  const [focusedField, setFocusedField] = useState<string | null>(null);
   const [shakeError, setShakeError] = useState(false);
   const [showUI, setShowUI] = useState(false);
-  const [focusedField, setFocusedField] = useState<string | null>(null);
   
   // Advanced security states
   const [isBiometricRegistered, setIsBiometricRegistered] = useState(false);
   const [isPatternRegistered, setIsPatternRegistered] = useState(false);
   const [showPatternUnlock, setShowPatternUnlock] = useState(false);
   const [patternUnlockError, setPatternUnlockError] = useState(false);
+  const [showPromptUnlock, setShowPromptUnlock] = useState(false);
+  const [promptSessionId, setPromptSessionId] = useState('');
+  const [pollIntervalId, setPollIntervalId] = useState<any>(null);
 
   const router = useRouter();
   const searchParams = useSearchParams();
   const justRegistered = searchParams.get('registered') === 'true';
+
+  useEffect(() => {
+    return () => {
+      if (pollIntervalId) clearInterval(pollIntervalId);
+    };
+  }, [pollIntervalId]);
 
   useEffect(() => {
     setShowUI(true);
@@ -205,6 +214,64 @@ export default function LoginPage() {
     }
   };
 
+  const startSessionPolling = (sessionId: string) => {
+    let attempts = 0;
+    const interval = setInterval(async () => {
+      attempts++;
+      if (attempts > 30) {
+        clearInterval(interval);
+        setError('Tiempo de espera agotado. Intenta de nuevo.');
+        setShakeError(true);
+        setShowPromptUnlock(false);
+        await supabase.auth.signOut();
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/auth/session?id=${sessionId}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.status === 'approved') {
+            clearInterval(interval);
+            
+            // Check for pattern lock (second factor)
+            const savedPattern = localStorage.getItem('kodefy-admin-pattern');
+            if (savedPattern) {
+              setShowPatternUnlock(true);
+              setShowPromptUnlock(false);
+              return;
+            }
+
+            toast.success('Acceso autorizado.');
+            setShowPromptUnlock(false);
+            router.push('/super-admin');
+          } else if (data.status === 'rejected') {
+            clearInterval(interval);
+            setError('Acceso rechazado desde tu celular.');
+            setShakeError(true);
+            setShowPromptUnlock(false);
+            await supabase.auth.signOut();
+          }
+        }
+      } catch (err) {
+        console.error('Error polling session:', err);
+      }
+    }, 2000);
+
+    setPollIntervalId(interval);
+  };
+
+  const handleCancelPrompt = async () => {
+    if (pollIntervalId) {
+      clearInterval(pollIntervalId);
+      setPollIntervalId(null);
+    }
+    setShowPromptUnlock(false);
+    setPromptSessionId('');
+    await supabase.auth.signOut();
+    setError('Autenticación cancelada.');
+  };
+
   const validateEmail = useCallback((value: string) => {
     if (!value.trim()) return 'El correo es obligatorio';
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim()))
@@ -278,15 +345,32 @@ export default function LoginPage() {
           return;
         }
 
-        // If they have a pattern registered, prompt for pattern lock (2FA)
-        const savedPattern = localStorage.getItem('kodefy-admin-pattern');
-        if (savedPattern) {
-          setShowPatternUnlock(true);
-          setLoading(false);
-          return;
-        }
+        // Create mobile 2FA approval session
+        try {
+          const res = await fetch('/api/auth/session', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userId: authData.user.id,
+              userAgent: navigator.userAgent
+            })
+          });
 
-        router.push('/super-admin');
+          if (!res.ok) throw new Error('Error al iniciar 2FA móvil.');
+
+          const sessionData = await res.json();
+          setPromptSessionId(sessionData.id);
+          setShowPromptUnlock(true);
+          
+          startSessionPolling(sessionData.id);
+        } catch (err: any) {
+          console.error('[Session Create Error]', err);
+          await supabase.auth.signOut();
+          setError('Error al iniciar la verificación de seguridad en dos pasos móvil.');
+          setShakeError(true);
+        } finally {
+          setLoading(false);
+        }
         return;
       }
 
@@ -611,7 +695,38 @@ export default function LoginPage() {
               </form>
             ) : (
               <form onSubmit={handleSubmit} className="space-y-5" noValidate>
-                {showPatternUnlock ? (
+                {showPromptUnlock ? (
+                  <div className="space-y-6 py-6 text-center">
+                    <div className="w-16 h-16 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-500 mx-auto animate-pulse">
+                      <Shield size={32} />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200">
+                        Autorización Requerida
+                      </h3>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 max-w-xs mx-auto">
+                        Abre el dashboard en tu celular y presiona <strong>"Aprobar"</strong> en la alerta flotante para autorizar este ingreso.
+                      </p>
+                    </div>
+                    
+                    <div className="flex justify-center items-center gap-1.5 py-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-blue-500 animate-ping" />
+                      <span className="text-xs font-semibold text-blue-600 dark:text-blue-400">
+                        Esperando aprobación de dispositivo...
+                      </span>
+                    </div>
+
+                    <div className="pt-2">
+                      <button
+                        type="button"
+                        onClick={handleCancelPrompt}
+                        className="px-5 py-2.5 rounded-xl font-bold text-xs bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-all active:scale-95"
+                      >
+                        Cancelar y salir
+                      </button>
+                    </div>
+                  </div>
+                ) : showPatternUnlock ? (
                   <div className="space-y-4 py-4 text-center">
                     <div className="w-12 h-12 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-500 mx-auto">
                       <Lock size={20} />
