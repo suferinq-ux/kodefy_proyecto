@@ -159,9 +159,17 @@ export default function Navbar() {
                     </button>
                     <BrandingHeader size="small" />
                 </div>
-                <div className="w-10 h-10 rounded-full text-white flex items-center justify-center text-sm font-black shadow-md border-2 border-white" style={{ backgroundColor: primaryColor }}>
+                <button
+                    onClick={() => {
+                        if (confirm("¿Deseas cerrar sesión?")) {
+                            logout();
+                        }
+                    }}
+                    className="w-10 h-10 rounded-full text-white flex items-center justify-center text-sm font-black shadow-md border-2 border-white active:scale-95 transition-all"
+                    style={{ backgroundColor: primaryColor }}
+                >
                     {user.nombre.charAt(0)}
-                </div>
+                </button>
             </header>
 
             {/* BOTTOM NAV (Mobile Only) */}
@@ -208,15 +216,16 @@ export default function Navbar() {
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
                             transition={{ duration: 0.2 }}
-                            className="lg:hidden fixed inset-0 bg-black/50 z-50"
+                            className="lg:hidden fixed inset-0 bg-black/50 z-[70]"
                             onClick={() => setSidebarOpen(false)}
                         />
+                        {/* Drawer */}
                         <motion.aside
                             initial={{ x: '-100%' }}
                             animate={{ x: 0 }}
                             exit={{ x: '-100%' }}
                             transition={{ type: 'tween', duration: 0.3 }}
-                            className="lg:hidden fixed left-0 top-0 h-screen w-72 max-w-[85vw] z-50 bg-white shadow-2xl flex flex-col"
+                            className="lg:hidden fixed left-0 top-0 h-screen w-72 max-w-[85vw] z-[80] bg-white shadow-2xl flex flex-col"
                         >
                             <div className="flex items-center justify-between px-4 py-4 border-b border-slate-100">
                                 <BrandingHeader />

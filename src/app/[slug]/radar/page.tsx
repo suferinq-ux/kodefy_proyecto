@@ -96,7 +96,7 @@ export default function RadarPage() {
 
             // 3. Cargar Repartidores y Perfiles
             const { data: profiles } = await supabase.from('user_profiles').select('id, nombre');
-            const { data: ubicaciones } = await supabase.from('repartidores_ubicacion').select('*');
+            const { data: ubicaciones } = await supabase.from('repartidor_ubicacion').select('*');
             
             if (ubicaciones && profiles) {
                 const profileMap = new Map(profiles.map(p => [p.id, p.nombre]));
@@ -129,7 +129,7 @@ export default function RadarPage() {
 
         // Suscribirse al tracker en vivo de ubicación de motorizados
         const channelGPS = supabase.channel('radar-live-gps')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'repartidores_ubicacion' }, async (payload) => {
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'repartidor_ubicacion' }, async (payload) => {
                 const newPos = payload.new as any;
                 
                 // Intentar obtener el nombre del repartidor si no lo tenemos en cache

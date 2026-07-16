@@ -420,7 +420,7 @@ export const upsertRepartidorUbicacion = async (repartidorId: string, lat: numbe
             payload.negocio_id = negocioId;
         }
         const { error } = await supabase
-            .from('repartidores_ubicacion')
+            .from('repartidor_ubicacion')
             .upsert(payload);
         if (error) throw error;
     } catch (error) {

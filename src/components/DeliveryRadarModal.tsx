@@ -62,7 +62,7 @@ export default function DeliveryRadarModal({ isOpen, onClose }: DeliveryRadarMod
         setOrders(data);
 
         // Initial fetch of current positions
-        const { data: ubicaciones } = await supabase.from('repartidores_ubicacion').select('*');
+        const { data: ubicaciones } = await supabase.from('repartidor_ubicacion').select('*');
         if (ubicaciones) {
             const map: any = {};
             ubicaciones.forEach(u => map[u.id] = u);
@@ -86,7 +86,7 @@ export default function DeliveryRadarModal({ isOpen, onClose }: DeliveryRadarMod
 
         // Suscribirse al tracker en vivo de ubicación de motorizados
         const channelGPS = supabase.channel('radar-gps')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'repartidores_ubicacion' }, (payload) => {
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'repartidor_ubicacion' }, (payload) => {
                 const newPos = payload.new as RepartidorUbicacion;
                 setRepartidores(prev => ({
                     ...prev,
