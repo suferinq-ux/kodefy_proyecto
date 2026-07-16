@@ -4,28 +4,25 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
 import {
   Building2,
-  Wallet,
   Users,
   Zap,
   TrendingUp,
   Clock,
-  ShoppingCart,
   Plus,
   RefreshCw,
   Search,
   Activity,
-  ArrowUpRight,
+  ExternalLink,
+  ShieldCheck,
   Power,
   PowerOff,
   Database,
-  ExternalLink,
-  ShieldCheck,
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import {
-  AreaChart,
-  Area,
+  BarChart,
+  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -35,7 +32,7 @@ import {
 import { CardSkeleton, ChartSkeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Badge } from '@/components/ui/badge';
-import { formatCurrency, formatNumber, formatRelativeTime, ANIMATIONS, CHART_COLORS } from '@/lib/admin-constants';
+import { formatNumber, formatRelativeTime, ANIMATIONS, CHART_COLORS } from '@/lib/admin-constants';
 import { cn } from '@/lib/cn';
 import Link from 'next/link';
 
@@ -44,24 +41,20 @@ interface DashboardStats {
   negociosActivos: number;
   negociosSuspendidos: number;
   totalUsuarios: number;
-  totalVentas: number;
-  ventasHoy: number;
-  ventasEstaSemana: number;
 }
 
 interface RecentActivity {
   id: string;
-  type: 'negocio_created' | 'venta' | 'user_created';
+  type: 'negocio_created' | 'user_created';
   negocio_nombre?: string;
-  monto?: number;
   user_nombre?: string;
   created_at: string;
 }
 
-interface SalesTrend {
-  date: string;
-  ventas: number;
-  count: number;
+interface BusinessGrowth {
+  month: string;
+  creados: number;
+  activos: number;
 }
 
 interface NegocioListItem {
@@ -78,28 +71,15 @@ export default function SuperAdminDashboard() {
     negociosActivos: 0,
     negociosSuspendidos: 0,
     totalUsuarios: 0,
-    totalVentas: 0,
-    ventasHoy: 0,
-    ventasEstaSemana: 0,
   });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [salesTrend, setSalesTrend] = useState<SalesTrend[]>([]);
+  const [businessGrowth, setBusinessGrowth] = useState<BusinessGrowth[]>([]);
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
   const [negociosList, setNegociosList] = useState<NegocioListItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [latency, setLatency] = useState(0);
   const [dbStatus, setDbStatus] = useState<'online' | 'offline'>('online');
-
-  const getLocalDateString = (dateInput: string) => {
-    if (!dateInput) return '';
-    try {
-      const d = new Date(dateInput);
-      return d.toLocaleDateString('en-CA'); // returns YYYY-MM-DD
-    } catch (e) {
-      return dateInput.split('T')[0];
-    }
-  };
 
   const fetchData = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -108,15 +88,13 @@ export default function SuperAdminDashboard() {
     const startTime = performance.now();
 
     try {
-      // Parallel fetches from database
+      // Parallel fetches from database (Excluding sales entirely!)
       const [
         negociosResult,
         usuariosResult,
-        ventasResult,
       ] = await Promise.all([
         supabase.from('negocios').select('id,nombre,slug,estado,created_at').order('created_at', { ascending: false }),
         supabase.from('user_profiles').select('id,created_at,nombre,negocio_id').order('created_at', { ascending: false }),
-        supabase.from('ventas').select('id,total,fecha,created_at,negocio_id').order('created_at', { ascending: false }).limit(1000),
       ]);
 
       const endTime = performance.now();
@@ -125,11 +103,9 @@ export default function SuperAdminDashboard() {
 
       if (negociosResult.error) throw negociosResult.error;
       if (usuariosResult.error) throw usuariosResult.error;
-      if (ventasResult.error) throw ventasResult.error;
 
       const negocios = negociosResult.data || [];
       const usuarios = usuariosResult.data || [];
-      const ventas = ventasResult.data || [];
 
       // Update negocios list state
       setNegociosList(negocios);
@@ -137,60 +113,49 @@ export default function SuperAdminDashboard() {
       // Calculations
       const activos = negocios.filter((n) => n.estado === 'activo').length;
       const suspendidos = negocios.filter((n) => n.estado === 'suspendido').length;
-      const sumVentas = ventas.reduce((acc, v) => acc + (Number(v.total) || 0), 0);
-
-      // Localized timezone dates
-      const today = new Date().toLocaleDateString('en-CA');
-      const weekAgoDate = new Date();
-      weekAgoDate.setDate(weekAgoDate.getDate() - 7);
-      const weekAgo = weekAgoDate.toLocaleDateString('en-CA');
-
-      const ventasHoy = ventas
-        .filter((v) => getLocalDateString(v.fecha || v.created_at) === today)
-        .reduce((acc, v) => acc + (Number(v.total) || 0), 0);
-
-      const ventasSemana = ventas
-        .filter((v) => getLocalDateString(v.fecha || v.created_at) >= weekAgo)
-        .reduce((acc, v) => acc + (Number(v.total) || 0), 0);
 
       setStats({
         totalNegocios: negocios.length,
         negociosActivos: activos,
         negociosSuspendidos: suspendidos,
         totalUsuarios: usuarios.length,
-        totalVentas: sumVentas,
-        ventasHoy,
-        ventasEstaSemana: ventasSemana,
       });
 
-      // Sales trend (last 14 days)
-      const trend: Record<string, { ventas: number; count: number }> = {};
-      const last14 = Array.from({ length: 14 }, (_, i) => {
+      // Business growth (last 6 months)
+      const growth: Record<string, { creados: number; activos: number }> = {};
+      const last6 = Array.from({ length: 6 }, (_, i) => {
         const d = new Date();
-        d.setDate(d.getDate() - (13 - i));
-        return d.toLocaleDateString('en-CA');
+        d.setMonth(d.getMonth() - (5 - i));
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        return `${year}-${month}`;
       });
 
-      last14.forEach((d) => (trend[d] = { ventas: 0, count: 0 }));
-      
-      ventas.forEach((v) => {
-        const vDate = getLocalDateString(v.fecha || v.created_at);
-        if (trend[vDate] !== undefined) {
-          trend[vDate].ventas += Number(v.total) || 0;
-          trend[vDate].count += 1;
+      const monthNames: Record<string, string> = {};
+      last6.forEach((ym) => {
+        const [y, m] = ym.split('-');
+        const d = new Date(Number(y), Number(m) - 1, 1);
+        monthNames[ym] = d.toLocaleDateString('es-PE', { month: 'short', year: '2-digit' });
+        growth[ym] = { creados: 0, activos: 0 };
+      });
+
+      negocios.forEach((n) => {
+        if (n.created_at) {
+          const d = new Date(n.created_at);
+          const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+          if (growth[ym] !== undefined) {
+            growth[ym].creados += 1;
+            if (n.estado === 'activo') growth[ym].activos += 1;
+          }
         }
       });
 
-      setSalesTrend(
-        last14.map((d) => {
-          const [year, month, day] = d.split('-');
-          const dateObj = new Date(Number(year), Number(month) - 1, Number(day));
-          return {
-            date: dateObj.toLocaleDateString('es-PE', { day: 'numeric', month: 'short' }),
-            ventas: trend[d].ventas,
-            count: trend[d].count,
-          };
-        })
+      setBusinessGrowth(
+        last6.map((ym) => ({
+          month: monthNames[ym],
+          creados: growth[ym].creados,
+          activos: growth[ym].activos,
+        }))
       );
 
       // Business name mapper for activities
@@ -199,7 +164,7 @@ export default function SuperAdminDashboard() {
         negocioNames[n.id] = n.nombre;
       });
 
-      // Map recent activity
+      // Map recent activity (Only registrations!)
       const activity: RecentActivity[] = [];
 
       // Add business creations
@@ -209,17 +174,6 @@ export default function SuperAdminDashboard() {
           type: 'negocio_created',
           negocio_nombre: n.nombre,
           created_at: n.created_at || new Date().toISOString(),
-        });
-      });
-
-      // Add sales
-      ventas.slice(0, 8).forEach((v) => {
-        activity.push({
-          id: `v-${v.id}`,
-          type: 'venta',
-          monto: Number(v.total) || 0,
-          negocio_nombre: negocioNames[v.negocio_id] || 'Negocio',
-          created_at: v.created_at || v.fecha || new Date().toISOString(),
         });
       });
 
@@ -318,26 +272,26 @@ export default function SuperAdminDashboard() {
     {
       title: 'Negocios Totales',
       value: formatNumber(stats.totalNegocios),
-      sub: `${stats.negociosActivos} activos · ${stats.negociosSuspendidos} suspendidos`,
+      sub: 'Registrados en total',
       icon: Building2,
-      trendText: 'SaaS Tenants',
+      trendText: 'Locales',
       color: CHART_COLORS.primary,
     },
     {
-      title: 'Volumen Facturado',
-      value: formatCurrency(stats.totalVentas),
-      sub: `${formatCurrency(stats.ventasEstaSemana)} esta semana`,
-      icon: Wallet,
-      trendText: 'Acumulado',
+      title: 'Locales Activos',
+      value: formatNumber(stats.negociosActivos),
+      sub: 'Operando normalmente',
+      icon: Building2,
+      trendText: 'Activos',
       color: CHART_COLORS.success,
     },
     {
-      title: 'Ventas de Hoy',
-      value: formatCurrency(stats.ventasHoy),
-      sub: 'En todos los locales',
-      icon: ShoppingCart,
-      trendText: 'Tiempo Real',
-      color: '#8b5cf6',
+      title: 'Locales Suspendidos',
+      value: formatNumber(stats.negociosSuspendidos),
+      sub: 'Accesos restringidos',
+      icon: Building2,
+      trendText: 'Suspendidos',
+      color: CHART_COLORS.danger,
     },
     {
       title: 'Usuarios Totales',
@@ -358,7 +312,7 @@ export default function SuperAdminDashboard() {
             Panel de Control Global
           </h1>
           <p className="text-sm font-semibold text-slate-500 dark:text-slate-400 mt-1">
-            Administración centralizada de locales, ventas y rendimiento de KODEFY
+            Administración centralizada de locales, accesos y rendimiento de KODEFY
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -536,7 +490,7 @@ export default function SuperAdminDashboard() {
           </div>
         </motion.div>
 
-        {/* Right Column: Platform Sales Volume Chart */}
+        {/* Right Column: Platform Growth Chart */}
         <motion.div
           {...ANIMATIONS.stagger(5)}
           className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 shadow-sm flex flex-col justify-between"
@@ -545,27 +499,21 @@ export default function SuperAdminDashboard() {
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h3 className="text-base font-black text-slate-900 dark:text-white">
-                  Volumen Consolidado
+                  Crecimiento del SaaS
                 </h3>
                 <p className="text-xs font-medium text-slate-400 dark:text-slate-500 mt-0.5">
-                  Ventas agregadas de todos los locales (últimos 14 días)
+                  Nuevos locales registrados por mes (últimos 6 meses)
                 </p>
               </div>
-              <Badge variant="info" size="sm">Soles (PEN)</Badge>
+              <Badge variant="info" size="sm">Histórico</Badge>
             </div>
             
             <div className="h-64 mt-2">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={salesTrend} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
-                  <defs>
-                    <linearGradient id="salesGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor={CHART_COLORS.primary} stopOpacity={0.2} />
-                      <stop offset="100%" stopColor={CHART_COLORS.primary} stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
+                <BarChart data={businessGrowth} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" className="dark:opacity-10" />
                   <XAxis
-                    dataKey="date"
+                    dataKey="month"
                     axisLine={false}
                     tickLine={false}
                     tick={{ fontSize: 10, fill: '#94a3b8' }}
@@ -574,7 +522,7 @@ export default function SuperAdminDashboard() {
                     axisLine={false}
                     tickLine={false}
                     tick={{ fontSize: 10, fill: '#94a3b8' }}
-                    tickFormatter={(v) => `S/${v}`}
+                    allowDecimals={false}
                   />
                   <Tooltip
                     contentStyle={{
@@ -585,18 +533,14 @@ export default function SuperAdminDashboard() {
                       fontSize: '11px',
                       fontWeight: 700,
                     }}
-                    formatter={(value: any) => [formatCurrency(Number(value) || 0), 'Ventas']}
                   />
-                  <Area
-                    type="monotone"
-                    dataKey="ventas"
-                    stroke={CHART_COLORS.primary}
-                    strokeWidth={2}
-                    fill="url(#salesGradient)"
-                    dot={false}
-                    activeDot={{ r: 4, strokeWidth: 1.5, fill: '#fff', stroke: CHART_COLORS.primary }}
+                  <Bar
+                    dataKey="creados"
+                    fill={CHART_COLORS.primary}
+                    radius={[4, 4, 0, 0]}
+                    name="Registrados"
                   />
-                </AreaChart>
+                </BarChart>
               </ResponsiveContainer>
             </div>
           </div>
@@ -604,10 +548,10 @@ export default function SuperAdminDashboard() {
           <div className="pt-4 border-t border-slate-100 dark:border-slate-700/50 mt-4 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
             <span className="font-semibold flex items-center gap-1.5">
               <TrendingUp size={14} className="text-emerald-500" />
-              Actualización automatizada
+              Métricas de escala SaaS
             </span>
             <span className="font-bold">
-              {salesTrend.length} días graficados
+              {businessGrowth.length} meses analizados
             </span>
           </div>
         </motion.div>
@@ -652,15 +596,11 @@ export default function SuperAdminDashboard() {
                         'w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0',
                         item.type === 'negocio_created'
                           ? 'bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400'
-                          : item.type === 'venta'
-                          ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400'
                           : 'bg-purple-50 text-purple-600 dark:bg-purple-500/10 dark:text-purple-400'
                       )}
                     >
                       {item.type === 'negocio_created' ? (
                         <Building2 size={14} />
-                      ) : item.type === 'venta' ? (
-                        <ShoppingCart size={14} />
                       ) : (
                         <Users size={14} />
                       )}
@@ -669,9 +609,6 @@ export default function SuperAdminDashboard() {
                       <p className="text-xs font-bold text-slate-700 dark:text-slate-300 truncate">
                         {item.type === 'negocio_created' && (
                           <>Se registró un nuevo negocio: <span className="text-blue-600 dark:text-blue-400">{item.negocio_nombre}</span></>
-                        )}
-                        {item.type === 'venta' && (
-                          <>Venta concretada en <span className="font-black text-slate-800 dark:text-slate-200">{item.negocio_nombre}</span></>
                         )}
                         {item.type === 'user_created' && (
                           <>Colaborador registrado: <span className="text-purple-600 dark:text-purple-400">{item.user_nombre}</span> en <span className="font-semibold">{item.negocio_nombre}</span></>
@@ -683,13 +620,6 @@ export default function SuperAdminDashboard() {
                       </p>
                     </div>
                   </div>
-                  {item.type === 'venta' && (
-                    <div className="text-right flex-shrink-0">
-                      <span className="text-xs font-black text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 px-2 py-1 rounded-lg">
-                        +{formatCurrency(item.monto || 0)}
-                      </span>
-                    </div>
-                  )}
                 </motion.div>
               ))
             )}
