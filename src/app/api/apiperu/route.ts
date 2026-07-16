@@ -51,6 +51,14 @@ export async function GET(request: NextRequest) {
       data.data.nombre_completo = data.data.nombre_o_razon_social || data.data.razon_social;
     }
 
+    // Normalizar nombre completo para DNI
+    if (tipo === 'dni' && data.success && data.data && !data.data.nombre_completo) {
+      const { nombres, apellido_paterno, apellido_materno } = data.data;
+      if (nombres || apellido_paterno) {
+        data.data.nombre_completo = `${nombres || ''} ${apellido_paterno || ''} ${apellido_materno || ''}`.trim().replace(/\s+/g, ' ');
+      }
+    }
+
     return NextResponse.json(data);
   } catch (error: any) {
     console.error('[API Peru Proxy] Error:', error);
