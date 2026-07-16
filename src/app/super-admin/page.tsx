@@ -13,8 +13,15 @@ import {
   Clock,
   Zap,
   ShoppingCart,
+  Fingerprint,
+  Shield,
+  KeyRound,
+  Lock,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import toast from 'react-hot-toast';
+import { Dialog } from '@/components/ui/dialog';
+import { PatternLock } from '@/components/ui/PatternLock';
 import {
   LineChart,
   Line,
@@ -80,6 +87,105 @@ export default function SuperAdminDashboard() {
   const [businessGrowth, setBusinessGrowth] = useState<BusinessGrowth[]>([]);
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
   const [latency, setLatency] = useState(0);
+
+  // Security configuration states
+  const [userEmail, setUserEmail] = useState('');
+  const [isBiometricSupported, setIsBiometricSupported] = useState(false);
+  const [isBiometricEnabled, setIsBiometricEnabled] = useState(false);
+  const [isPatternEnabled, setIsPatternEnabled] = useState(false);
+  const [showPatternDialog, setShowPatternDialog] = useState(false);
+  const [showBiometricDialog, setShowBiometricDialog] = useState(false);
+  const [adminPassword, setAdminPassword] = useState('');
+  const [patternStep, setPatternStep] = useState<1 | 2>(1);
+  const [tempPattern, setTempPattern] = useState<number[]>([]);
+  const [patternError, setPatternError] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setIsBiometricSupported('credentials' in navigator && 'PasswordCredential' in window);
+      setIsBiometricEnabled(localStorage.getItem('kodefy-admin-biometric-registered') === 'true');
+      setIsPatternEnabled(localStorage.getItem('kodefy-admin-pattern') !== null);
+    }
+
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user?.email) setUserEmail(user.email);
+    });
+  }, []);
+
+  const handleRegisterBiometrics = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!adminPassword.trim()) {
+      toast.error('La contraseña es requerida.');
+      return;
+    }
+
+    try {
+      // Verify password
+      const { error } = await supabase.auth.signInWithPassword({
+        email: userEmail,
+        password: adminPassword,
+      });
+
+      if (error) {
+        toast.error('Contraseña incorrecta.');
+        return;
+      }
+
+      if (typeof window !== 'undefined' && 'PasswordCredential' in window) {
+        const cred = new (window as any).PasswordCredential({
+          id: userEmail,
+          password: adminPassword,
+          name: "Kodefy Admin",
+        });
+        await navigator.credentials.store(cred);
+        localStorage.setItem('kodefy-admin-biometric-registered', 'true');
+        setIsBiometricEnabled(true);
+        setShowBiometricDialog(false);
+        setAdminPassword('');
+        toast.success('Acceso biométrico configurado exitosamente.');
+      }
+    } catch (err: any) {
+      toast.error('Error al configurar biometría: ' + err.message);
+    }
+  };
+
+  const handleRemoveBiometrics = () => {
+    localStorage.removeItem('kodefy-admin-biometric-registered');
+    setIsBiometricEnabled(false);
+    toast.success('Acceso biométrico desactivado.');
+  };
+
+  const handlePatternComplete = (pattern: number[]) => {
+    if (patternStep === 1) {
+      setTempPattern(pattern);
+      setPatternStep(2);
+      toast.success('Dibuja el patrón nuevamente para confirmar.');
+    } else {
+      const isMatch = tempPattern.every((val, index) => val === pattern[index]) && tempPattern.length === pattern.length;
+      if (isMatch) {
+        localStorage.setItem('kodefy-admin-pattern', JSON.stringify(pattern));
+        setIsPatternEnabled(true);
+        setShowPatternDialog(false);
+        setTempPattern([]);
+        setPatternStep(1);
+        toast.success('Patrón de seguridad guardado.');
+      } else {
+        setPatternError(true);
+        toast.error('Los patrones no coinciden. Intenta nuevamente.');
+        setTimeout(() => {
+          setPatternError(false);
+          setPatternStep(1);
+          setTempPattern([]);
+        }, 1000);
+      }
+    }
+  };
+
+  const handleRemovePattern = () => {
+    localStorage.removeItem('kodefy-admin-pattern');
+    setIsPatternEnabled(false);
+    toast.success('Patrón de seguridad desactivado.');
+  };
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -430,81 +536,251 @@ export default function SuperAdminDashboard() {
         </motion.div>
       </div>
 
-      {/* Activity Feed */}
-      <motion.div
-        {...ANIMATIONS.stagger(6)}
-        className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm"
-      >
-        <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-700">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-sm font-black text-slate-900 dark:text-white">
-                Actividad Reciente
-              </h3>
-              <p className="text-xs font-medium text-slate-400 dark:text-slate-500 mt-0.5">
-                Últimos eventos en la plataforma
-              </p>
+      {/* Grid for Activity and Security */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+        {/* Activity Feed */}
+        <motion.div
+          {...ANIMATIONS.stagger(6)}
+          className="xl:col-span-2 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm"
+        >
+          <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-700">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-black text-slate-900 dark:text-white">
+                  Actividad Reciente
+                </h3>
+                <p className="text-xs font-medium text-slate-400 dark:text-slate-500 mt-0.5">
+                  Últimos eventos en la plataforma
+                </p>
+              </div>
+              <button
+                onClick={fetchData}
+                className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
+              >
+                Refrescar
+              </button>
             </div>
+          </div>
+          <div className="divide-y divide-slate-50 dark:divide-slate-700/50">
+            {recentActivity.length === 0 ? (
+              <div className="px-6 py-12 text-center">
+                <Clock size={32} className="mx-auto text-slate-300 dark:text-slate-600 mb-3" />
+                <p className="text-sm font-semibold text-slate-400 dark:text-slate-500">
+                  Sin actividad reciente
+                </p>
+              </div>
+            ) : (
+              recentActivity.map((item, i) => (
+                <motion.div
+                  key={item.id}
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: i * 0.04 }}
+                  className="flex items-center gap-4 px-6 py-3.5 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
+                >
+                  <div
+                    className={cn(
+                      'w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0',
+                      item.type === 'negocio_created'
+                        ? 'bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400'
+                        : item.type === 'venta'
+                        ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400'
+                        : 'bg-purple-50 text-purple-600 dark:bg-purple-500/10 dark:text-purple-400'
+                    )}
+                  >
+                    {item.type === 'negocio_created' ? (
+                      <Building2 size={14} />
+                    ) : item.type === 'venta' ? (
+                      <ShoppingCart size={14} />
+                    ) : (
+                      <Users size={14} />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-slate-700 dark:text-slate-300 truncate">
+                      {item.type === 'negocio_created'
+                        ? `Nuevo negocio: ${item.negocio_nombre}`
+                        : item.type === 'venta'
+                        ? `Venta registrada: ${formatCurrency(item.monto || 0)}`
+                        : `Nuevo usuario: ${item.user_nombre}`}
+                    </p>
+                    <p className="text-[11px] font-medium text-slate-400 dark:text-slate-500 mt-0.5">
+                      {formatRelativeTime(item.created_at)}
+                    </p>
+                  </div>
+                </motion.div>
+              ))
+            )}
+          </div>
+        </motion.div>
+
+        {/* Device Security Configuration */}
+        <motion.div
+          {...ANIMATIONS.stagger(7)}
+          className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 shadow-sm flex flex-col"
+        >
+          <div className="mb-6">
+            <h3 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
+              <Shield size={16} className="text-blue-500" />
+              Seguridad del Dispositivo
+            </h3>
+            <p className="text-xs font-medium text-slate-400 dark:text-slate-500 mt-0.5">
+              Protege el Acceso Administrativo en este equipo
+            </p>
+          </div>
+
+          <div className="space-y-6 flex-1">
+            {/* Biometrics */}
+            <div className="p-4 rounded-xl border border-slate-100 dark:border-slate-700/50 bg-slate-50/50 dark:bg-slate-800/50">
+              <div className="flex items-start justify-between">
+                <div className="flex gap-3">
+                  <div className="w-9 h-9 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-500 flex-shrink-0">
+                    <Fingerprint size={18} />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                      Huella / Rostro (Biometría)
+                    </h4>
+                    <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 mt-0.5">
+                      {isBiometricSupported
+                        ? 'Usa Windows Hello, TouchID o FaceID de tu equipo.'
+                        : 'No soportado por tu navegador o equipo.'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="mt-4">
+                {isBiometricEnabled ? (
+                  <button
+                    onClick={handleRemoveBiometrics}
+                    className="w-full py-2 px-3 rounded-lg border border-red-200 text-red-600 bg-red-50/50 hover:bg-red-50 text-[11px] font-bold transition-all"
+                  >
+                    Desactivar Biometría
+                  </button>
+                ) : (
+                  <button
+                    disabled={!isBiometricSupported}
+                    onClick={() => setShowBiometricDialog(true)}
+                    className="w-full py-2 px-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
+                  >
+                    Vincular Huella/Rostro
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Pattern Lock */}
+            <div className="p-4 rounded-xl border border-slate-100 dark:border-slate-700/50 bg-slate-50/50 dark:bg-slate-800/50">
+              <div className="flex items-start justify-between">
+                <div className="flex gap-3">
+                  <div className="w-9 h-9 rounded-lg bg-purple-500/10 flex items-center justify-center text-purple-500 flex-shrink-0">
+                    <KeyRound size={18} />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                      Patrón de Seguridad
+                    </h4>
+                    <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 mt-0.5">
+                      Dibuja un patrón táctil o de mouse para ingresar.
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="mt-4">
+                {isPatternEnabled ? (
+                  <button
+                    onClick={handleRemovePattern}
+                    className="w-full py-2 px-3 rounded-lg border border-red-200 text-red-600 bg-red-50/50 hover:bg-red-50 text-[11px] font-bold transition-all"
+                  >
+                    Desactivar Patrón
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => {
+                      setPatternStep(1);
+                      setTempPattern([]);
+                      setShowPatternDialog(true);
+                    }}
+                    className="w-full py-2 px-3 rounded-lg bg-purple-600 hover:bg-purple-700 text-white text-[11px] font-bold transition-all shadow-sm"
+                  >
+                    Configurar Patrón
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      </div>
+
+      {/* Biometric Link Dialog */}
+      <Dialog
+        open={showBiometricDialog}
+        onClose={() => {
+          setShowBiometricDialog(false);
+          setAdminPassword('');
+        }}
+        title="Vincular Biometría"
+        description="Por seguridad, escribe tu contraseña de administrador para registrar tu huella/rostro en este dispositivo."
+      >
+        <form onSubmit={handleRegisterBiometrics} className="space-y-4">
+          <div>
+            <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2 ml-1">
+              Contraseña
+            </label>
+            <input
+              type="password"
+              required
+              value={adminPassword}
+              onChange={(e) => setAdminPassword(e.target.value)}
+              className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm font-semibold text-slate-900 dark:text-white outline-none focus:border-blue-500 transition-all"
+              placeholder="••••••••"
+            />
+          </div>
+          <div className="flex gap-3">
             <button
-              onClick={fetchData}
-              className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
+              type="button"
+              onClick={() => {
+                setShowBiometricDialog(false);
+                setAdminPassword('');
+              }}
+              className="flex-1 px-4 py-2.5 rounded-xl font-bold text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 transition-all"
             >
-              Refrescar
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              className="flex-1 px-4 py-2.5 rounded-xl font-bold text-xs bg-blue-600 hover:bg-blue-700 text-white transition-all shadow-md"
+            >
+              Confirmar y Registrar
             </button>
           </div>
+        </form>
+      </Dialog>
+
+      {/* Pattern Link Dialog */}
+      <Dialog
+        open={showPatternDialog}
+        onClose={() => setShowPatternDialog(false)}
+        title={patternStep === 1 ? 'Configurar Patrón' : 'Confirmar Patrón'}
+        description={
+          patternStep === 1
+            ? 'Dibuja un patrón conectando al menos 3 puntos.'
+            : 'Vuelve a dibujar el patrón para confirmarlo.'
+        }
+      >
+        <div className="py-4">
+          <PatternLock onComplete={handlePatternComplete} error={patternError} />
         </div>
-        <div className="divide-y divide-slate-50 dark:divide-slate-700/50">
-          {recentActivity.length === 0 ? (
-            <div className="px-6 py-12 text-center">
-              <Clock size={32} className="mx-auto text-slate-300 dark:text-slate-600 mb-3" />
-              <p className="text-sm font-semibold text-slate-400 dark:text-slate-500">
-                Sin actividad reciente
-              </p>
-            </div>
-          ) : (
-            recentActivity.map((item, i) => (
-              <motion.div
-                key={item.id}
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: i * 0.04 }}
-                className="flex items-center gap-4 px-6 py-3.5 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
-              >
-                <div
-                  className={cn(
-                    'w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0',
-                    item.type === 'negocio_created'
-                      ? 'bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400'
-                      : item.type === 'venta'
-                      ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400'
-                      : 'bg-purple-50 text-purple-600 dark:bg-purple-500/10 dark:text-purple-400'
-                  )}
-                >
-                  {item.type === 'negocio_created' ? (
-                    <Building2 size={14} />
-                  ) : item.type === 'venta' ? (
-                    <ShoppingCart size={14} />
-                  ) : (
-                    <Users size={14} />
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-slate-700 dark:text-slate-300 truncate">
-                    {item.type === 'negocio_created'
-                      ? `Nuevo negocio: ${item.negocio_nombre}`
-                      : item.type === 'venta'
-                      ? `Venta registrada: ${formatCurrency(item.monto || 0)}`
-                      : `Nuevo usuario: ${item.user_nombre}`}
-                  </p>
-                  <p className="text-[11px] font-medium text-slate-400 dark:text-slate-500 mt-0.5">
-                    {formatRelativeTime(item.created_at)}
-                  </p>
-                </div>
-              </motion.div>
-            ))
-          )}
+        <div className="flex justify-center">
+          <button
+            type="button"
+            onClick={() => setShowPatternDialog(false)}
+            className="px-5 py-2 rounded-xl font-bold text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 transition-all"
+          >
+            Cancelar
+          </button>
         </div>
-      </motion.div>
+      </Dialog>
     </div>
   );
 }

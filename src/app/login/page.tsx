@@ -3,11 +3,13 @@
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Loader2, Eye, EyeOff, AlertCircle, ArrowRight, ShieldCheck, CheckCircle2, Building2 } from 'lucide-react';
+import { Loader2, Eye, EyeOff, AlertCircle, ArrowRight, ShieldCheck, CheckCircle2, Building2, Fingerprint, Shield, Lock } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import gsap from 'gsap';
 import { supabase } from '@/lib/supabase';
 import { cn } from '@/lib/cn';
+import toast from 'react-hot-toast';
+import { PatternLock } from '@/components/ui/PatternLock';
 
 type FieldErrors = {
   email?: string;
@@ -29,6 +31,13 @@ export default function LoginPage() {
   const [shakeError, setShakeError] = useState(false);
   const [showUI, setShowUI] = useState(false);
   const [focusedField, setFocusedField] = useState<string | null>(null);
+  
+  // Advanced security states
+  const [isBiometricRegistered, setIsBiometricRegistered] = useState(false);
+  const [isPatternRegistered, setIsPatternRegistered] = useState(false);
+  const [showPatternUnlock, setShowPatternUnlock] = useState(false);
+  const [patternUnlockError, setPatternUnlockError] = useState(false);
+
   const router = useRouter();
   const searchParams = useSearchParams();
   const justRegistered = searchParams.get('registered') === 'true';
@@ -40,6 +49,9 @@ export default function LoginPage() {
       setEmail(saved);
       setRememberMe(true);
     }
+
+    setIsBiometricRegistered(localStorage.getItem('kodefy-admin-biometric-registered') === 'true');
+    setIsPatternRegistered(localStorage.getItem('kodefy-admin-pattern') !== null);
 
     const ctx = gsap.context(() => {
       const tl = gsap.timeline({ defaults: { ease: 'power4.out' } });
@@ -108,6 +120,91 @@ export default function LoginPage() {
     setStep(2);
   };
 
+  const handleBiometricLogin = async () => {
+    setError(null);
+    try {
+      if (typeof window !== 'undefined' && 'credentials' in navigator) {
+        const cred = await navigator.credentials.get({ password: true } as any);
+        if (cred && 'password' in (cred as any)) {
+          setLoading(true);
+          const emailVal = cred.id;
+          const passwordVal = (cred as any).password;
+          
+          setEmail(emailVal);
+          setPassword(passwordVal);
+
+          const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+            email: emailVal,
+            password: passwordVal,
+          });
+
+          if (authError || !authData.user) {
+            setError(authError?.message || 'Error de autenticación biométrica.');
+            setShakeError(true);
+            setLoading(false);
+            return;
+          }
+
+          // Load profile
+          const { data: profile, error: profileError } = await supabase
+            .from('user_profiles')
+            .select('*')
+            .eq('id', authData.user.id)
+            .single();
+
+          if (profileError || !profile || !profile.es_super_admin) {
+            await supabase.auth.signOut();
+            setError('Acceso denegado. No eres super administrador.');
+            setShakeError(true);
+            setLoading(false);
+            return;
+          }
+
+          // Check for pattern lock (2FA)
+          const savedPattern = localStorage.getItem('kodefy-admin-pattern');
+          if (savedPattern) {
+            setShowPatternUnlock(true);
+            setLoading(false);
+            return;
+          }
+
+          toast.success('Acceso biométrico concedido.');
+          router.push('/super-admin');
+        }
+      }
+    } catch (err: any) {
+      console.error('[Biometric Login] Error:', err);
+      if (err.name !== 'NotAllowedError') {
+        setError('Error al leer la biometría del equipo.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePatternUnlockComplete = async (drawnPattern: number[]) => {
+    const savedPatternStr = localStorage.getItem('kodefy-admin-pattern');
+    if (!savedPatternStr) return;
+    const savedPattern = JSON.parse(savedPatternStr) as number[];
+
+    const isMatch = savedPattern.every((val, index) => val === drawnPattern[index]) && savedPattern.length === drawnPattern.length;
+
+    if (isMatch) {
+      toast.success('Patrón verificado de forma exitosa.');
+      router.push('/super-admin');
+    } else {
+      setPatternUnlockError(true);
+      setError('Patrón de seguridad incorrecto. Sesión cerrada.');
+      setShakeError(true);
+      await supabase.auth.signOut();
+      setTimeout(() => {
+        setPatternUnlockError(false);
+        setShowPatternUnlock(false);
+        setError(null);
+      }, 1500);
+    }
+  };
+
   const validateEmail = useCallback((value: string) => {
     if (!value.trim()) return 'El correo es obligatorio';
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim()))
@@ -174,6 +271,21 @@ export default function LoginPage() {
       }
 
       if (profile.es_super_admin) {
+        if (businessInfo?.id !== 'admin') {
+          await supabase.auth.signOut();
+          setError('Los administradores globales deben ingresar por el Acceso Administrativo.');
+          setShakeError(true);
+          return;
+        }
+
+        // If they have a pattern registered, prompt for pattern lock (2FA)
+        const savedPattern = localStorage.getItem('kodefy-admin-pattern');
+        if (savedPattern) {
+          setShowPatternUnlock(true);
+          setLoading(false);
+          return;
+        }
+
         router.push('/super-admin');
         return;
       }
@@ -499,214 +611,245 @@ export default function LoginPage() {
               </form>
             ) : (
               <form onSubmit={handleSubmit} className="space-y-5" noValidate>
-                {/* Email field */}
-                <div>
-                  <label
-                    htmlFor="email"
-                    className={cn(
-                      'mb-2 flex items-center justify-between'
-                    )}
-                  >
-                    <span className={cn(
-                      'text-xs font-bold uppercase tracking-wider transition-colors',
-                      fieldErrors.email
-                        ? 'text-red-500 dark:text-red-400'
-                        : focusedField === 'email'
-                        ? 'text-blue-600 dark:text-blue-400'
-                        : 'text-slate-400 dark:text-slate-500'
-                    )}>
-                      Correo electrónico
-                    </span>
-                  </label>
-                  <div className={cn(
-                    'relative rounded-xl border transition-all duration-200',
-                    fieldErrors.email
-                      ? 'border-red-300 dark:border-red-500/40 ring-4 ring-red-500/10'
-                      : focusedField === 'email'
-                      ? 'border-blue-500 dark:border-blue-400 ring-4 ring-blue-500/10'
-                      : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
-                  )}>
-                    <input
-                      id="email"
-                      type="email"
-                      inputMode="email"
-                      autoComplete="email"
-                      value={email}
-                      onChange={(e) => {
-                        setEmail(e.target.value);
-                        if (fieldErrors.email) setFieldErrors((prev) => ({ ...prev, email: undefined }));
-                        if (error) setError(null);
-                      }}
-                      onFocus={() => setFocusedField('email')}
-                      onBlur={() => setFocusedField(null)}
-                      placeholder="tu@empresa.com"
-                      className={cn(
-                        'w-full h-12 bg-transparent px-4 text-sm font-semibold rounded-xl outline-none',
-                        'text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500',
-                        'disabled:opacity-60 disabled:cursor-not-allowed'
-                      )}
-                      aria-invalid={!!fieldErrors.email}
-                      disabled={loading}
-                    />
-                  </div>
-                  <AnimatePresence>
-                    {fieldErrors.email && (
-                      <motion.p
-                        initial={{ opacity: 0, y: -4 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -4 }}
-                        className="mt-1.5 text-xs font-semibold text-red-500 dark:text-red-400"
-                      >
-                        {fieldErrors.email}
-                      </motion.p>
-                    )}
-                  </AnimatePresence>
-                </div>
-
-                {/* Password field */}
-                <div>
-                  <div className="mb-2 flex items-center justify-between">
-                    <label
-                      htmlFor="password"
-                      className={cn(
-                        'text-xs font-bold uppercase tracking-wider transition-colors',
-                        fieldErrors.password
-                          ? 'text-red-500 dark:text-red-400'
-                          : focusedField === 'password'
-                          ? 'text-blue-600 dark:text-blue-400'
-                          : 'text-slate-400 dark:text-slate-500'
-                      )}
-                    >
-                      Contraseña
-                    </label>
-                    <Link
-                      href="/forgot-password"
-                      className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
-                    >
-                      ¿Olvidaste tu contraseña?
-                    </Link>
-                  </div>
-                  <div className={cn(
-                    'relative rounded-xl border transition-all duration-200',
-                    fieldErrors.password
-                      ? 'border-red-300 dark:border-red-500/40 ring-4 ring-red-500/10'
-                      : focusedField === 'password'
-                      ? 'border-blue-500 dark:border-blue-400 ring-4 ring-blue-500/10'
-                      : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
-                  )}>
-                    <input
-                      id="password"
-                      type={showPassword ? 'text' : 'password'}
-                      autoComplete="current-password"
-                      value={password}
-                      onChange={(e) => {
-                        setPassword(e.target.value);
-                        if (fieldErrors.password) setFieldErrors((prev) => ({ ...prev, password: undefined }));
-                        if (error) setError(null);
-                      }}
-                      onFocus={() => setFocusedField('password')}
-                      onBlur={() => setFocusedField(null)}
-                      placeholder="••••••••"
-                      className={cn(
-                        'w-full h-12 bg-transparent px-4 pr-12 text-sm font-semibold rounded-xl outline-none',
-                        'text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500',
-                        'disabled:opacity-60 disabled:cursor-not-allowed'
-                      )}
-                      aria-invalid={!!fieldErrors.password}
-                      disabled={loading}
-                    />
+                {showPatternUnlock ? (
+                  <div className="space-y-4 py-4 text-center">
+                    <div className="w-12 h-12 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-500 mx-auto">
+                      <Lock size={20} />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                        Patrón de Seguridad Requerido
+                      </h3>
+                      <p className="text-xs text-slate-400 mt-1">
+                        Dibuja el patrón en este equipo para desbloquear
+                      </p>
+                    </div>
+                    <PatternLock onComplete={handlePatternUnlockComplete} error={patternUnlockError} />
                     <button
                       type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                      tabIndex={-1}
-                      aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                      onClick={async () => {
+                        setShowPatternUnlock(false);
+                        await supabase.auth.signOut();
+                        setError('Autenticación cancelada.');
+                      }}
+                      className="text-xs text-slate-500 hover:text-slate-700 transition-colors mt-2"
                     >
-                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                      Cancelar y salir
                     </button>
                   </div>
-                  <AnimatePresence>
-                    {fieldErrors.password && (
-                      <motion.p
-                        initial={{ opacity: 0, y: -4 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -4 }}
-                        className="mt-1.5 text-xs font-semibold text-red-500 dark:text-red-400"
-                      >
-                        {fieldErrors.password}
-                      </motion.p>
+                ) : (
+                  <>
+                    {/* Biometric login shortcut */}
+                    {businessInfo?.id === 'admin' && isBiometricRegistered && (
+                      <div className="p-4 rounded-xl border border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-900/50 flex flex-col items-center gap-3">
+                        <div className="flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-300">
+                          <Fingerprint size={16} className="text-blue-500" />
+                          ¿Iniciar con huella/rostro?
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleBiometricLogin}
+                          disabled={loading}
+                          className="w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2"
+                        >
+                          <Fingerprint size={16} />
+                          Escanear huella/rostro
+                        </button>
+                        <div className="h-px bg-slate-100 dark:bg-slate-800 w-full my-1" />
+                        <span className="text-[10px] text-slate-400 font-medium">O ingresa con tu contraseña tradicional abajo:</span>
+                      </div>
                     )}
-                  </AnimatePresence>
-                </div>
 
-                {/* Remember me */}
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setRememberMe(!rememberMe)}
-                    className={cn(
-                      'w-[18px] h-[18px] rounded-md border-2 transition-all duration-200 flex items-center justify-center flex-shrink-0',
-                      rememberMe
-                        ? 'bg-blue-600 dark:bg-blue-500 border-blue-600 dark:border-blue-500'
-                        : 'border-slate-300 dark:border-slate-600 hover:border-blue-400 dark:hover:border-blue-400 bg-white dark:bg-slate-800'
-                    )}
-                    aria-label="Recordar mi correo"
-                  >
-                    {rememberMe && (
-                      <motion.svg
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        className="w-3 h-3 text-white"
-                        viewBox="0 0 12 12"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
+                    {/* Email field */}
+                    <div>
+                      <label
+                        htmlFor="email"
+                        className={cn(
+                          'mb-2 flex items-center justify-between'
+                        )}
                       >
-                        <path d="M2 6l3 3 5-5" />
-                      </motion.svg>
-                    )}
-                  </button>
-                  <span
-                    className="text-sm font-medium text-slate-600 dark:text-slate-400 cursor-pointer select-none"
-                    onClick={() => setRememberMe(!rememberMe)}
-                  >
-                    Recordar mi correo
-                  </span>
-                </div>
+                        <span className={cn(
+                          'text-xs font-bold uppercase tracking-wider transition-colors',
+                          fieldErrors.email
+                            ? 'text-red-500 dark:text-red-400'
+                            : focusedField === 'email'
+                            ? 'text-blue-600 dark:text-blue-400'
+                            : 'text-slate-400 dark:text-slate-500'
+                        )}>
+                          Correo electrónico
+                        </span>
+                      </label>
+                      <div className={cn(
+                        'relative rounded-xl border transition-all duration-200',
+                        fieldErrors.email
+                          ? 'border-red-300 dark:border-red-500/40 ring-4 ring-red-500/10'
+                          : focusedField === 'email'
+                          ? 'border-blue-500 dark:border-blue-400 ring-4 ring-blue-500/10'
+                          : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
+                      )}>
+                        <input
+                          id="email"
+                          type="email"
+                          inputMode="email"
+                          autoComplete="email"
+                          value={email}
+                          onChange={(e) => {
+                            setEmail(e.target.value);
+                            if (fieldErrors.email) setFieldErrors((prev) => ({ ...prev, email: undefined }));
+                            if (error) setError(null);
+                          }}
+                          onFocus={() => setFocusedField('email')}
+                          onBlur={() => setFocusedField(null)}
+                          placeholder="tu@empresa.com"
+                          className={cn(
+                            'w-full h-12 bg-transparent px-4 text-sm font-semibold rounded-xl outline-none',
+                            'text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500',
+                            'disabled:opacity-60 disabled:cursor-not-allowed'
+                          )}
+                          aria-invalid={!!fieldErrors.email}
+                          disabled={loading}
+                        />
+                      </div>
+                      <AnimatePresence>
+                        {fieldErrors.email && (
+                          <motion.p
+                            initial={{ opacity: 0, y: -4 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -4 }}
+                            className="mt-1.5 text-xs font-semibold text-red-500 dark:text-red-400"
+                          >
+                            {fieldErrors.email}
+                          </motion.p>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  </>
+                )}
 
-                {/* Submit button */}
-                <button
-                  type="submit"
-                  disabled={loading || !isFormValid}
-                  className={cn(
-                    'group relative w-full h-12 rounded-xl font-bold text-sm transition-all duration-200',
-                    'flex items-center justify-center gap-2',
-                    'focus:outline-none focus:ring-4',
-                    isFormValid && !loading
-                      ? (businessInfo?.color_primario 
-                          ? 'text-white hover:brightness-110 shadow-lg' 
-                          : 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-slate-200 shadow-lg shadow-slate-900/10 dark:shadow-white/5')
-                      : 'bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-500 cursor-not-allowed'
-                  )}
-                  style={isFormValid && !loading && businessInfo?.color_primario ? { backgroundColor: businessInfo.color_primario } : undefined}
-                >
-                  {loading ? (
-                    <>
-                      <Loader2 size={18} className="animate-spin" />
-                      Iniciando sesión...
-                    </>
-                  ) : (
-                    <>
-                      Iniciar sesión
-                      <ArrowRight
-                        size={16}
-                        className="transition-transform group-hover:translate-x-0.5"
+                {/* Password field */}
+                {!showPatternUnlock && (
+                  <div>
+                    <div className="mb-2 flex items-center justify-between">
+                      <label
+                        htmlFor="password"
+                        className={cn(
+                          'text-xs font-bold uppercase tracking-wider transition-colors',
+                          fieldErrors.password
+                            ? 'text-red-500 dark:text-red-400'
+                            : focusedField === 'password'
+                            ? 'text-blue-600 dark:text-blue-400'
+                            : 'text-slate-400 dark:text-slate-500'
+                        )}
+                      >
+                        Contraseña
+                      </label>
+                      <Link
+                        href="/forgot-password"
+                        className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
+                      >
+                        ¿Olvidaste tu contraseña?
+                      </Link>
+                    </div>
+                    <div className={cn(
+                      'relative rounded-xl border transition-all duration-200',
+                      fieldErrors.password
+                        ? 'border-red-300 dark:border-red-500/40 ring-4 ring-red-500/10'
+                        : focusedField === 'password'
+                        ? 'border-blue-500 dark:border-blue-400 ring-4 ring-blue-500/10'
+                        : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
+                    )}>
+                      <input
+                        id="password"
+                        type={showPassword ? 'text' : 'password'}
+                        value={password}
+                        onChange={(e) => {
+                          setPassword(e.target.value);
+                          if (fieldErrors.password) setFieldErrors((prev) => ({ ...prev, password: undefined }));
+                          if (error) setError(null);
+                        }}
+                        onFocus={() => setFocusedField('password')}
+                        onBlur={() => setFocusedField(null)}
+                        placeholder="••••••••"
+                        className={cn(
+                          'w-full h-12 bg-transparent pl-4 pr-12 text-sm font-semibold rounded-xl outline-none',
+                          'text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500',
+                          'disabled:opacity-60 disabled:cursor-not-allowed'
+                        )}
+                        disabled={loading}
                       />
-                    </>
-                  )}
-                </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+                        disabled={loading}
+                      >
+                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                      </button>
+                    </div>
+                    <AnimatePresence>
+                      {fieldErrors.password && (
+                        <motion.p
+                          initial={{ opacity: 0, y: -4 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -4 }}
+                          className="mt-1.5 text-xs font-semibold text-red-500 dark:text-red-400"
+                        >
+                          {fieldErrors.password}
+                        </motion.p>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                )}
+
+                {/* Remember me & Submit button */}
+                {!showPatternUnlock && (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <label className="flex cursor-pointer items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={rememberMe}
+                          onChange={(e) => setRememberMe(e.target.checked)}
+                          className="h-4.5 w-4.5 rounded-lg border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-blue-600 outline-none transition-all focus:ring-4 focus:ring-blue-500/10"
+                          disabled={loading}
+                        />
+                        <span className="text-xs font-semibold text-slate-600 dark:text-slate-400 select-none">
+                          Recordar mi correo
+                        </span>
+                      </label>
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      style={{
+                        backgroundColor: businessInfo?.color_primario || undefined,
+                      }}
+                      className={cn(
+                        'group relative w-full h-12 rounded-xl font-bold text-sm text-white transition-all duration-200',
+                        'flex items-center justify-center gap-2',
+                        'hover:brightness-105 active:scale-[0.98]',
+                        'focus:outline-none focus:ring-4 focus:ring-blue-500/20',
+                        'disabled:opacity-60 disabled:cursor-not-allowed disabled:pointer-events-none'
+                      )}
+                    >
+                      {loading ? (
+                        <>
+                          <Loader2 size={18} className="animate-spin" />
+                          Iniciando sesión...
+                        </>
+                      ) : (
+                        <>
+                          Iniciar sesión
+                          <ArrowRight
+                            size={16}
+                            className="transition-transform group-hover:translate-x-0.5"
+                          />
+                        </>
+                      )}
+                    </button>
+                  </>
+                )}
 
                 <div className="pt-2 text-center">
                   <button
