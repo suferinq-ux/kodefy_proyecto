@@ -4,13 +4,15 @@
 import { useState, useEffect } from 'react';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { supabase } from '@/lib/supabase';
-import { getDeliveryOrders, updateDeliveryStatus } from '@/lib/ventas';
+import { getDeliveryOrders, updateDeliveryStatus, upsertRepartidorUbicacion } from '@/lib/ventas';
 import { Venta } from '@/lib/database.types';
 import { MapPin, Navigation, Navigation2, Clock, Loader2, Check } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import dynamic from 'next/dynamic';
 import 'leaflet/dist/leaflet.css';
+import { useAuth } from '@/contexts/AuthContext';
+import { useBusiness } from '@/contexts/BusinessContext';
 
 const MapContainer = dynamic(() => import('react-leaflet').then(m => m.MapContainer), { ssr: false });
 const TileLayer = dynamic(() => import('react-leaflet').then(m => m.TileLayer), { ssr: false });
@@ -24,10 +26,35 @@ const destIcon = typeof window !== 'undefined' ? new (require('leaflet')).Icon({
     iconAnchor: [16, 32]
 }) : null;
 
+// Icono personalizado para el motorizado (repartidor)
+const bikeIcon = typeof window !== 'undefined' ? new (require('leaflet')).Icon({
+    iconUrl: 'https://cdn-icons-png.flaticon.com/512/3063/3063822.png',
+    iconSize: [32, 32],
+    iconAnchor: [16, 32]
+}) : null;
+
+const MapRecenter = ({ myLocation, targetLocation }: { myLocation: [number, number] | null, targetLocation: [number, number] }) => {
+    const { useMap } = require('react-leaflet');
+    const map = useMap();
+    useEffect(() => {
+        if (myLocation) {
+            const L = require('leaflet');
+            const bounds = L.latLngBounds([myLocation, targetLocation]);
+            map.fitBounds(bounds, { padding: [30, 30] });
+        } else {
+            map.setView(targetLocation, map.getZoom());
+        }
+    }, [myLocation, targetLocation, map]);
+    return null;
+};
+
 export default function DeliveryDashboard() {
+    const { user } = useAuth();
+    const { business } = useBusiness();
     const [orders, setOrders] = useState<Venta[]>([]);
     const [loading, setLoading] = useState(true);
     const [businessOrigin, setBusinessOrigin] = useState<[number, number] | null>(null);
+    const [myLocation, setMyLocation] = useState<[number, number] | null>(null);
 
     const loadOrders = async () => {
         try {
@@ -36,15 +63,26 @@ export default function DeliveryDashboard() {
             setOrders(data);
 
             // Cargar origen del negocio (una sola vez)
-            if (!businessOrigin) {
-                const { data: config } = await supabase.from('configuracion_negocio').select('nombre_negocio').eq('id', 1).single();
+            if (!businessOrigin && (business?.id || user?.negocio_id)) {
+                const negocioId = business?.id || user?.negocio_id;
+                const { data: config } = await supabase
+                    .from('configuracion_negocio')
+                    .select('nombre_negocio')
+                    .eq('negocio_id', negocioId)
+                    .maybeSingle();
+
+                let loaded = false;
                 if (config?.nombre_negocio) {
                     try {
                         const extra = JSON.parse(config.nombre_negocio);
-                        if (extra.lat && extra.lng) {
-                            setBusinessOrigin([extra.lat, extra.lng]);
+                        if (extra.latitud && extra.longitud) {
+                            setBusinessOrigin([Number(extra.latitud), Number(extra.longitud)]);
+                            loaded = true;
                         }
                     } catch (e) { }
+                }
+                if (!loaded) {
+                    setBusinessOrigin([business?.latitud || -13.1587, business?.longitud || -74.2239]);
                 }
             }
         } catch (err) {
@@ -65,6 +103,41 @@ export default function DeliveryDashboard() {
         }
     };
 
+    // Tracking GPS del repartidor
+    useEffect(() => {
+        if (!user) return;
+
+        if (typeof window === 'undefined' || !navigator.geolocation) {
+            toast.error("Tu dispositivo no soporta geolocalización o no está activada");
+            return;
+        }
+
+        const watchId = navigator.geolocation.watchPosition(
+            async (position) => {
+                const { latitude, longitude } = position.coords;
+                setMyLocation([latitude, longitude]);
+                
+                // Enviar coordenadas a Supabase si el rol es repartidor
+                if (user?.id && user.rol === 'repartidor') {
+                    await upsertRepartidorUbicacion(user.id, latitude, longitude, business?.id || user.negocio_id);
+                }
+            },
+            (error) => {
+                console.error("[GPS Tracking Error]", error);
+                toast.error("Por favor, permite el acceso al GPS para que la tienda rastree tu entrega en vivo.");
+            },
+            {
+                enableHighAccuracy: true,
+                maximumAge: 10000,
+                timeout: 10000
+            }
+        );
+
+        return () => {
+            navigator.geolocation.clearWatch(watchId);
+        };
+    }, [user, business?.id]);
+
     useEffect(() => {
         loadOrders();
 
@@ -78,9 +151,12 @@ export default function DeliveryDashboard() {
         return () => {
             supabase.removeChannel(channel);
         };
-    }, []);
+    }, [business?.id]);
 
-    const getGoogleMapsLink = (address: string) => {
+    const getGoogleMapsLink = (address: string, lat?: number, lng?: number) => {
+        if (lat && lng) {
+            return `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+        }
         return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address + ", Ayacucho")}`;
     };
 
@@ -208,15 +284,16 @@ export default function DeliveryDashboard() {
 
                                                             {/* Mini Mapa de Ruta */}
                                                             {order.latitud_envio && order.longitud_envio && (
-                                                                <div className="mt-4 h-40 w-full rounded-2xl overflow-hidden border border-slate-200 relative z-0">
+                                                                <div className="mt-4 h-56 w-full rounded-2xl overflow-hidden border border-slate-200 relative z-0">
                                                                     <MapContainer
                                                                         center={[order.latitud_envio, order.longitud_envio]}
                                                                         zoom={14}
-                                                                        scrollWheelZoom={false}
-                                                                        dragging={false}
-                                                                        zoomControl={false}
+                                                                        scrollWheelZoom={true}
+                                                                        dragging={true}
+                                                                        zoomControl={true}
                                                                         style={{ height: '100%', width: '100%' }}
                                                                     >
+                                                                        <MapRecenter myLocation={myLocation} targetLocation={[order.latitud_envio, order.longitud_envio]} />
                                                                         <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
                                                                         <Marker position={[order.latitud_envio, order.longitud_envio]} icon={destIcon} />
                                                                         {order.geometria_envio && (
@@ -228,6 +305,9 @@ export default function DeliveryDashboard() {
                                                                                 iconSize: [24, 24],
                                                                                 iconAnchor: [12, 24]
                                                                             }) : undefined} />
+                                                                        )}
+                                                                        {myLocation && (
+                                                                            <Marker position={myLocation} icon={bikeIcon} />
                                                                         )}
                                                                     </MapContainer>
                                                                 </div>
@@ -280,7 +360,7 @@ export default function DeliveryDashboard() {
 
                                                     <div className="flex gap-3">
                                                         <a
-                                                            href={getGoogleMapsLink(order.direccion_envio || '')}
+                                                            href={getGoogleMapsLink(order.direccion_envio || '', order.latitud_envio || undefined, order.longitud_envio || undefined)}
                                                             target="_blank"
                                                             rel="noopener noreferrer"
                                                             className="flex-1 py-4 bg-slate-900 text-white font-black rounded-[1.5rem] shadow-xl hover:brightness-110 active:scale-95 transition-all text-sm uppercase tracking-widest flex items-center justify-center gap-2 italic"

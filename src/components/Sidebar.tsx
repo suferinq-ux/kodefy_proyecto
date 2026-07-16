@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, ShoppingCart, BarChart, Lock, ClipboardList, ChefHat, Package, Users, Boxes, LucideIcon, X, Wine, Settings, RotateCcw, Navigation } from 'lucide-react';
+import { Home, ShoppingCart, BarChart, Lock, ClipboardList, ChefHat, Package, Users, Boxes, LucideIcon, X, Wine, Settings, RotateCcw, Navigation, Navigation2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 import { useAuth } from '@/contexts/AuthContext';
@@ -39,6 +39,7 @@ const menuSections: MenuSection[] = [
             { icon: ShoppingCart, label: 'Pedidos', href: '/pos', permission: 'pos' },
             { icon: ChefHat, label: 'Cocina', href: '/cocina', permission: 'cocina' },
             { icon: Navigation, label: 'Entregas', href: '/delivery', permission: 'delivery' },
+            { icon: Navigation2, label: 'Radar Live', href: '/radar', permission: 'pos' },
         ]
     },
     {

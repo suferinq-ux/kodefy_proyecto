@@ -408,16 +408,20 @@ export const updateDeliveryStatus = async (
     }
 };
 
-export const upsertRepartidorUbicacion = async (repartidorId: string, lat: number, lng: number) => {
+export const upsertRepartidorUbicacion = async (repartidorId: string, lat: number, lng: number, negocioId?: string) => {
     try {
+        const payload: any = {
+            id: repartidorId,
+            lat,
+            lng,
+            updated_at: new Date().toISOString()
+        };
+        if (negocioId) {
+            payload.negocio_id = negocioId;
+        }
         const { error } = await supabase
             .from('repartidores_ubicacion')
-            .upsert({
-                id: repartidorId,
-                lat,
-                lng,
-                updated_at: new Date().toISOString()
-            });
+            .upsert(payload);
         if (error) throw error;
     } catch (error) {
         console.error('Error enviando ubicación GPS:', error);

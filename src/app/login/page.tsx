@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Loader2, Eye, EyeOff, AlertCircle, ArrowRight, ShieldCheck, CheckCircle2, Building2, Fingerprint, Shield, Lock } from 'lucide-react';
+import { Loader2, Eye, EyeOff, AlertCircle, ArrowRight, ShieldCheck, CheckCircle2, Building2, Fingerprint, Shield, Lock, KeyRound } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import gsap from 'gsap';
 import { supabase } from '@/lib/supabase';
@@ -40,6 +40,8 @@ export default function LoginPage() {
   const [showPromptUnlock, setShowPromptUnlock] = useState(false);
   const [promptSessionId, setPromptSessionId] = useState('');
   const [pollIntervalId, setPollIntervalId] = useState<any>(null);
+  const [showRecoveryInput, setShowRecoveryInput] = useState(false);
+  const [recoveryCode, setRecoveryCode] = useState('');
 
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -267,9 +269,32 @@ export default function LoginPage() {
       setPollIntervalId(null);
     }
     setShowPromptUnlock(false);
+    setShowRecoveryInput(false);
     setPromptSessionId('');
+    setRecoveryCode('');
     await supabase.auth.signOut();
     setError('Autenticación cancelada.');
+  };
+
+  const handleRecoverySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setShakeError(false);
+
+    const envPin = process.env.NEXT_PUBLIC_ADMIN_RECOVERY_PIN || '998877';
+    if (recoveryCode.trim() === envPin) {
+      if (pollIntervalId) {
+        clearInterval(pollIntervalId);
+        setPollIntervalId(null);
+      }
+      toast.success('Acceso concedido mediante código de recuperación.');
+      setShowPromptUnlock(false);
+      setShowRecoveryInput(false);
+      router.push('/super-admin');
+    } else {
+      setError('Código de recuperación incorrecto.');
+      setShakeError(true);
+    }
   };
 
   const validateEmail = useCallback((value: string) => {
@@ -696,36 +721,104 @@ export default function LoginPage() {
             ) : (
               <form onSubmit={handleSubmit} className="space-y-5" noValidate>
                 {showPromptUnlock ? (
-                  <div className="space-y-6 py-6 text-center">
-                    <div className="w-16 h-16 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-500 mx-auto animate-pulse">
-                      <Shield size={32} />
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200">
-                        Autorización Requerida
-                      </h3>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 max-w-xs mx-auto">
-                        Abre el dashboard en tu celular y presiona <strong>"Aprobar"</strong> en la alerta flotante para autorizar este ingreso.
-                      </p>
-                    </div>
-                    
-                    <div className="flex justify-center items-center gap-1.5 py-2">
-                      <span className="w-2.5 h-2.5 rounded-full bg-blue-500 animate-ping" />
-                      <span className="text-xs font-semibold text-blue-600 dark:text-blue-400">
-                        Esperando aprobación de dispositivo...
-                      </span>
-                    </div>
-
-                    <div className="pt-2">
+                  showRecoveryInput ? (
+                    <div className="space-y-4 py-4 text-center">
+                      <div className="w-12 h-12 rounded-full bg-amber-500/10 flex items-center justify-center text-amber-500 mx-auto">
+                        <KeyRound size={20} />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                          Código de Recuperación
+                        </h3>
+                        <p className="text-xs text-slate-400 mt-1">
+                          Ingresa tu PIN de 6 dígitos de respaldo.
+                        </p>
+                      </div>
+                      <div className="px-4 space-y-3">
+                        <input
+                          type="text"
+                          maxLength={6}
+                          placeholder="998877"
+                          value={recoveryCode}
+                          onChange={(e) => setRecoveryCode(e.target.value.replace(/[^0-9]/g, ''))}
+                          className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-center font-bold text-sm tracking-widest outline-none focus:border-blue-500 transition-all font-mono"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleRecoverySubmit}
+                          disabled={recoveryCode.length !== 6}
+                          className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all disabled:opacity-50"
+                        >
+                          Verificar Código
+                        </button>
+                      </div>
                       <button
                         type="button"
-                        onClick={handleCancelPrompt}
-                        className="px-5 py-2.5 rounded-xl font-bold text-xs bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-all active:scale-95"
+                        onClick={() => {
+                          setShowRecoveryInput(false);
+                          setRecoveryCode('');
+                          setError(null);
+                        }}
+                        className="text-xs text-slate-500 hover:text-slate-700 transition-colors mt-2"
                       >
-                        Cancelar y salir
+                        Volver atrás
                       </button>
                     </div>
-                  </div>
+                  ) : (
+                    <div className="space-y-6 py-6 text-center">
+                      <div className="w-16 h-16 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-500 mx-auto animate-pulse">
+                        <Shield size={32} />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200">
+                          Autorización Requerida
+                        </h3>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 max-w-xs mx-auto">
+                          Abre el dashboard en tu celular y presiona <strong>"Aprobar"</strong> en la alerta flotante para autorizar este ingreso.
+                        </p>
+                      </div>
+                      
+                      <div className="flex justify-center items-center gap-1.5 py-2">
+                        <span className="w-2.5 h-2.5 rounded-full bg-blue-500 animate-ping" />
+                        <span className="text-xs font-semibold text-blue-600 dark:text-blue-400">
+                          Esperando aprobación de dispositivo...
+                        </span>
+                      </div>
+
+                      <div className="space-y-3 px-4 pt-2">
+                        {isPatternRegistered && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowPatternUnlock(true);
+                              setShowPromptUnlock(false);
+                            }}
+                            className="w-full py-2.5 px-4 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 transition-all flex items-center justify-center gap-2 active:scale-95"
+                          >
+                            <KeyRound size={14} className="text-purple-500" />
+                            Autorizar con mi Patrón de Seguridad
+                          </button>
+                        )}
+                        
+                        <button
+                          type="button"
+                          onClick={() => setShowRecoveryInput(true)}
+                          className="w-full py-2.5 px-4 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 transition-all flex items-center justify-center gap-2 active:scale-95"
+                        >
+                          <Shield size={14} className="text-amber-500" />
+                          Usar Código de Recuperación (Bypass)
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={handleCancelPrompt}
+                          className="w-full py-2.5 px-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-xl text-xs font-bold transition-all active:scale-95"
+                        >
+                          Cancelar y salir
+                        </button>
+                      </div>
+                    </div>
+                  )
                 ) : showPatternUnlock ? (
                   <div className="space-y-4 py-4 text-center">
                     <div className="w-12 h-12 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-500 mx-auto">

@@ -309,7 +309,7 @@ export default function LandingPage() {
             <Link href="/" className="flex items-center gap-2.5 flex-shrink-0">
               <img
                 src="/images/KODEFY-LOGO.png"
-                alt="KodifyTech"
+                alt="KODEFYTECH"
                 className="h-8 w-auto object-contain"
                 style={{ filter: 'brightness(0)' }}
               />
@@ -486,17 +486,50 @@ export default function LandingPage() {
       </section>
 
       {/* ───── Social Proof band ───── */}
-      <section className="py-10 border-y border-stone-200/80 bg-white/60 backdrop-blur-sm">
+      <section className="py-14 border-y border-stone-200/80 bg-white/60 backdrop-blur-sm overflow-hidden">
         <div className="max-w-5xl mx-auto px-5 sm:px-8">
-          <p className="text-center text-xs font-bold text-stone-400 uppercase tracking-widest mb-8">
-            Negocios que confían en KodifyTech
+          <p className="text-center text-xs font-bold text-stone-400 uppercase tracking-widest mb-12">
+            Negocios que confían en KODEFYTECH
           </p>
-          <div className="flex flex-wrap items-center justify-center gap-10 opacity-70">
-            <img src="/images/logo-rodrigos.jpeg" alt="Rodrigo's" className="h-10 object-contain grayscale" />
-            <img src="/images/logo-pocholos.png" alt="Pocholos" className="h-10 object-contain grayscale" />
-            <div className="flex items-center gap-2 text-stone-400">
-              <span className="text-sm font-bold">Tu negocio aquí</span>
+          
+          <div className="relative w-full h-[80px] flex justify-center items-center" style={{ perspective: '800px' }}>
+            <div 
+              className="relative w-[180px] h-[60px]"
+              style={{ transformStyle: 'preserve-3d', animation: 'spin3d 30s linear infinite' }}
+            >
+              {[
+                { src: '/images/logo-rodrigos.jpeg', name: "Rodrigo's" },
+                { src: '/images/logo-pocholos.png', name: 'Pocholos' },
+                { src: '', name: 'Tu negocio aquí' },
+                { src: '/images/logo-rodrigos.jpeg', name: "Rodrigo's" },
+                { src: '/images/logo-pocholos.png', name: 'Pocholos' },
+                { src: '', name: 'Tu negocio aquí' },
+              ].map((logo, i, arr) => {
+                const rotateY = (360 / arr.length) * i;
+                return (
+                  <div
+                    key={i}
+                    className="absolute top-0 left-0 w-full h-full flex flex-col items-center justify-center bg-white/40 backdrop-blur-sm border border-stone-200/60 rounded-2xl shadow-sm"
+                    style={{
+                      transform: `rotateY(${rotateY}deg) translateZ(200px)`,
+                      backfaceVisibility: 'hidden',
+                    }}
+                  >
+                    {logo.src ? (
+                      <img src={logo.src} alt={logo.name} className="h-8 max-w-[120px] object-contain grayscale opacity-60 hover:grayscale-0 hover:opacity-100 transition-all duration-300" />
+                    ) : (
+                      <span className="text-[11px] font-bold text-stone-400 uppercase tracking-wider">{logo.name}</span>
+                    )}
+                  </div>
+                );
+              })}
             </div>
+            <style>{`
+              @keyframes spin3d {
+                0% { transform: rotateY(0deg); }
+                100% { transform: rotateY(-360deg); }
+              }
+            `}</style>
           </div>
         </div>
       </section>
@@ -780,7 +813,7 @@ export default function LandingPage() {
             <Link href="/" className="flex items-center gap-2.5">
               <img
                 src="/images/KODEFY-LOGO.png"
-                alt="KodifyTech"
+                alt="KODEFYTECH"
                 className="h-7 w-auto object-contain"
                 style={{ filter: 'brightness(0)' }}
               />
