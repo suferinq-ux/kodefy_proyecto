@@ -195,7 +195,7 @@ export default function LoginPage() {
         return;
       }
 
-      if (profile.negocio_id !== businessInfo?.id) {
+      if (!businessInfo || profile.negocio_id !== businessInfo.id) {
         await supabase.auth.signOut();
         setError('No tienes acceso a este negocio. Verifica tu código.');
         setShakeError(true);

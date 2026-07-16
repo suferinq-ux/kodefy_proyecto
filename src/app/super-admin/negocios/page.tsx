@@ -442,7 +442,7 @@ export default function NegociosPage() {
                             {negocio.codigo_acceso}
                           </span>
                           <button
-                            onClick={() => copyToClipboard(negocio.codigo_acceso)}
+                            onClick={() => copyToClipboard(negocio.codigo_acceso!)}
                             className="text-slate-400 hover:text-blue-500 transition-colors"
                             title="Copiar PIN"
                           >

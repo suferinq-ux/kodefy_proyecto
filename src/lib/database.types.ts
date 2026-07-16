@@ -4,6 +4,7 @@ export interface Negocio {
     id: string;
     nombre: string;
     slug: string;
+    codigo_acceso?: string;
     logo_url?: string;
     color_primario: string;
     color_secundario: string;
