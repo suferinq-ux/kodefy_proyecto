@@ -17,7 +17,7 @@ type FieldErrors = {
 export default function LoginPage() {
   const [step, setStep] = useState<1 | 2>(1);
   const [businessCode, setBusinessCode] = useState('');
-  const [businessInfo, setBusinessInfo] = useState<{ id: string; nombre: string; logo_url: string | null; color_primario: string | null } | null>(null);
+  const [businessInfo, setBusinessInfo] = useState<{ id: string; nombre: string; logo_url: string | null; color_primario: string | null; slug: string } | null>(null);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -79,12 +79,12 @@ export default function LoginPage() {
     try {
       const { data, error: dbError } = await supabase
         .from('negocios')
-        .select('id, nombre, logo_url, color_primario')
-        .eq('slug', businessCode.trim().toLowerCase())
+        .select('id, nombre, logo_url, color_primario, slug')
+        .eq('codigo_acceso', businessCode.trim())
         .single();
 
       if (dbError || !data) {
-        setError('Código de negocio no encontrado. Verifica e intenta nuevamente.');
+        setError('PIN incorrecto. Verifica el código de tu negocio e intenta nuevamente.');
         setShakeError(true);
         return;
       }
@@ -96,6 +96,19 @@ export default function LoginPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleAdminAccess = () => {
+    setError(null);
+    setBusinessCode('');
+    setBusinessInfo({
+      id: 'admin',
+      nombre: 'Administración',
+      logo_url: null,
+      color_primario: '#0f172a',
+      slug: 'admin'
+    });
+    setStep(2);
   };
 
   const validateEmail = useCallback((value: string) => {
@@ -168,6 +181,13 @@ export default function LoginPage() {
         return;
       }
 
+      if (businessInfo?.id === 'admin') {
+        await supabase.auth.signOut();
+        setError('No tienes permisos de administrador.');
+        setShakeError(true);
+        return;
+      }
+
       if (!profile.negocio_id) {
         await supabase.auth.signOut();
         setError('Tu usuario no está asignado a ningún negocio.');
@@ -182,7 +202,7 @@ export default function LoginPage() {
         return;
       }
 
-      router.push(`/${businessCode.trim().toLowerCase()}/dashboard`);
+      router.push(`/${businessInfo.slug}/dashboard`);
     } catch (err: any) {
       console.error('[LoginPage] Error:', err);
       setError(err.message || 'Error al conectar con el servidor.');
@@ -330,7 +350,7 @@ export default function LoginPage() {
                     Acceso a tu Negocio
                   </h2>
                   <p className="mt-2 text-sm font-medium text-slate-500 dark:text-slate-400">
-                    Ingresa el código de tu empresa para continuar
+                    Ingresa el PIN de tu empresa para continuar
                   </p>
                 </>
               ) : (
@@ -407,7 +427,7 @@ export default function LoginPage() {
                         ? 'text-blue-600 dark:text-blue-400'
                         : 'text-slate-400 dark:text-slate-500'
                     )}>
-                      Código de Negocio
+                      PIN de Negocio (6 dígitos)
                     </span>
                   </label>
                   <div className={cn(
@@ -422,16 +442,18 @@ export default function LoginPage() {
                     <input
                       id="businessCode"
                       type="text"
+                      maxLength={6}
                       value={businessCode}
                       onChange={(e) => {
-                        setBusinessCode(e.target.value);
+                        const val = e.target.value.replace(/[^0-9]/g, '');
+                        setBusinessCode(val);
                         if (error) setError(null);
                       }}
                       onFocus={() => setFocusedField('businessCode')}
                       onBlur={() => setFocusedField(null)}
-                      placeholder="ej. mi-empresa"
+                      placeholder="123456"
                       className={cn(
-                        'w-full h-12 bg-transparent px-3 text-sm font-semibold rounded-xl outline-none',
+                        'w-full h-12 bg-transparent px-3 text-sm font-bold rounded-xl outline-none tracking-widest font-mono',
                         'text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500',
                         'disabled:opacity-60 disabled:cursor-not-allowed'
                       )}
@@ -467,6 +489,16 @@ export default function LoginPage() {
                     </>
                   )}
                 </button>
+
+                <div className="pt-4 text-center">
+                  <button
+                    type="button"
+                    onClick={handleAdminAccess}
+                    className="text-[11px] font-medium text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+                  >
+                    Acceso administrativo
+                  </button>
+                </div>
               </form>
             ) : (
               <form onSubmit={handleSubmit} className="space-y-5" noValidate>

@@ -37,6 +37,7 @@ type SortOrder = 'asc' | 'desc';
 interface FormData {
   nombre: string;
   slug: string;
+  codigo_acceso: string;
   color_primario: string;
   color_secundario: string;
   logo_url: string;
@@ -45,6 +46,7 @@ interface FormData {
 const EMPTY_FORM: FormData = {
   nombre: '',
   slug: '',
+  codigo_acceso: '',
   color_primario: '#3b82f6',
   color_secundario: '#1e40af',
   logo_url: '',
@@ -145,11 +147,12 @@ export default function NegociosPage() {
     setIsModalOpen(true);
   };
 
-  const handleOpenEdit = (negocio: Negocio) => {
+  const handleOpenEdit = (negocio: any) => {
     setEditingNegocio(negocio);
     setFormData({
       nombre: negocio.nombre,
       slug: negocio.slug,
+      codigo_acceso: negocio.codigo_acceso || '',
       color_primario: negocio.color_primario,
       color_secundario: negocio.color_secundario,
       logo_url: negocio.logo_url || '',
@@ -174,6 +177,7 @@ export default function NegociosPage() {
           .update({
             nombre: formData.nombre.trim(),
             slug: cleanSlug,
+            codigo_acceso: formData.codigo_acceso.trim() || null,
             color_primario: formData.color_primario,
             color_secundario: formData.color_secundario,
             logo_url: formData.logo_url || null,
@@ -193,6 +197,7 @@ export default function NegociosPage() {
         const { error } = await supabase.from('negocios').insert({
           nombre: formData.nombre.trim(),
           slug: cleanSlug,
+          codigo_acceso: formData.codigo_acceso.trim() || null,
           color_primario: formData.color_primario,
           color_secundario: formData.color_secundario,
           logo_url: formData.logo_url || null,
@@ -325,6 +330,9 @@ export default function NegociosPage() {
                 <th className="px-6 py-3.5 text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider hidden md:table-cell">
                   Slug / URL
                 </th>
+                <th className="px-6 py-3.5 text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                  PIN Acceso
+                </th>
                 <th className="px-6 py-3.5 text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider hidden lg:table-cell">
                   Colores
                 </th>
@@ -426,6 +434,24 @@ export default function NegociosPage() {
                           Visitar sitio
                         </a>
                       </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      {negocio.codigo_acceso ? (
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-sm font-bold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded-md tracking-widest">
+                            {negocio.codigo_acceso}
+                          </span>
+                          <button
+                            onClick={() => copyToClipboard(negocio.codigo_acceso)}
+                            className="text-slate-400 hover:text-blue-500 transition-colors"
+                            title="Copiar PIN"
+                          >
+                            <Copy size={12} />
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-slate-400 italic">No asignado</span>
+                      )}
                     </td>
                     <td className="px-6 py-4 hidden lg:table-cell">
                       <div className="flex items-center gap-2">
@@ -553,6 +579,39 @@ export default function NegociosPage() {
             </div>
             <p className="text-[11px] font-medium text-slate-400 dark:text-slate-500 mt-1.5 ml-1">
               URL: {typeof window !== 'undefined' ? window.location.origin : ''}/{formData.slug || '...'}/dashboard
+            </p>
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider ml-1">
+                PIN de Acceso (6 dígitos)
+              </label>
+              <button
+                type="button"
+                onClick={() => {
+                  const randomPin = Math.floor(100000 + Math.random() * 900000).toString();
+                  setFormData({ ...formData, codigo_acceso: randomPin });
+                }}
+                className="text-[10px] font-bold text-blue-600 hover:text-blue-700 transition-colors flex items-center gap-1"
+              >
+                <RefreshCw size={10} />
+                Generar PIN
+              </button>
+            </div>
+            <input
+              type="text"
+              maxLength={6}
+              value={formData.codigo_acceso}
+              onChange={(e) => {
+                const val = e.target.value.replace(/[^0-9]/g, '');
+                setFormData({ ...formData, codigo_acceso: val });
+              }}
+              className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm font-bold text-slate-900 dark:text-white placeholder-slate-400 focus:border-blue-500 dark:focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all tracking-widest font-mono"
+              placeholder="123456"
+            />
+            <p className="text-[11px] font-medium text-slate-400 dark:text-slate-500 mt-1.5 ml-1">
+              Este PIN es el que usarán los administradores y cajeros para entrar al sistema del negocio.
             </p>
           </div>
 
