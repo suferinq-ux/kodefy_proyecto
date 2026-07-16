@@ -16,165 +16,261 @@ import {
   Users,
   Globe,
   MessageCircle,
+  ChevronRight,
+  Star,
+  Package,
+  CreditCard,
+  Printer,
+  LayoutDashboard,
+  ClipboardList,
+  Bell,
+  Lock,
+  RefreshCw,
+  PieChart,
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { useGSAP } from '@gsap/react';
-import gsap from 'gsap';
+import { motion, AnimatePresence, useInView } from 'framer-motion';
 import { cn } from '@/lib/cn';
 
 const NAV_LINKS = [
   { label: 'Inicio', href: '#hero' },
   { label: 'Funcionalidades', href: '#features' },
   { label: 'Beneficios', href: '#benefits' },
+  { label: 'Precios', href: '#pricing' },
   { label: 'Contacto', href: '#contact' },
 ];
 
 const FEATURES = [
   {
-    icon: BarChart3,
-    title: 'Dashboard Inteligente',
+    icon: LayoutDashboard,
+    tag: 'Dashboard',
+    title: 'Panel de control en tiempo real',
     description:
-      'Visualiza ventas, inventario y métricas clave en tiempo real desde un solo panel.',
+      'Visualiza el estado de tu negocio al instante. Ventas del día, productos más vendidos, caja abierta y métricas clave en un solo vistazo.',
+    details: [
+      'Gráficas de ventas por hora, día y mes',
+      'Ranking de productos más vendidos',
+      'Estado de caja en tiempo real',
+      'Alertas de stock mínimo',
+    ],
+    color: 'blue',
   },
   {
     icon: Zap,
-    title: 'POS Ultra-rápido',
+    tag: 'Punto de Venta',
+    title: 'POS ultra-rápido y sin fricción',
     description:
-      'Registra ventas en segundos. Interfaz optimizada para alta velocidad con teclas rápidas.',
+      'Registra ventas en segundos con una interfaz diseñada para la velocidad. Teclas rápidas, búsqueda instantánea y flujo optimizado.',
+    details: [
+      'Búsqueda de productos por nombre o código',
+      'Comandas y pedidos por mesa',
+      'Múltiples métodos de pago (efectivo, Yape, Plin, tarjeta)',
+      'Impresión de tickets y comandas automática',
+    ],
+    color: 'indigo',
   },
   {
-    icon: Cloud,
-    title: 'Inventario Sincronizado',
+    icon: Package,
+    tag: 'Inventario',
+    title: 'Control de inventario inteligente',
     description:
-      'Stock actualizado al instante entre sucursales. Control total de mermas y reposiciones.',
-  },
-  {
-    icon: Smartphone,
-    title: 'Multi-dispositivo',
-    description:
-      'Accede desde cualquier dispositivo. Compatible con tablets, laptops y desktop. Sin instalación.',
+      'Mantén el stock siempre actualizado. Cada venta descuenta automáticamente del inventario. Reposición proactiva para nunca quedarte sin producto.',
+    details: [
+      'Descuento automático por venta',
+      'Alertas de stock mínimo configurable',
+      'Control de mermas y ajustes',
+      'Historial de movimientos completo',
+    ],
+    color: 'emerald',
   },
   {
     icon: Globe,
-    title: 'Multi-sucursal',
+    tag: 'Multi-sucursal',
+    title: 'Administra todas tus sedes',
     description:
-      'Administra todas tus sucursales desde un solo lugar. Datos centralizados en la nube.',
+      'Un solo sistema para todas tus ubicaciones. Datos centralizados en la nube, cada sucursal opera de forma independiente pero tú ves todo.',
+    details: [
+      'Vista unificada de todas las sedes',
+      'Inventario independiente por sucursal',
+      'Reportes consolidados y por sede',
+      'Transferencia de stock entre sucursales',
+    ],
+    color: 'violet',
   },
   {
-    icon: ShieldCheck,
-    title: 'Seguridad Empresarial',
+    icon: PieChart,
+    tag: 'Reportes',
+    title: 'Reportes y análisis profundo',
     description:
-      'Encriptación de extremo a extremo, backups automáticos y cumplimiento de estándares de seguridad.',
-  },
-];
-
-const BENEFITS = [
-  {
-    icon: TrendingUp,
-    title: 'Aumenta tus ventas',
-    description: 'Nuestros clientes reportan un incremento promedio del 30% en ventas tras el primer mes.',
-  },
-  {
-    icon: Zap,
-    title: 'Reduce tiempos de operación',
-    description: 'Automatiza tareas repetitivas. Personal más enfocado en atender, menos en papeleo.',
+      'Toma decisiones basadas en datos reales. Exporta reportes, analiza tendencias y conoce exactamente qué productos son los más rentables.',
+    details: [
+      'Reporte de ventas por período, cajero y producto',
+      'Cierre de caja detallado',
+      'Exportación a Excel y PDF',
+      'Comparativas de rendimiento por sucursal',
+    ],
+    color: 'amber',
   },
   {
     icon: Users,
-    title: 'Controla tu equipo',
-    description: 'Roles y permisos por usuario. Cada empleado ve solo lo que necesita para su trabajo.',
+    tag: 'Equipo',
+    title: 'Roles y permisos por usuario',
+    description:
+      'Asigna accesos específicos a cada miembro de tu equipo. Cajeros, administradores, supervisores: cada uno ve solo lo que necesita.',
+    details: [
+      'Roles predefinidos y personalizables',
+      'Registro de actividad por usuario',
+      'Control de descuentos y anulaciones',
+      'Múltiples cajeros simultáneos',
+    ],
+    color: 'rose',
   },
   {
-    icon: BarChart3,
-    title: 'Toma decisiones inteligentes',
-    description: 'Reportes automáticos con insights procesables. Deja de adivinar y empieza a medir.',
+    icon: CreditCard,
+    tag: 'Pagos',
+    title: 'Todos los medios de pago',
+    description:
+      'Acepta cualquier método de pago que tu cliente prefiera. Integración con las apps más usadas en Perú.',
+    details: [
+      'Efectivo con cálculo de vuelto',
+      'Yape y Plin con QR dinámico',
+      'Tarjeta de crédito y débito',
+      'Pago dividido entre varios métodos',
+    ],
+    color: 'cyan',
+  },
+  {
+    icon: ShieldCheck,
+    tag: 'Seguridad',
+    title: 'Seguridad empresarial',
+    description:
+      'Tus datos están protegidos con los más altos estándares. Backups automáticos, encriptación y acceso controlado.',
+    details: [
+      'Encriptación end-to-end',
+      'Backups automáticos diarios',
+      'Acceso con 2FA opcional',
+      '99.9% de uptime garantizado',
+    ],
+    color: 'slate',
   },
 ];
 
-const LOGOS = [
-  { src: '/images/logo-rodrigos.jpeg', name: "Rodrigo's Pollería" },
-  { src: '/images/logo-pocholos.png', name: 'Pocholos' },
-  { src: '', name: 'Tu negocio aquí' },
-  { src: '/images/logo-rodrigos.jpeg', name: "Rodrigo's Pollería" },
-  { src: '/images/logo-pocholos.png', name: 'Pocholos' },
-  { src: '', name: 'Tu negocio aquí' },
+const PILLARS = [
+  { icon: Zap,         title: 'Listo en minutos',         desc: 'Sin instalaciones ni configuraciones complejas. Tu equipo opera desde el primer día.' },
+  { icon: Cloud,       title: 'Siempre en la nube',        desc: 'Accede desde cualquier dispositivo. Tus datos siempre seguros y disponibles.' },
+  { icon: RefreshCw,   title: 'Actualizaciones incluidas', desc: 'Nuevas funciones sin costo adicional. El sistema mejora solo, tú no haces nada.' },
+  { icon: Lock,        title: 'Datos solo tuyos',          desc: 'Información encriptada y aislada por negocio. Nadie más accede a tus datos.' },
 ];
 
-const STATS = [
-  { value: '500+', label: 'Negocios activos' },
-  { value: 'S/ 2M+', label: 'Transacciones mensuales' },
-  { value: '99.9%', label: 'Uptime garantizado' },
-  { value: '24/7', label: 'Soporte disponible' },
+const PLANS = [
+  {
+    name: 'Starter',
+    price: '49',
+    description: 'Para negocios que recién comienzan su digitalización.',
+    features: [
+      'Hasta 1 sucursal',
+      'Hasta 3 usuarios',
+      'POS completo',
+      'Control de inventario',
+      'Reportes básicos',
+      'Soporte por WhatsApp',
+    ],
+    cta: 'Comenzar gratis',
+    highlighted: false,
+  },
+  {
+    name: 'Pro',
+    price: '99',
+    description: 'Para negocios en crecimiento con mayor volumen.',
+    features: [
+      'Hasta 3 sucursales',
+      'Usuarios ilimitados',
+      'POS ultra-rápido',
+      'Inventario multi-sede',
+      'Reportes avanzados + Excel',
+      'Gestión de mesas',
+      'Soporte prioritario 24/7',
+    ],
+    cta: 'Empezar con Pro',
+    highlighted: true,
+  },
+  {
+    name: 'Enterprise',
+    price: 'A consulta',
+    description: 'Solución a medida para cadenas y franquicias.',
+    features: [
+      'Sucursales ilimitadas',
+      'Usuarios ilimitados',
+      'Integraciones a medida',
+      'Onboarding dedicado',
+      'SLA garantizado',
+      'API acceso completo',
+    ],
+    cta: 'Hablar con ventas',
+    highlighted: false,
+  },
 ];
 
-function TrustedByCarousel() {
-  const trackRef = useRef<HTMLDivElement>(null);
+const colorMap: Record<string, { bg: string; text: string; badge: string; border: string; dot: string }> = {
+  blue:   { bg: 'bg-blue-50',   text: 'text-blue-600',   badge: 'bg-blue-100 text-blue-700',   border: 'border-blue-100',   dot: 'bg-blue-500'   },
+  indigo: { bg: 'bg-indigo-50', text: 'text-indigo-600', badge: 'bg-indigo-100 text-indigo-700', border: 'border-indigo-100', dot: 'bg-indigo-500' },
+  emerald:{ bg: 'bg-emerald-50',text: 'text-emerald-600',badge: 'bg-emerald-100 text-emerald-700',border: 'border-emerald-100',dot: 'bg-emerald-500'},
+  violet: { bg: 'bg-violet-50', text: 'text-violet-600', badge: 'bg-violet-100 text-violet-700', border: 'border-violet-100', dot: 'bg-violet-500' },
+  amber:  { bg: 'bg-amber-50',  text: 'text-amber-600',  badge: 'bg-amber-100 text-amber-700',  border: 'border-amber-100',  dot: 'bg-amber-500'  },
+  rose:   { bg: 'bg-rose-50',   text: 'text-rose-600',   badge: 'bg-rose-100 text-rose-700',   border: 'border-rose-100',   dot: 'bg-rose-500'   },
+  cyan:   { bg: 'bg-cyan-50',   text: 'text-cyan-600',   badge: 'bg-cyan-100 text-cyan-700',   border: 'border-cyan-100',   dot: 'bg-cyan-500'   },
+  slate:  { bg: 'bg-slate-100', text: 'text-slate-600',  badge: 'bg-slate-200 text-slate-700', border: 'border-slate-200',  dot: 'bg-slate-500'  },
+};
 
-  useGSAP(() => {
-    if (!trackRef.current) return;
-
-    const track = trackRef.current;
-    const clones = track.querySelectorAll('.logo-card');
-    const totalWidth = track.scrollWidth / 2; // middle set width
-
-    const tl = gsap.timeline({ repeat: -1, defaults: { ease: 'none' } });
-    tl.to(track, { x: -totalWidth, duration: 20, ease: 'linear' });
-    tl.set(track, { x: 0 });
-
-    // Pause on hover
-    track.addEventListener('mouseenter', () => tl.pause());
-    track.addEventListener('mouseleave', () => tl.play());
-
-    return () => {
-      tl.kill();
-    };
-  }, []);
+function FeatureCard({ feature, index }: { feature: (typeof FEATURES)[0]; index: number }) {
+  const ref = useRef(null);
+  const inView = useInView(ref, { once: true, margin: '-60px' });
+  const c = colorMap[feature.color];
 
   return (
-    <div className="relative w-full overflow-hidden mask-gradient">
-      <div ref={trackRef} className="flex items-center gap-12 w-max">
-        {/* Double set for seamless loop */}
-        {[...LOGOS, ...LOGOS].map((logo, i) => (
-          <div key={i} className="logo-card group flex flex-col items-center gap-2 flex-shrink-0">
-            <div className="w-36 h-20 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center grayscale opacity-50 group-hover:grayscale-0 group-hover:opacity-100 group-hover:border-blue-300 dark:group-hover:border-blue-500/30 group-hover:shadow-lg dark:group-hover:shadow-blue-500/5 transition-all duration-300">
-              {logo.src ? (
-                <img
-                  src={logo.src}
-                  alt={logo.name}
-                  className="max-h-14 max-w-[85%] object-contain"
-                />
-              ) : (
-                <div className="flex items-center gap-2 text-slate-300 dark:text-slate-600 group-hover:text-blue-400 dark:group-hover:text-blue-500 transition-colors">
-                  <svg
-                    width="22"
-                    height="22"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <rect x="3" y="3" width="18" height="18" rx="4" />
-                    <circle cx="12" cy="12" r="3" />
-                    <path d="M16 8h.01" />
-                  </svg>
-                </div>
-              )}
-            </div>
-            <span className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity">
-              {logo.name}
-            </span>
-          </div>
-        ))}
+    <motion.div
+      ref={ref}
+      initial={{ opacity: 0, y: 24 }}
+      animate={inView ? { opacity: 1, y: 0 } : {}}
+      transition={{ duration: 0.5, delay: (index % 2) * 0.1 }}
+      className="group bg-white rounded-3xl border border-stone-200/80 p-8 hover:border-stone-300 hover:shadow-xl hover:shadow-stone-200/60 transition-all duration-500 flex flex-col gap-6"
+    >
+      {/* Top row */}
+      <div className="flex items-start justify-between">
+        <div className={cn('w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0', c.bg)}>
+          <feature.icon className={cn('w-6 h-6', c.text)} strokeWidth={1.75} />
+        </div>
+        <span className={cn('text-xs font-bold px-3 py-1 rounded-full tracking-wide', c.badge)}>
+          {feature.tag}
+        </span>
       </div>
-    </div>
+
+      {/* Title & description */}
+      <div>
+        <h3 className="text-lg font-bold text-stone-900 tracking-tight mb-2 leading-snug">
+          {feature.title}
+        </h3>
+        <p className="text-sm text-stone-500 leading-relaxed">
+          {feature.description}
+        </p>
+      </div>
+
+      {/* Details list */}
+      <ul className={cn('space-y-2.5 pt-4 border-t', c.border)}>
+        {feature.details.map((d) => (
+          <li key={d} className="flex items-start gap-2.5">
+            <span className={cn('w-1.5 h-1.5 rounded-full mt-[5px] flex-shrink-0', c.dot)} />
+            <span className="text-sm text-stone-600 font-medium leading-snug">{d}</span>
+          </li>
+        ))}
+      </ul>
+    </motion.div>
   );
 }
 
 export default function LandingPage() {
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [activeFeature, setActiveFeature] = useState(0);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
@@ -189,63 +285,76 @@ export default function LandingPage() {
     }
   }, []);
 
+  const WA_LINK =
+    'https://wa.me/51989227176?text=Hola%20Kodefy%20TECH%2C%20quiero%20informaci%C3%B3n%20sobre%20sus%20planes';
+
   return (
-    <div className="min-h-screen bg-white dark:bg-slate-950 text-slate-900 dark:text-white overflow-x-hidden">
+    <div
+      className="min-h-screen text-stone-900 overflow-x-hidden"
+      style={{ backgroundColor: '#FAFAF8', fontFamily: "'Inter', 'SF Pro Display', system-ui, sans-serif" }}
+    >
       {/* ───── Navbar ───── */}
       <header
         id="hero"
         className={cn(
-          'fixed top-0 left-0 right-0 z-50 transition-all duration-300',
+          'fixed top-0 left-0 right-0 z-50 transition-all duration-500',
           scrolled
-            ? 'bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-slate-200/50 dark:border-slate-700/50 shadow-sm'
+            ? 'bg-white/85 backdrop-blur-2xl border-b border-stone-200/60 shadow-sm shadow-stone-900/[0.04]'
             : 'bg-transparent'
         )}
       >
-        <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-20">
+        <nav className="max-w-7xl mx-auto px-5 sm:px-8">
+          <div className="flex items-center justify-between h-[72px]">
             {/* Logo */}
-            <Link href="/" className="flex items-center flex-shrink-0">
+            <Link href="/" className="flex items-center gap-2.5 flex-shrink-0">
               <img
-                src="/images/kodefy_logoreal.png"
-                alt="Kodefy"
-                className="h-12 w-auto object-contain"
+                src="/images/KODEFY-LOGO.png"
+                alt="KodifyTech"
+                className="h-8 w-auto object-contain"
+                style={{ filter: 'brightness(0)' }}
               />
+              <div className="text-[1.15rem] font-black tracking-tight uppercase flex leading-none">
+                <span className="text-stone-900">KODEFY</span>
+                <span className="text-blue-600">TECH</span>
+              </div>
             </Link>
 
             {/* Desktop nav */}
-            <div className="hidden lg:flex items-center gap-1">
+            <div className="hidden lg:flex items-center gap-0.5">
               {NAV_LINKS.map((link) => (
                 <button
                   key={link.href}
                   onClick={() => scrollTo(link.href)}
-                  className="px-3.5 py-2 rounded-lg text-sm font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+                  className="px-4 py-2 rounded-xl text-sm font-medium text-stone-500 hover:text-stone-900 hover:bg-stone-100/80 transition-all duration-200"
                 >
                   {link.label}
                 </button>
               ))}
             </div>
 
-            {/* Desktop CTA */}
+            {/* CTA */}
             <div className="hidden lg:flex items-center gap-3">
               <Link
                 href="/login"
-                className="px-4 py-2 rounded-xl text-sm font-bold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+                className="px-4 py-2 text-sm font-semibold text-stone-600 hover:text-stone-900 transition-colors"
               >
                 Iniciar sesión
               </Link>
-              <Link
-                href="/register"
-                className="px-5 py-2.5 rounded-xl text-sm font-bold text-white bg-slate-900 dark:bg-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-slate-200 shadow-lg shadow-slate-900/10 dark:shadow-white/5 transition-all active:scale-[0.98] inline-flex items-center gap-2"
+              <a
+                href={WA_LINK}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold text-white bg-stone-900 hover:bg-stone-800 transition-all duration-200 shadow-lg shadow-stone-900/15 active:scale-[0.98]"
               >
-                Comenzar gratis
-                <ArrowRight size={15} />
-              </Link>
+                <MessageCircle size={15} strokeWidth={2} />
+                Cotizar ahora
+              </a>
             </div>
 
-            {/* Mobile menu button */}
+            {/* Mobile */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="lg:hidden p-2 -mr-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+              className="lg:hidden p-2 rounded-xl text-stone-600"
             >
               {mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
             </button>
@@ -259,36 +368,26 @@ export default function LandingPage() {
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
-              className="lg:hidden border-t border-slate-200/50 dark:border-slate-700/50 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl"
+              className="lg:hidden border-t border-stone-200 bg-white/95 backdrop-blur-xl"
             >
-              <div className="px-4 py-4 space-y-1">
+              <div className="px-5 py-4 space-y-1">
                 {NAV_LINKS.map((link) => (
                   <button
                     key={link.href}
-                    onClick={() => {
-                      scrollTo(link.href);
-                      setMobileMenuOpen(false);
-                    }}
-                    className="block w-full text-left px-4 py-3 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+                    onClick={() => { scrollTo(link.href); setMobileMenuOpen(false); }}
+                    className="block w-full text-left px-4 py-3 rounded-xl text-sm font-semibold text-stone-700 hover:bg-stone-100 transition-all"
                   >
                     {link.label}
                   </button>
                 ))}
                 <div className="pt-3 space-y-2">
-                  <Link
-                    href="/login"
-                    className="block w-full text-center px-4 py-3 rounded-xl text-sm font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
+                  <Link href="/login" className="block w-full text-center px-4 py-3 rounded-xl text-sm font-bold text-stone-700 hover:bg-stone-100 transition-all" onClick={() => setMobileMenuOpen(false)}>
                     Iniciar sesión
                   </Link>
-                  <Link
-                    href="/register"
-                    className="block w-full text-center px-4 py-3 rounded-xl text-sm font-bold text-white bg-slate-900 dark:bg-white dark:text-slate-900 transition-all"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    Comenzar gratis
-                  </Link>
+                  <a href={WA_LINK} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 w-full px-4 py-3 rounded-xl text-sm font-bold text-white bg-stone-900 transition-all">
+                    <MessageCircle size={16} />
+                    Cotizar por WhatsApp
+                  </a>
                 </div>
               </div>
             </motion.div>
@@ -296,286 +395,411 @@ export default function LandingPage() {
         </AnimatePresence>
       </header>
 
-      {/* ───── Hero Section ───── */}
-      <section className="relative pt-32 pb-20 lg:pt-40 lg:pb-28 overflow-hidden">
-        {/* Background */}
-        <div className="absolute inset-0 bg-gradient-to-b from-slate-50 via-white to-white dark:from-slate-950 dark:via-slate-950 dark:to-slate-950" />
-        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-blue-500/5 dark:bg-blue-500/10 rounded-full blur-[120px]" />
-        <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-indigo-500/5 dark:bg-indigo-500/10 rounded-full blur-[100px]" />
+      {/* ───── Hero ───── */}
+      <section className="relative pt-36 pb-24 lg:pt-48 lg:pb-32 overflow-hidden">
+        {/* Subtle radial background */}
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background:
+              'radial-gradient(ellipse 80% 60% at 50% -10%, rgba(59,130,246,0.07) 0%, transparent 70%), radial-gradient(ellipse 60% 40% at 80% 80%, rgba(139,92,246,0.05) 0%, transparent 60%)',
+          }}
+        />
 
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+        <div className="relative max-w-5xl mx-auto px-5 sm:px-8 text-center">
           <motion.div
-            initial={{ opacity: 0, y: 30 }}
+            initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7 }}
           >
-            {/* Badge */}
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 text-blue-700 dark:text-blue-400 text-xs font-bold mb-8">
-              <Zap size={12} />
-              NUEVO: Plan Starter desde S/ 49 al mes
+            {/* Eyebrow */}
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white border border-stone-200 shadow-sm text-xs font-bold text-stone-500 tracking-widest uppercase mb-8">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              Sistema POS Multi-inquilino · Perú
             </div>
 
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-black tracking-tight leading-[1.05] max-w-4xl mx-auto">
-              Digitaliza y escala{' '}
-              <span className="bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 dark:from-blue-400 dark:via-indigo-400 dark:to-violet-400 bg-clip-text text-transparent">
-                tu negocio
-              </span>
+            <h1 className="text-[2.75rem] sm:text-6xl lg:text-7xl font-black tracking-[-0.03em] leading-[1.04] text-stone-900 max-w-4xl mx-auto">
+              El sistema que hace{' '}
+              <span
+                className="relative inline-block"
+                style={{
+                  background: 'linear-gradient(135deg, #2563EB 0%, #7C3AED 100%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                }}
+              >
+                crecer
+              </span>{' '}
+              tu negocio
             </h1>
-            <p className="mt-6 text-lg sm:text-xl text-slate-500 dark:text-slate-400 max-w-2xl mx-auto leading-relaxed font-medium">
-              El sistema POS multi-inquilino que centraliza ventas, inventario y
-              operaciones. Diseñado para negocios que quieren crecer sin perder
-              el control.
+
+            <p className="mt-7 text-lg sm:text-xl text-stone-500 max-w-2xl mx-auto leading-relaxed font-[450]">
+              Ventas, inventario, caja y reportes en un solo lugar. Diseñado para restaurantes,
+              pollerías y negocios que quieren operar con eficiencia profesional.
             </p>
 
             <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Link
-                href="/register"
-                className="w-full sm:w-auto px-8 py-3.5 rounded-xl text-base font-bold text-white bg-slate-900 dark:bg-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-slate-200 shadow-xl shadow-slate-900/10 dark:shadow-white/5 transition-all active:scale-[0.98] inline-flex items-center justify-center gap-2"
+              <a
+                href={WA_LINK}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-8 py-4 rounded-2xl text-base font-bold text-white transition-all duration-200 active:scale-[0.98] shadow-xl"
+                style={{ background: 'linear-gradient(135deg, #16a34a 0%, #15803d 100%)', boxShadow: '0 8px 32px rgba(22,163,74,0.25)' }}
               >
-                Empieza ahora
-                <ArrowRight size={18} />
-              </Link>
+                <MessageCircle size={20} strokeWidth={2} />
+                Cotizar por WhatsApp
+                <ArrowRight size={16} />
+              </a>
               <button
                 onClick={() => scrollTo('#features')}
-                className="w-full sm:w-auto px-8 py-3.5 rounded-xl text-base font-bold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-4 rounded-2xl text-base font-semibold text-stone-700 bg-white border border-stone-200 hover:border-stone-300 hover:bg-stone-50 transition-all duration-200 shadow-sm"
               >
                 Ver funcionalidades
+                <ChevronRight size={16} />
               </button>
             </div>
+          </motion.div>
 
-            {/* Stats */}
-            <div className="mt-16 grid grid-cols-2 lg:grid-cols-4 gap-6 max-w-3xl mx-auto">
-              {STATS.map((stat, i) => (
-                <motion.div
-                  key={stat.label}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.3 + i * 0.08, duration: 0.5 }}
-                  className="text-center"
-                >
-                  <p className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
-                    {stat.value}
-                  </p>
-                  <p className="text-xs sm:text-sm font-semibold text-slate-400 dark:text-slate-500 mt-1">
-                    {stat.label}
-                  </p>
-                </motion.div>
-              ))}
-            </div>
+          {/* Pillars */}
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4, duration: 0.6 }}
+            className="mt-20 grid grid-cols-2 lg:grid-cols-4 gap-4 max-w-3xl mx-auto"
+          >
+            {PILLARS.map((p) => (
+              <div
+                key={p.title}
+                className="bg-white rounded-2xl border border-stone-200/80 p-5 text-left shadow-sm flex flex-col gap-3"
+              >
+                <div className="w-9 h-9 rounded-xl bg-stone-100 flex items-center justify-center">
+                  <p.icon className="w-4 h-4 text-stone-600" strokeWidth={1.75} />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-stone-900 leading-snug">{p.title}</p>
+                  <p className="text-xs text-stone-400 font-medium mt-1 leading-snug">{p.desc}</p>
+                </div>
+              </div>
+            ))}
           </motion.div>
         </div>
       </section>
 
-      {/* ───── Trusted By ───── */}
-      <section className="py-16 lg:py-20 border-b border-slate-200 dark:border-slate-800 overflow-hidden">
-        <motion.p
-          initial={{ opacity: 0, y: 8 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.4 }}
-          className="text-center text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-10"
-        >
-          Negocios que confían en nosotros
-        </motion.p>
-
-        <TrustedByCarousel />
+      {/* ───── Social Proof band ───── */}
+      <section className="py-10 border-y border-stone-200/80 bg-white/60 backdrop-blur-sm">
+        <div className="max-w-5xl mx-auto px-5 sm:px-8">
+          <p className="text-center text-xs font-bold text-stone-400 uppercase tracking-widest mb-8">
+            Negocios que confían en KodifyTech
+          </p>
+          <div className="flex flex-wrap items-center justify-center gap-10 opacity-70">
+            <img src="/images/logo-rodrigos.jpeg" alt="Rodrigo's" className="h-10 object-contain grayscale" />
+            <img src="/images/logo-pocholos.png" alt="Pocholos" className="h-10 object-contain grayscale" />
+            <div className="flex items-center gap-2 text-stone-400">
+              <span className="text-sm font-bold">Tu negocio aquí</span>
+            </div>
+          </div>
+        </div>
       </section>
 
       {/* ───── Features Section ───── */}
-      <section id="features" className="py-20 lg:py-28 relative">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <section id="features" className="py-24 lg:py-32">
+        <div className="max-w-7xl mx-auto px-5 sm:px-8">
+          {/* Header */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: '-100px' }}
+            viewport={{ once: true, margin: '-80px' }}
             transition={{ duration: 0.5 }}
-            className="text-center mb-14"
+            className="max-w-2xl mb-16"
           >
-            <p className="text-sm font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest mb-3">
+            <p className="text-xs font-bold text-blue-600 uppercase tracking-widest mb-4">
               Funcionalidades
             </p>
-            <h2 className="text-3xl sm:text-4xl font-black tracking-tight">
-              Todo lo que necesitas en{' '}
-              <span className="bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400 bg-clip-text text-transparent">
-                un solo lugar
-              </span>
+            <h2 className="text-4xl sm:text-5xl font-black tracking-[-0.03em] text-stone-900 leading-tight">
+              Todo lo que necesitas,{' '}
+              <span className="text-stone-400">sin lo que no necesitas.</span>
             </h2>
-            <p className="mt-4 text-slate-500 dark:text-slate-400 text-base max-w-xl mx-auto font-medium">
-              Desde el punto de venta hasta los reportes financieros. Kodefy TECH
-              cubre cada aspecto de la operación de tu negocio.
+            <p className="mt-5 text-lg text-stone-500 font-[450] leading-relaxed">
+              Cada función fue construida pensando en negocios reales. Nada de tecnología innecesaria,
+              solo herramientas que generan resultados desde el primer día.
             </p>
           </motion.div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {/* Grid */}
+          <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-5">
             {FEATURES.map((feature, i) => (
+              <FeatureCard key={feature.title} feature={feature} index={i} />
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ───── How it works ───── */}
+      <section
+        id="benefits"
+        className="py-24 lg:py-32 relative overflow-hidden"
+        style={{ background: 'linear-gradient(180deg, #F5F5F0 0%, #FAFAF8 100%)' }}
+      >
+        <div className="max-w-6xl mx-auto px-5 sm:px-8">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: '-80px' }}
+            transition={{ duration: 0.5 }}
+            className="text-center mb-16"
+          >
+            <p className="text-xs font-bold text-emerald-600 uppercase tracking-widest mb-4">Beneficios reales</p>
+            <h2 className="text-4xl sm:text-5xl font-black tracking-[-0.03em] text-stone-900">
+              Resultados desde el primer día
+            </h2>
+            <p className="mt-5 text-lg text-stone-500 max-w-xl mx-auto font-[450]">
+              No es otra herramienta más. Es el sistema que tus competidores ya deberían tener.
+            </p>
+          </motion.div>
+
+          <div className="grid lg:grid-cols-3 gap-6">
+            {[
+              {
+                icon: TrendingUp,
+                metric: '+30%',
+                title: 'Incremento en ventas',
+                desc: 'Nuestros clientes reportan un incremento promedio del 30% en ventas durante el primer trimestre, gracias a la velocidad del POS y mejor control del stock.',
+                color: 'emerald',
+              },
+              {
+                icon: Zap,
+                metric: '-60%',
+                title: 'Menos tiempo operativo',
+                desc: 'Automatiza cierres de caja, reportes y control de inventario. Tus empleados dedican más tiempo a atender clientes y menos a papeleo manual.',
+                color: 'blue',
+              },
+              {
+                icon: ShieldCheck,
+                metric: '0',
+                title: 'Errores en caja',
+                desc: 'El sistema calcula todo automáticamente. Vuelto exacto, descuentos, impuestos y cierre de caja sin errores humanos ni diferencias.',
+                color: 'violet',
+              },
+            ].map((b, i) => {
+              const c = colorMap[b.color];
+              return (
+                <motion.div
+                  key={b.title}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.1, duration: 0.5 }}
+                  className="bg-white rounded-3xl border border-stone-200/80 p-8 shadow-sm hover:shadow-lg transition-all duration-400"
+                >
+                  <div className={cn('w-12 h-12 rounded-2xl flex items-center justify-center mb-6', c.bg)}>
+                    <b.icon className={cn('w-6 h-6', c.text)} strokeWidth={1.75} />
+                  </div>
+                  <p className={cn('text-5xl font-black mb-3 tracking-tight', c.text)}>{b.metric}</p>
+                  <h3 className="text-lg font-bold text-stone-900 mb-3">{b.title}</h3>
+                  <p className="text-sm text-stone-500 leading-relaxed font-[450]">{b.desc}</p>
+                </motion.div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* ───── Pricing ───── */}
+      <section id="pricing" className="py-24 lg:py-32">
+        <div className="max-w-6xl mx-auto px-5 sm:px-8">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5 }}
+            className="text-center mb-16"
+          >
+            <p className="text-xs font-bold text-violet-600 uppercase tracking-widest mb-4">Planes y precios</p>
+            <h2 className="text-4xl sm:text-5xl font-black tracking-[-0.03em] text-stone-900">
+              Precio justo,{' '}
+              <span
+                style={{
+                  background: 'linear-gradient(135deg, #7C3AED 0%, #2563EB 100%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                }}
+              >
+                valor máximo.
+              </span>
+            </h2>
+            <p className="mt-5 text-lg text-stone-500 max-w-lg mx-auto font-[450]">
+              Sin contratos anuales. Sin letras pequeñas. Cancela cuando quieras.
+            </p>
+          </motion.div>
+
+          <div className="grid lg:grid-cols-3 gap-5 max-w-4xl mx-auto">
+            {PLANS.map((plan, i) => (
               <motion.div
-                key={feature.title}
+                key={plan.name}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ delay: i * 0.06, duration: 0.4 }}
-                className="group p-6 rounded-2xl border border-slate-200 dark:border-slate-800 hover:border-blue-200 dark:hover:border-blue-500/20 hover:shadow-lg dark:hover:shadow-blue-500/5 transition-all duration-300"
-              >
-                <div className="w-11 h-11 rounded-xl bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
-                  <feature.icon size={22} />
-                </div>
-                <h3 className="text-base font-black tracking-tight mb-2">
-                  {feature.title}
-                </h3>
-                <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed font-medium">
-                  {feature.description}
-                </p>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ───── Benefits Section ───── */}
-      <section
-        id="benefits"
-        className="py-20 lg:py-28 bg-slate-50 dark:bg-slate-900/50 relative"
-      >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: '-100px' }}
-            transition={{ duration: 0.5 }}
-            className="text-center mb-14"
-          >
-            <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mb-3">
-              Beneficios
-            </p>
-            <h2 className="text-3xl sm:text-4xl font-black tracking-tight">
-              Hecho para{' '}
-              <span className="bg-gradient-to-r from-emerald-600 to-teal-600 dark:from-emerald-400 dark:to-teal-400 bg-clip-text text-transparent">
-                resultados reales
-              </span>
-            </h2>
-            <p className="mt-4 text-slate-500 dark:text-slate-400 text-base max-w-xl mx-auto font-medium">
-              No es otra herramienta más. Es la plataforma que tu negocio
-              necesita para operar con eficiencia profesional.
-            </p>
-          </motion.div>
-
-          <div className="grid md:grid-cols-2 gap-5 max-w-4xl mx-auto">
-            {BENEFITS.map((benefit, i) => (
-              <motion.div
-                key={benefit.title}
-                initial={{ opacity: 0, x: i % 2 === 0 ? -20 : 20 }}
-                whileInView={{ opacity: 1, x: 0 }}
-                viewport={{ once: true }}
                 transition={{ delay: i * 0.1, duration: 0.5 }}
-                className="flex gap-4 p-5"
+                className={cn(
+                  'rounded-3xl p-7 flex flex-col gap-6 transition-all duration-300',
+                  plan.highlighted
+                    ? 'bg-stone-900 text-white shadow-2xl shadow-stone-900/30 scale-[1.03]'
+                    : 'bg-white border border-stone-200/80 shadow-sm hover:shadow-md'
+                )}
               >
-                <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center flex-shrink-0">
-                  <benefit.icon size={20} />
-                </div>
+                {plan.highlighted && (
+                  <div className="inline-flex items-center gap-1.5 bg-white/15 text-white text-xs font-bold px-3 py-1 rounded-full w-fit">
+                    <Star size={11} fill="currentColor" />
+                    Más popular
+                  </div>
+                )}
                 <div>
-                  <h3 className="text-base font-black tracking-tight mb-1.5">
-                    {benefit.title}
-                  </h3>
-                  <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed font-medium">
-                    {benefit.description}
+                  <p className={cn('text-sm font-bold uppercase tracking-widest mb-1', plan.highlighted ? 'text-stone-400' : 'text-stone-400')}>
+                    {plan.name}
+                  </p>
+                  <div className="flex items-end gap-1">
+                    {plan.price !== 'A consulta' && <span className={cn('text-sm font-semibold', plan.highlighted ? 'text-stone-400' : 'text-stone-400')}>S/</span>}
+                    <span className="text-4xl font-black tracking-tight">{plan.price}</span>
+                    {plan.price !== 'A consulta' && <span className={cn('text-sm mb-1 font-medium', plan.highlighted ? 'text-stone-400' : 'text-stone-500')}>/mes</span>}
+                  </div>
+                  <p className={cn('text-sm mt-2 font-[450]', plan.highlighted ? 'text-stone-400' : 'text-stone-500')}>
+                    {plan.description}
                   </p>
                 </div>
+
+                <ul className="space-y-3 flex-1">
+                  {plan.features.map((f) => (
+                    <li key={f} className="flex items-center gap-3">
+                      <Check size={15} className={plan.highlighted ? 'text-emerald-400' : 'text-emerald-500'} strokeWidth={2.5} />
+                      <span className={cn('text-sm font-medium', plan.highlighted ? 'text-stone-300' : 'text-stone-600')}>{f}</span>
+                    </li>
+                  ))}
+                </ul>
+
+                <a
+                  href={WA_LINK}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={cn(
+                    'inline-flex items-center justify-center gap-2 w-full py-3.5 rounded-2xl text-sm font-bold transition-all duration-200 active:scale-[0.98]',
+                    plan.highlighted
+                      ? 'bg-white text-stone-900 hover:bg-stone-100 shadow-lg'
+                      : 'bg-stone-900 text-white hover:bg-stone-800'
+                  )}
+                >
+                  <MessageCircle size={15} />
+                  {plan.cta}
+                </a>
               </motion.div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ───── Final CTA ───── */}
-      <section id="contact" className="py-20 lg:py-28 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900" />
-        <div className="absolute inset-0 opacity-[0.03]" style={{
-          backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'60\' height=\'60\' viewBox=\'0 0 60 60\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'none\' fill-rule=\'evenodd\'%3E%3Cg fill=\'%23ffffff\' fill-opacity=\'1\'%3E%3Cpath d=\'M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z\'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")',
-        }} />
-        <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500/20 rounded-full blur-[150px]" />
-        <div className="absolute bottom-0 left-0 w-80 h-80 bg-indigo-500/15 rounded-full blur-[120px]" />
+      {/* ───── CTA Final ───── */}
+      <section id="contact" className="py-24 lg:py-32 relative overflow-hidden">
+        <div
+          className="absolute inset-0"
+          style={{ background: 'linear-gradient(135deg, #0F172A 0%, #1E1B4B 50%, #0F172A 100%)' }}
+        />
+        {/* Orbs */}
+        <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-blue-600/10 rounded-full blur-[120px] pointer-events-none" />
+        <div className="absolute bottom-0 right-1/4 w-[400px] h-[400px] bg-violet-600/10 rounded-full blur-[100px] pointer-events-none" />
+        {/* Dot grid */}
+        <div
+          className="absolute inset-0 opacity-[0.025]"
+          style={{
+            backgroundImage: 'radial-gradient(circle, #fff 1px, transparent 1px)',
+            backgroundSize: '32px 32px',
+          }}
+        />
 
-        <div className="relative max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+        <div className="relative max-w-3xl mx-auto px-5 sm:px-8 text-center">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.6 }}
           >
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight">
-              ¿Listo para transformar{' '}
-              <span className="bg-gradient-to-r from-emerald-400 to-green-400 bg-clip-text text-transparent">
-                tu negocio
+            <p className="text-xs font-bold text-emerald-400 uppercase tracking-widest mb-6">Empieza hoy</p>
+            <h2 className="text-4xl sm:text-5xl lg:text-6xl font-black text-white tracking-[-0.03em] leading-tight">
+              Tu negocio merece{' '}
+              <span
+                style={{
+                  background: 'linear-gradient(135deg, #34d399 0%, #60a5fa 100%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                }}
+              >
+                tecnología real.
               </span>
-              ?
             </h2>
-            <p className="mt-5 text-lg text-slate-300/80 max-w-xl mx-auto leading-relaxed font-medium">
-              Escríbenos por WhatsApp y recibe una cotización personalizada en minutos.
-              Sin compromisos, sin letras chiquitas.
+            <p className="mt-6 text-lg text-white/60 max-w-xl mx-auto leading-relaxed font-[450]">
+              Escríbenos ahora y recibe una cotización personalizada en menos de 10 minutos.
+              Sin compromiso, sin letra chica.
             </p>
 
             <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
               <a
-                href="https://wa.me/51989227176?text=Hola%20Kodefy%20TECH%2C%20quiero%20informaci%C3%B3n%20sobre%20sus%20planes"
+                href={WA_LINK}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-full sm:w-auto px-8 py-4 rounded-2xl text-base font-bold text-white bg-emerald-600 hover:bg-emerald-500 shadow-xl shadow-emerald-600/20 transition-all active:scale-[0.98] inline-flex items-center justify-center gap-3"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-3 px-9 py-4.5 py-[18px] rounded-2xl text-base font-bold text-white transition-all duration-200 active:scale-[0.98] shadow-2xl"
+                style={{
+                  background: 'linear-gradient(135deg, #16a34a 0%, #15803d 100%)',
+                  boxShadow: '0 8px 40px rgba(22,163,74,0.35)',
+                }}
               >
-                <MessageCircle size={22} />
-                Cotizar por WhatsApp
+                <MessageCircle size={22} strokeWidth={2} />
+                Escribir por WhatsApp
                 <ArrowRight size={18} />
               </a>
               <Link
                 href="/register"
-                className="w-full sm:w-auto px-8 py-4 rounded-2xl text-base font-bold text-white border-2 border-white/20 hover:bg-white/10 hover:border-white/30 transition-all inline-flex items-center justify-center gap-2"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-9 py-[18px] rounded-2xl text-base font-bold text-white/80 border border-white/15 hover:bg-white/10 hover:text-white transition-all duration-200"
               >
-                Probar gratis 14 días
+                Probar 14 días gratis
               </Link>
             </div>
 
-            <p className="mt-8 text-sm text-slate-500">
-              También disponible:{' '}
-              <span className="font-bold text-slate-400">+51 989 227 176</span>
+            <p className="mt-8 text-sm text-white/30">
+              También puedes llamarnos: <span className="text-white/60 font-semibold">+51 989 227 176</span>
             </p>
           </motion.div>
         </div>
       </section>
 
       {/* ───── Footer ───── */}
-      <footer className="py-14 bg-slate-50 dark:bg-slate-900/30 border-t border-slate-200 dark:border-slate-800">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <footer
+        className="py-12 border-t border-stone-200"
+        style={{ backgroundColor: '#FAFAF8' }}
+      >
+        <div className="max-w-7xl mx-auto px-5 sm:px-8">
           <div className="flex flex-col md:flex-row items-center justify-between gap-8">
-            <div className="flex items-center">
+            {/* Logo */}
+            <Link href="/" className="flex items-center gap-2.5">
               <img
-                src="/images/kodefy_logoreal.png"
-                alt="Kodefy"
-                className="h-12 w-auto object-contain"
+                src="/images/KODEFY-LOGO.png"
+                alt="KodifyTech"
+                className="h-7 w-auto object-contain"
+                style={{ filter: 'brightness(0)' }}
               />
-              <span className="font-black text-base tracking-tight">
-                Kodefy<span className="text-blue-600 dark:text-blue-400">TECH</span>
-              </span>
+              <div className="text-base font-black tracking-tight uppercase flex">
+                <span className="text-stone-900">KODEFY</span>
+                <span className="text-blue-600">TECH</span>
+              </div>
+            </Link>
+
+            {/* Links */}
+            <div className="flex flex-wrap items-center justify-center gap-6 text-sm font-medium text-stone-400">
+              <button onClick={() => scrollTo('#features')} className="hover:text-stone-900 transition-colors">Funcionalidades</button>
+              <button onClick={() => scrollTo('#benefits')} className="hover:text-stone-900 transition-colors">Beneficios</button>
+              <button onClick={() => scrollTo('#pricing')} className="hover:text-stone-900 transition-colors">Precios</button>
+              <Link href="/login" className="hover:text-stone-900 transition-colors">Iniciar sesión</Link>
             </div>
 
-            <div className="flex flex-wrap items-center justify-center gap-6 text-sm font-semibold text-slate-500 dark:text-slate-400">
-              <button onClick={() => scrollTo('#features')} className="hover:text-slate-900 dark:hover:text-white transition-colors">
-                Funcionalidades
-              </button>
-              <button onClick={() => scrollTo('#benefits')} className="hover:text-slate-900 dark:hover:text-white transition-colors">
-                Beneficios
-              </button>
-              <button onClick={() => scrollTo('#contact')} className="hover:text-slate-900 dark:hover:text-white transition-colors">
-                Contacto
-              </button>
-              <Link href="/login" className="hover:text-slate-900 dark:hover:text-white transition-colors">
-                Iniciar sesión
-              </Link>
-              <Link href="/register" className="hover:text-slate-900 dark:hover:text-white transition-colors">
-                Registrarse
-              </Link>
-            </div>
-
-            <p className="text-xs font-medium text-slate-400 dark:text-slate-600">
-              &copy; {new Date().getFullYear()} Kodefy TECH. Todos los derechos reservados.
+            <p className="text-xs font-medium text-stone-400">
+              © {new Date().getFullYear()} Kodefy TECH. Todos los derechos reservados.
             </p>
           </div>
         </div>
