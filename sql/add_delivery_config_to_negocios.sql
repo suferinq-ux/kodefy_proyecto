@@ -1,0 +1,4 @@
+ALTER TABLE public.negocios ADD COLUMN IF NOT EXISTS latitud DECIMAL(10,8);
+ALTER TABLE public.negocios ADD COLUMN IF NOT EXISTS longitud DECIMAL(11,8);
+ALTER TABLE public.negocios ADD COLUMN IF NOT EXISTS costo_base_delivery DECIMAL(10,2) DEFAULT 0;
+ALTER TABLE public.negocios ADD COLUMN IF NOT EXISTS costo_por_km DECIMAL(10,2) DEFAULT 0;
