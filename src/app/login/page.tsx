@@ -420,7 +420,11 @@ export default function LoginPage() {
         return;
       }
 
-      router.push(`/${businessInfo.slug}/dashboard`);
+      if (profile.rol === 'repartidor') {
+        router.push(`/${businessInfo.slug}/delivery`);
+      } else {
+        router.push(`/${businessInfo.slug}/dashboard`);
+      }
     } catch (err: any) {
       console.error('[LoginPage] Error:', err);
       setError(err.message || 'Error al conectar con el servidor.');

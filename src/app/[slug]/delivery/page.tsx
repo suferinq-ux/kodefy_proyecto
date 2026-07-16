@@ -103,6 +103,27 @@ export default function DeliveryDashboard() {
         }
     };
 
+    const handleTakeOrder = async (orderId: string) => {
+        if (!user?.id) return;
+        const success = await updateDeliveryStatus(orderId, 'asignado', user.id);
+        if (success) {
+            toast.success("Pedido tomado. ¡A prepararse!");
+            loadOrders();
+        } else {
+            toast.error("No se pudo tomar el pedido");
+        }
+    };
+
+    const handleStartRoute = async (orderId: string) => {
+        const success = await updateDeliveryStatus(orderId, 'en_camino');
+        if (success) {
+            toast.success("Ruta iniciada. ¡Con cuidado!");
+            loadOrders();
+        } else {
+            toast.error("No se pudo iniciar la ruta");
+        }
+    };
+
     // Tracking GPS del repartidor
     useEffect(() => {
         if (!user) return;
@@ -203,7 +224,7 @@ export default function DeliveryDashboard() {
                                 </p>
                             </div>
                             <AnimatePresence mode="popLayout">
-                                {orders.map((order, idx) => {
+                                {orders.filter(order => user?.rol === 'admin' || !order.repartidor_id || order.repartidor_id === user?.id).map((order, idx) => {
                                     const items = order.items || [];
                                     const totalItems = items.reduce((s, i) => s + (i.cantidad || 0), 0);
 
@@ -358,16 +379,43 @@ export default function DeliveryDashboard() {
                                                         </div>
                                                     </div>
 
-                                                    <div className="flex gap-3">
+                                                    <div className="flex flex-col sm:flex-row gap-3">
                                                         <a
                                                             href={getGoogleMapsLink(order.direccion_envio || '', order.latitud_envio || undefined, order.longitud_envio || undefined)}
                                                             target="_blank"
                                                             rel="noopener noreferrer"
-                                                            className="flex-1 py-4 bg-slate-900 text-white font-black rounded-[1.5rem] shadow-xl hover:brightness-110 active:scale-95 transition-all text-sm uppercase tracking-widest flex items-center justify-center gap-2 italic"
+                                                            className="flex-1 py-4 bg-slate-900 text-white font-black rounded-[1.5rem] shadow-xl hover:bg-slate-800 active:scale-95 transition-all text-sm uppercase tracking-widest flex items-center justify-center gap-2 italic text-center"
                                                             onClick={(e) => e.stopPropagation()}
                                                         >
                                                             <MapPin size={18} /> Ver Mapa
                                                         </a>
+
+                                                        {order.estado_delivery === 'buscando_repartidor' && (
+                                                            <button
+                                                                onClick={(e) => { e.stopPropagation(); handleTakeOrder(order.id); }}
+                                                                className="flex-1 py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-[1.5rem] shadow-xl active:scale-95 transition-all text-sm uppercase tracking-widest flex items-center justify-center gap-2 italic animate-pulse"
+                                                            >
+                                                                🛵 Tomar Pedido
+                                                            </button>
+                                                        )}
+
+                                                        {order.estado_delivery === 'asignado' && (
+                                                            <button
+                                                                onClick={(e) => { e.stopPropagation(); handleStartRoute(order.id); }}
+                                                                className="flex-1 py-4 bg-amber-500 hover:bg-amber-400 text-slate-900 font-black rounded-[1.5rem] shadow-xl active:scale-95 transition-all text-sm uppercase tracking-widest flex items-center justify-center gap-2 italic"
+                                                            >
+                                                                ⚡ Iniciar Ruta
+                                                            </button>
+                                                        )}
+
+                                                        {order.estado_delivery === 'en_camino' && (
+                                                            <button
+                                                                onClick={(e) => { e.stopPropagation(); handleComplete(order.id); }}
+                                                                className="flex-1 py-4 bg-blue-600 hover:bg-blue-500 text-white font-black rounded-[1.5rem] shadow-xl active:scale-95 transition-all text-sm uppercase tracking-widest flex items-center justify-center gap-2 italic"
+                                                            >
+                                                                ✅ Entregado
+                                                            </button>
+                                                        )}
                                                     </div>
                                                 </div>
                                             </motion.div>

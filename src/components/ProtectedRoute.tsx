@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { hasPermission } from '@/lib/roles';
 import { Loader2, Lock } from 'lucide-react';
@@ -14,6 +14,7 @@ interface ProtectedRouteProps {
 export default function ProtectedRoute({ children, requiredPermission }: ProtectedRouteProps) {
     const { user, loading, isAuthenticated } = useAuth();
     const router = useRouter();
+    const params = useParams();
 
     useEffect(() => {
         // Solo redirigir si ya terminó de cargar y no está autenticado
@@ -44,6 +45,11 @@ export default function ProtectedRoute({ children, requiredPermission }: Protect
         const access = hasPermission(user.rol, requiredPermission);
         if (!access) {
             console.warn(`[ProtectedRoute] Denied: User role ${user.rol} needs ${requiredPermission}`);
+            if (user.rol === 'repartidor') {
+                const slug = params?.slug || '';
+                router.push(`/${slug}/delivery`);
+                return null;
+            }
             return (
                 <div className="min-h-screen flex items-center justify-center bg-stone-950 p-4">
                     <div className="text-center p-8 glass-panel max-w-sm w-full">
