@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Navigation2, CheckCircle2, MapPin, Loader2 } from 'lucide-react';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { supabase } from '@/lib/supabase';
 import { getDeliveryOrders, updateDeliveryStatus } from '@/lib/ventas';
@@ -15,7 +15,13 @@ import 'leaflet/dist/leaflet.css';
 import 'leaflet-defaulticon-compatibility/dist/leaflet-defaulticon-compatibility.css';
 import 'leaflet-defaulticon-compatibility';
 
-const RODRIGOS_LOCATION: [number, number] = [-13.178950365235947, -74.22213214233665];
+const RecenterMap = ({ position }: { position: [number, number] }) => {
+    const map = useMap();
+    useEffect(() => {
+        map.setView(position, map.getZoom());
+    }, [position, map]);
+    return null;
+};
 
 interface DeliveryRadarModalProps {
     isOpen: boolean;
@@ -27,9 +33,31 @@ export default function DeliveryRadarModal({ isOpen, onClose }: DeliveryRadarMod
     const [orders, setOrders] = useState<Venta[]>([]);
     const [repartidores, setRepartidores] = useState<{ [id: string]: RepartidorUbicacion }>({});
     const [loading, setLoading] = useState(true);
+    
+    const originLat = business?.latitud || -13.1587;
+    const originLng = business?.longitud || -74.2239;
+    const [businessLocation, setBusinessLocation] = useState<[number, number]>([originLat, originLng]);
 
     const loadData = async () => {
         setLoading(true);
+
+        if (business?.id) {
+            const { data: configData } = await supabase.from('configuracion_negocio').select('nombre_negocio').eq('negocio_id', business.id).maybeSingle();
+            let locationSet = false;
+            if (configData && configData.nombre_negocio) {
+                try {
+                    const parsed = JSON.parse(configData.nombre_negocio);
+                    if (parsed.latitud && parsed.longitud) {
+                        setBusinessLocation([Number(parsed.latitud), Number(parsed.longitud)]);
+                        locationSet = true;
+                    }
+                } catch(e) {}
+            }
+            if (!locationSet) {
+                setBusinessLocation([business?.latitud || -13.1587, business?.longitud || -74.2239]);
+            }
+        }
+
         const data = await getDeliveryOrders();
         setOrders(data);
 
@@ -190,18 +218,19 @@ export default function DeliveryRadarModal({ isOpen, onClose }: DeliveryRadarMod
                                 </div>
 
                                 <MapContainer
-                                    center={RODRIGOS_LOCATION}
+                                    center={businessLocation}
                                     zoom={14}
                                     style={{ width: '100%', height: '100%', zIndex: 0 }}
                                     zoomControl={true}
                                 >
+                                    <RecenterMap position={businessLocation} />
                                     <TileLayer
                                         attribution='&copy; <a href="https://carto.com/attributions">CARTO</a>'
                                         url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
                                     />
 
                                     {/* Local */}
-                                    <Marker position={RODRIGOS_LOCATION} icon={new L.Icon({
+                                    <Marker position={businessLocation} icon={new L.Icon({
                                         iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-gold.png',
                                         shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
                                         iconSize: [25, 41],
