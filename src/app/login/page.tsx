@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Loader2, Eye, EyeOff, AlertCircle, ArrowRight, ShieldCheck, CheckCircle2, Building2, Fingerprint, Shield, Lock, KeyRound } from 'lucide-react';
+import { Loader2, Eye, EyeOff, AlertCircle, ArrowRight, ShieldCheck, CheckCircle2, Building2, Lock, KeyRound } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import gsap from 'gsap';
 import { supabase } from '@/lib/supabase';
@@ -33,25 +33,13 @@ export default function LoginPage() {
   const [showUI, setShowUI] = useState(false);
   
   // Advanced security states
-  const [isBiometricRegistered, setIsBiometricRegistered] = useState(false);
   const [isPatternRegistered, setIsPatternRegistered] = useState(false);
   const [showPatternUnlock, setShowPatternUnlock] = useState(false);
   const [patternUnlockError, setPatternUnlockError] = useState(false);
-  const [showPromptUnlock, setShowPromptUnlock] = useState(false);
-  const [promptSessionId, setPromptSessionId] = useState('');
-  const [pollIntervalId, setPollIntervalId] = useState<any>(null);
-  const [showRecoveryInput, setShowRecoveryInput] = useState(false);
-  const [recoveryCode, setRecoveryCode] = useState('');
 
   const router = useRouter();
   const searchParams = useSearchParams();
   const justRegistered = searchParams.get('registered') === 'true';
-
-  useEffect(() => {
-    return () => {
-      if (pollIntervalId) clearInterval(pollIntervalId);
-    };
-  }, [pollIntervalId]);
 
   useEffect(() => {
     setShowUI(true);
@@ -61,7 +49,6 @@ export default function LoginPage() {
       setRememberMe(true);
     }
 
-    setIsBiometricRegistered(localStorage.getItem('kodefy-admin-biometric-registered') === 'true');
     setIsPatternRegistered(localStorage.getItem('kodefy-admin-pattern') !== null);
 
     const ctx = gsap.context(() => {
@@ -131,68 +118,6 @@ export default function LoginPage() {
     setStep(2);
   };
 
-  const handleBiometricLogin = async () => {
-    setError(null);
-    try {
-      if (typeof window !== 'undefined' && 'credentials' in navigator) {
-        const cred = await navigator.credentials.get({ password: true } as any);
-        if (cred && 'password' in (cred as any)) {
-          setLoading(true);
-          const emailVal = cred.id;
-          const passwordVal = (cred as any).password;
-          
-          setEmail(emailVal);
-          setPassword(passwordVal);
-
-          const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-            email: emailVal,
-            password: passwordVal,
-          });
-
-          if (authError || !authData.user) {
-            setError(authError?.message || 'Error de autenticación biométrica.');
-            setShakeError(true);
-            setLoading(false);
-            return;
-          }
-
-          // Load profile
-          const { data: profile, error: profileError } = await supabase
-            .from('user_profiles')
-            .select('*')
-            .eq('id', authData.user.id)
-            .single();
-
-          if (profileError || !profile || !profile.es_super_admin) {
-            await supabase.auth.signOut();
-            setError('Acceso denegado. No eres super administrador.');
-            setShakeError(true);
-            setLoading(false);
-            return;
-          }
-
-          // Check for pattern lock (2FA)
-          const savedPattern = localStorage.getItem('kodefy-admin-pattern');
-          if (savedPattern) {
-            setShowPatternUnlock(true);
-            setLoading(false);
-            return;
-          }
-
-          toast.success('Acceso biométrico concedido.');
-          router.push('/super-admin');
-        }
-      }
-    } catch (err: any) {
-      console.error('[Biometric Login] Error:', err);
-      if (err.name !== 'NotAllowedError') {
-        setError('Error al leer la biometría del equipo.');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handlePatternUnlockComplete = async (drawnPattern: number[]) => {
     const savedPatternStr = localStorage.getItem('kodefy-admin-pattern');
     if (!savedPatternStr) return;
@@ -213,87 +138,6 @@ export default function LoginPage() {
         setShowPatternUnlock(false);
         setError(null);
       }, 1500);
-    }
-  };
-
-  const startSessionPolling = (sessionId: string) => {
-    let attempts = 0;
-    const interval = setInterval(async () => {
-      attempts++;
-      if (attempts > 30) {
-        clearInterval(interval);
-        setError('Tiempo de espera agotado. Intenta de nuevo.');
-        setShakeError(true);
-        setShowPromptUnlock(false);
-        await supabase.auth.signOut();
-        return;
-      }
-
-      try {
-        const res = await fetch(`/api/auth/session?id=${sessionId}`);
-        if (res.ok) {
-          const data = await res.json();
-          if (data.status === 'approved') {
-            clearInterval(interval);
-            
-            // Check for pattern lock (second factor)
-            const savedPattern = localStorage.getItem('kodefy-admin-pattern');
-            if (savedPattern) {
-              setShowPatternUnlock(true);
-              setShowPromptUnlock(false);
-              return;
-            }
-
-            toast.success('Acceso autorizado.');
-            setShowPromptUnlock(false);
-            router.push('/super-admin');
-          } else if (data.status === 'rejected') {
-            clearInterval(interval);
-            setError('Acceso rechazado desde tu celular.');
-            setShakeError(true);
-            setShowPromptUnlock(false);
-            await supabase.auth.signOut();
-          }
-        }
-      } catch (err) {
-        console.error('Error polling session:', err);
-      }
-    }, 2000);
-
-    setPollIntervalId(interval);
-  };
-
-  const handleCancelPrompt = async () => {
-    if (pollIntervalId) {
-      clearInterval(pollIntervalId);
-      setPollIntervalId(null);
-    }
-    setShowPromptUnlock(false);
-    setShowRecoveryInput(false);
-    setPromptSessionId('');
-    setRecoveryCode('');
-    await supabase.auth.signOut();
-    setError('Autenticación cancelada.');
-  };
-
-  const handleRecoverySubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    setShakeError(false);
-
-    const envPin = process.env.NEXT_PUBLIC_ADMIN_RECOVERY_PIN || '998877';
-    if (recoveryCode.trim() === envPin) {
-      if (pollIntervalId) {
-        clearInterval(pollIntervalId);
-        setPollIntervalId(null);
-      }
-      toast.success('Acceso concedido mediante código de recuperación.');
-      setShowPromptUnlock(false);
-      setShowRecoveryInput(false);
-      router.push('/super-admin');
-    } else {
-      setError('Código de recuperación incorrecto.');
-      setShakeError(true);
     }
   };
 
@@ -370,32 +214,14 @@ export default function LoginPage() {
           return;
         }
 
-        // Create mobile 2FA approval session
-        try {
-          const res = await fetch('/api/auth/session', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              userId: authData.user.id,
-              userAgent: navigator.userAgent
-            })
-          });
-
-          if (!res.ok) throw new Error('Error al iniciar 2FA móvil.');
-
-          const sessionData = await res.json();
-          setPromptSessionId(sessionData.id);
-          setShowPromptUnlock(true);
-          
-          startSessionPolling(sessionData.id);
-        } catch (err: any) {
-          console.error('[Session Create Error]', err);
-          await supabase.auth.signOut();
-          setError('Error al iniciar la verificación de seguridad en dos pasos móvil.');
-          setShakeError(true);
-        } finally {
+        const savedPattern = localStorage.getItem('kodefy-admin-pattern');
+        if (savedPattern) {
+          setShowPatternUnlock(true);
           setLoading(false);
+          return;
         }
+
+        router.push('/super-admin');
         return;
       }
 
@@ -443,28 +269,20 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen w-full flex bg-slate-50 dark:bg-slate-950">
-      {/* Left panel — brand & illustration */}
       <div className="relative hidden lg:flex w-1/2 overflow-hidden bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 transition-colors duration-500">
-        {/* Dynamic primary color overlay based on businessInfo if in step 2 */}
         {step === 2 && businessInfo?.color_primario && (
            <div 
              className="absolute inset-0 opacity-40 mix-blend-color transition-all duration-1000 ease-in-out" 
              style={{ backgroundColor: businessInfo.color_primario }} 
            />
         )}
-        {/* Grid pattern overlay */}
         <div className="absolute inset-0 opacity-[0.03]" style={{
           backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'60\' height=\'60\' viewBox=\'0 0 60 60\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'none\' fill-rule=\'evenodd\'%3E%3Cg fill=\'%23ffffff\' fill-opacity=\'1\'%3E%3Cpath d=\'M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z\'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")',
         }} />
-
-        {/* Gradient orbs */}
         <div className="absolute top-1/4 -left-20 w-96 h-96 bg-blue-500/20 rounded-full blur-[128px]" />
         <div className="absolute bottom-1/4 right-0 w-80 h-80 bg-indigo-500/15 rounded-full blur-[100px]" />
         <div className="absolute top-0 right-1/4 w-64 h-64 bg-cyan-500/10 rounded-full blur-[80px]" />
-
-        {/* Content */}
         <div className="relative z-10 flex flex-col justify-between w-full p-12 xl:p-16">
-          {/* Logo */}
           <div className="flex items-center gap-5">
             <img
               src="/images/KODEFY-LOGO.png"
@@ -476,8 +294,6 @@ export default function LoginPage() {
               <span className="kodefy-text-tech text-black inline-block">TECH</span>
             </div>
           </div>
-
-          {/* Hero text */}
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
@@ -495,8 +311,6 @@ export default function LoginPage() {
               Ventas, inventario y caja en un solo lugar. Diseñado para negocios que quieren crecer sin distracciones.
             </p>
           </motion.div>
-
-          {/* Feature list */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -518,8 +332,6 @@ export default function LoginPage() {
               </motion.div>
             ))}
           </motion.div>
-
-          {/* Trust indicator */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -531,15 +343,11 @@ export default function LoginPage() {
           </motion.div>
         </div>
       </div>
-
-      {/* Right panel — login form */}
       <div className="relative flex flex-1 items-center justify-center px-6 py-12 sm:px-10 lg:px-16">
-        {/* Subtle background pattern for mobile */}
         <div className="absolute inset-0 lg:hidden">
           <div className="absolute top-0 right-0 w-80 h-80 bg-blue-500/5 rounded-full blur-[100px]" />
           <div className="absolute bottom-0 left-0 w-64 h-64 bg-indigo-500/5 rounded-full blur-[80px]" />
         </div>
-
         <AnimatePresence mode="wait">
           <motion.div
             key={`step-${step}`}
@@ -549,7 +357,6 @@ export default function LoginPage() {
             transition={{ duration: 0.4 }}
             className="relative w-full max-w-[400px]"
           >
-            {/* Mobile logo */}
             {step === 1 && (
               <div className="lg:hidden flex items-center mb-10 justify-center gap-3">
                 <img
@@ -563,8 +370,6 @@ export default function LoginPage() {
                 </div>
               </div>
             )}
-
-            {/* Header */}
             <div className="mb-8">
               {step === 1 ? (
                 <>
@@ -593,8 +398,6 @@ export default function LoginPage() {
                 </div>
               )}
             </div>
-
-            {/* Success alert (post-registration) */}
             <AnimatePresence>
               {justRegistered && step === 1 && (
                 <motion.div
@@ -613,8 +416,6 @@ export default function LoginPage() {
                 </motion.div>
               )}
             </AnimatePresence>
-
-            {/* Error alert */}
             <AnimatePresence>
               {error && (
                 <motion.div
@@ -632,16 +433,12 @@ export default function LoginPage() {
                 </motion.div>
               )}
             </AnimatePresence>
-
-            {/* Form */}
             {step === 1 ? (
               <form onSubmit={handleBusinessCodeSubmit} className="space-y-5" noValidate>
                 <div>
                   <label
                     htmlFor="businessCode"
-                    className={cn(
-                      'mb-2 flex items-center justify-between'
-                    )}
+                    className="mb-2 flex items-center justify-between"
                   >
                     <span className={cn(
                       'text-xs font-bold uppercase tracking-wider transition-colors',
@@ -683,7 +480,6 @@ export default function LoginPage() {
                     />
                   </div>
                 </div>
-
                 <button
                   type="submit"
                   disabled={loading || !isFormValid}
@@ -711,7 +507,6 @@ export default function LoginPage() {
                     </>
                   )}
                 </button>
-
                 <div className="pt-4 text-center">
                   <button
                     type="button"
@@ -724,106 +519,7 @@ export default function LoginPage() {
               </form>
             ) : (
               <form onSubmit={handleSubmit} className="space-y-5" noValidate>
-                {showPromptUnlock ? (
-                  showRecoveryInput ? (
-                    <div className="space-y-4 py-4 text-center">
-                      <div className="w-12 h-12 rounded-full bg-amber-500/10 flex items-center justify-center text-amber-500 mx-auto">
-                        <KeyRound size={20} />
-                      </div>
-                      <div>
-                        <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">
-                          Código de Recuperación
-                        </h3>
-                        <p className="text-xs text-slate-400 mt-1">
-                          Ingresa tu PIN de 6 dígitos de respaldo.
-                        </p>
-                      </div>
-                      <div className="px-4 space-y-3">
-                        <input
-                          type="text"
-                          maxLength={6}
-                          placeholder="998877"
-                          value={recoveryCode}
-                          onChange={(e) => setRecoveryCode(e.target.value.replace(/[^0-9]/g, ''))}
-                          className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-center font-bold text-sm tracking-widest outline-none focus:border-blue-500 transition-all font-mono"
-                        />
-                        <button
-                          type="button"
-                          onClick={handleRecoverySubmit}
-                          disabled={recoveryCode.length !== 6}
-                          className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all disabled:opacity-50"
-                        >
-                          Verificar Código
-                        </button>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowRecoveryInput(false);
-                          setRecoveryCode('');
-                          setError(null);
-                        }}
-                        className="text-xs text-slate-500 hover:text-slate-700 transition-colors mt-2"
-                      >
-                        Volver atrás
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="space-y-6 py-6 text-center">
-                      <div className="w-16 h-16 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-500 mx-auto animate-pulse">
-                        <Shield size={32} />
-                      </div>
-                      <div>
-                        <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200">
-                          Autorización Requerida
-                        </h3>
-                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 max-w-xs mx-auto">
-                          Abre el dashboard en tu celular y presiona <strong>"Aprobar"</strong> en la alerta flotante para autorizar este ingreso.
-                        </p>
-                      </div>
-                      
-                      <div className="flex justify-center items-center gap-1.5 py-2">
-                        <span className="w-2.5 h-2.5 rounded-full bg-blue-500 animate-ping" />
-                        <span className="text-xs font-semibold text-blue-600 dark:text-blue-400">
-                          Esperando aprobación de dispositivo...
-                        </span>
-                      </div>
-
-                      <div className="space-y-3 px-4 pt-2">
-                        {isPatternRegistered && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setShowPatternUnlock(true);
-                              setShowPromptUnlock(false);
-                            }}
-                            className="w-full py-2.5 px-4 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 transition-all flex items-center justify-center gap-2 active:scale-95"
-                          >
-                            <KeyRound size={14} className="text-purple-500" />
-                            Autorizar con mi Patrón de Seguridad
-                          </button>
-                        )}
-                        
-                        <button
-                          type="button"
-                          onClick={() => setShowRecoveryInput(true)}
-                          className="w-full py-2.5 px-4 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 transition-all flex items-center justify-center gap-2 active:scale-95"
-                        >
-                          <Shield size={14} className="text-amber-500" />
-                          Usar Código de Recuperación (Bypass)
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={handleCancelPrompt}
-                          className="w-full py-2.5 px-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-xl text-xs font-bold transition-all active:scale-95"
-                        >
-                          Cancelar y salir
-                        </button>
-                      </div>
-                    </div>
-                  )
-                ) : showPatternUnlock ? (
+                {showPatternUnlock ? (
                   <div className="space-y-4 py-4 text-center">
                     <div className="w-12 h-12 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-500 mx-auto">
                       <Lock size={20} />
@@ -851,26 +547,7 @@ export default function LoginPage() {
                   </div>
                 ) : (
                   <>
-                    {/* Biometric login shortcut */}
-                    {businessInfo?.id === 'admin' && isBiometricRegistered && (
-                      <div className="p-4 rounded-xl border border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-900/50 flex flex-col items-center gap-3">
-                        <div className="flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-300">
-                          <Fingerprint size={16} className="text-blue-500" />
-                          ¿Iniciar con huella/rostro?
-                        </div>
-                        <button
-                          type="button"
-                          onClick={handleBiometricLogin}
-                          disabled={loading}
-                          className="w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2"
-                        >
-                          <Fingerprint size={16} />
-                          Escanear huella/rostro
-                        </button>
-                        <div className="h-px bg-slate-100 dark:bg-slate-800 w-full my-1" />
-                        <span className="text-[10px] text-slate-400 font-medium">O ingresa con tu contraseña tradicional abajo:</span>
-                      </div>
-                    )}
+
 
                     {/* Email field */}
                     <div>

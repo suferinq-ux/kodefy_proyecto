@@ -1,30 +1,29 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
 import {
   Building2,
   Wallet,
   Users,
-  Activity,
-  TrendingUp,
-  TrendingDown,
-  ArrowUpRight,
-  Clock,
   Zap,
+  TrendingUp,
+  Clock,
   ShoppingCart,
-  Fingerprint,
-  Shield,
-  KeyRound,
-  Lock,
+  Plus,
+  RefreshCw,
+  Search,
+  Activity,
+  ArrowUpRight,
+  Power,
+  PowerOff,
+  Database,
+  ExternalLink,
+  ShieldCheck,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
-import { Dialog } from '@/components/ui/dialog';
-import { PatternLock } from '@/components/ui/PatternLock';
 import {
-  LineChart,
-  Line,
   AreaChart,
   Area,
   XAxis,
@@ -32,14 +31,13 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  BarChart,
-  Bar,
 } from 'recharts';
 import { CardSkeleton, ChartSkeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Badge } from '@/components/ui/badge';
 import { formatCurrency, formatNumber, formatRelativeTime, ANIMATIONS, CHART_COLORS } from '@/lib/admin-constants';
 import { cn } from '@/lib/cn';
+import Link from 'next/link';
 
 interface DashboardStats {
   totalNegocios: number;
@@ -66,10 +64,12 @@ interface SalesTrend {
   count: number;
 }
 
-interface BusinessGrowth {
-  month: string;
-  creados: number;
-  activos: number;
+interface NegocioListItem {
+  id: string;
+  nombre: string;
+  slug: string;
+  estado: 'activo' | 'suspendido';
+  created_at: string;
 }
 
 export default function SuperAdminDashboard() {
@@ -83,234 +83,74 @@ export default function SuperAdminDashboard() {
     ventasEstaSemana: 0,
   });
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [salesTrend, setSalesTrend] = useState<SalesTrend[]>([]);
-  const [businessGrowth, setBusinessGrowth] = useState<BusinessGrowth[]>([]);
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
+  const [negociosList, setNegociosList] = useState<NegocioListItem[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const [latency, setLatency] = useState(0);
+  const [dbStatus, setDbStatus] = useState<'online' | 'offline'>('online');
 
-  // Security configuration states
-  const [userEmail, setUserEmail] = useState('');
-  const [isBiometricSupported, setIsBiometricSupported] = useState(false);
-  const [isBiometricEnabled, setIsBiometricEnabled] = useState(false);
-  const [isPatternEnabled, setIsPatternEnabled] = useState(false);
-  const [showPatternDialog, setShowPatternDialog] = useState(false);
-  const [showBiometricDialog, setShowBiometricDialog] = useState(false);
-  const [adminPassword, setAdminPassword] = useState('');
-  const [patternStep, setPatternStep] = useState<1 | 2>(1);
-  const [tempPattern, setTempPattern] = useState<number[]>([]);
-  const [patternError, setPatternError] = useState(false);
-
-  // Mobile 2FA session approval states
-  const [pendingSession, setPendingSession] = useState<any>(null);
-  const [sessionActionLoading, setSessionActionLoading] = useState(false);
-
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-    
-    const checkPendingSessions = async () => {
-      if (!userEmail) return;
-      
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
-        
-        const { data, error } = await supabase
-          .from('login_sessions')
-          .select('*')
-          .eq('user_id', user.id)
-          .eq('status', 'pending')
-          .order('created_at', { ascending: false })
-          .limit(1);
-
-        if (!error && data && data.length > 0) {
-          if (!pendingSession || pendingSession.id !== data[0].id) {
-            setPendingSession(data[0]);
-          }
-        } else {
-          setPendingSession(null);
-        }
-      } catch (err) {
-        console.error('Error checking pending sessions:', err);
-      }
-    };
-
-    if (userEmail) {
-      checkPendingSessions();
-      interval = setInterval(checkPendingSessions, 3000);
-    }
-
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [userEmail, pendingSession]);
-
-  const handleSessionAction = async (status: 'approved' | 'rejected') => {
-    if (!pendingSession) return;
-    setSessionActionLoading(true);
-    
+  const getLocalDateString = (dateInput: string) => {
+    if (!dateInput) return '';
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
-      
-      if (!token) {
-        toast.error('Sesión no encontrada. Vuelve a iniciar sesión.');
-        return;
-      }
-
-      const res = await fetch('/api/auth/session/approve', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          sessionId: pendingSession.id,
-          status
-        })
-      });
-
-      if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.error || 'Error al procesar la solicitud.');
-      }
-
-      toast.success(status === 'approved' ? 'Inicio de sesión autorizado.' : 'Inicio de sesión rechazado.');
-      setPendingSession(null);
-    } catch (err: any) {
-      toast.error('Error: ' + err.message);
-    } finally {
-      setSessionActionLoading(false);
+      const d = new Date(dateInput);
+      return d.toLocaleDateString('en-CA'); // returns YYYY-MM-DD
+    } catch (e) {
+      return dateInput.split('T')[0];
     }
   };
 
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      setIsBiometricSupported('credentials' in navigator && 'PasswordCredential' in window);
-      setIsBiometricEnabled(localStorage.getItem('kodefy-admin-biometric-registered') === 'true');
-      setIsPatternEnabled(localStorage.getItem('kodefy-admin-pattern') !== null);
-    }
+  const fetchData = useCallback(async (isRefresh = false) => {
+    if (isRefresh) setRefreshing(true);
+    else setLoading(true);
 
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user?.email) setUserEmail(user.email);
-    });
-  }, []);
-
-  const handleRegisterBiometrics = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!adminPassword.trim()) {
-      toast.error('La contraseña es requerida.');
-      return;
-    }
-
-    try {
-      // Verify password
-      const { error } = await supabase.auth.signInWithPassword({
-        email: userEmail,
-        password: adminPassword,
-      });
-
-      if (error) {
-        toast.error('Contraseña incorrecta.');
-        return;
-      }
-
-      if (typeof window !== 'undefined' && 'PasswordCredential' in window) {
-        const cred = new (window as any).PasswordCredential({
-          id: userEmail,
-          password: adminPassword,
-          name: "Kodefy Admin",
-        });
-        await navigator.credentials.store(cred);
-        localStorage.setItem('kodefy-admin-biometric-registered', 'true');
-        setIsBiometricEnabled(true);
-        setShowBiometricDialog(false);
-        setAdminPassword('');
-        toast.success('Acceso biométrico configurado exitosamente.');
-      }
-    } catch (err: any) {
-      toast.error('Error al configurar biometría: ' + err.message);
-    }
-  };
-
-  const handleRemoveBiometrics = () => {
-    localStorage.removeItem('kodefy-admin-biometric-registered');
-    setIsBiometricEnabled(false);
-    toast.success('Acceso biométrico desactivado.');
-  };
-
-  const handlePatternComplete = (pattern: number[]) => {
-    if (patternStep === 1) {
-      setTempPattern(pattern);
-      setPatternStep(2);
-      toast.success('Dibuja el patrón nuevamente para confirmar.');
-    } else {
-      const isMatch = tempPattern.every((val, index) => val === pattern[index]) && tempPattern.length === pattern.length;
-      if (isMatch) {
-        localStorage.setItem('kodefy-admin-pattern', JSON.stringify(pattern));
-        setIsPatternEnabled(true);
-        setShowPatternDialog(false);
-        setTempPattern([]);
-        setPatternStep(1);
-        toast.success('Patrón de seguridad guardado.');
-      } else {
-        setPatternError(true);
-        toast.error('Los patrones no coinciden. Intenta nuevamente.');
-        setTimeout(() => {
-          setPatternError(false);
-          setPatternStep(1);
-          setTempPattern([]);
-        }, 1000);
-      }
-    }
-  };
-
-  const handleRemovePattern = () => {
-    localStorage.removeItem('kodefy-admin-pattern');
-    setIsPatternEnabled(false);
-    toast.success('Patrón de seguridad desactivado.');
-  };
-
-  const fetchData = useCallback(async () => {
-    setLoading(true);
     const startTime = performance.now();
 
     try {
-      // Parallel fetches
+      // Parallel fetches from database
       const [
         negociosResult,
         usuariosResult,
         ventasResult,
-        negociosRecientesResult,
-        ventasRecientesResult,
       ] = await Promise.all([
-        supabase.from('negocios').select('id,estado,created_at').order('created_at', { ascending: false }),
-        supabase.from('user_profiles').select('id,created_at').order('created_at', { ascending: false }),
-        supabase.from('ventas').select('total,fecha,created_at').order('created_at', { ascending: false }).limit(500),
-        supabase.from('negocios').select('id,nombre,created_at').order('created_at', { ascending: false }).limit(5),
-        supabase.from('ventas').select('id,total,created_at,negocio_id').order('created_at', { ascending: false }).limit(10),
+        supabase.from('negocios').select('id,nombre,slug,estado,created_at').order('created_at', { ascending: false }),
+        supabase.from('user_profiles').select('id,created_at,nombre,negocio_id').order('created_at', { ascending: false }),
+        supabase.from('ventas').select('id,total,fecha,created_at,negocio_id').order('created_at', { ascending: false }).limit(1000),
       ]);
 
       const endTime = performance.now();
       setLatency(Math.round(endTime - startTime));
+      setDbStatus('online');
 
-      // Stats calculations
+      if (negociosResult.error) throw negociosResult.error;
+      if (usuariosResult.error) throw usuariosResult.error;
+      if (ventasResult.error) throw ventasResult.error;
+
       const negocios = negociosResult.data || [];
       const usuarios = usuariosResult.data || [];
       const ventas = ventasResult.data || [];
 
+      // Update negocios list state
+      setNegociosList(negocios);
+
+      // Calculations
       const activos = negocios.filter((n) => n.estado === 'activo').length;
       const suspendidos = negocios.filter((n) => n.estado === 'suspendido').length;
       const sumVentas = ventas.reduce((acc, v) => acc + (Number(v.total) || 0), 0);
 
-      const today = new Date().toISOString().split('T')[0];
-      const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0];
+      // Localized timezone dates
+      const today = new Date().toLocaleDateString('en-CA');
+      const weekAgoDate = new Date();
+      weekAgoDate.setDate(weekAgoDate.getDate() - 7);
+      const weekAgo = weekAgoDate.toLocaleDateString('en-CA');
 
       const ventasHoy = ventas
-        .filter((v) => v.fecha === today)
+        .filter((v) => getLocalDateString(v.fecha || v.created_at) === today)
         .reduce((acc, v) => acc + (Number(v.total) || 0), 0);
 
       const ventasSemana = ventas
-        .filter((v) => v.fecha >= weekAgo)
+        .filter((v) => getLocalDateString(v.fecha || v.created_at) >= weekAgo)
         .reduce((acc, v) => acc + (Number(v.total) || 0), 0);
 
       setStats({
@@ -328,80 +168,129 @@ export default function SuperAdminDashboard() {
       const last14 = Array.from({ length: 14 }, (_, i) => {
         const d = new Date();
         d.setDate(d.getDate() - (13 - i));
-        return d.toISOString().split('T')[0];
+        return d.toLocaleDateString('en-CA');
       });
 
       last14.forEach((d) => (trend[d] = { ventas: 0, count: 0 }));
+      
       ventas.forEach((v) => {
-        if (trend[v.fecha]) {
-          trend[v.fecha].ventas += Number(v.total) || 0;
-          trend[v.fecha].count += 1;
+        const vDate = getLocalDateString(v.fecha || v.created_at);
+        if (trend[vDate] !== undefined) {
+          trend[vDate].ventas += Number(v.total) || 0;
+          trend[vDate].count += 1;
         }
       });
 
       setSalesTrend(
-        last14.map((d) => ({
-          date: new Date(d + 'T00:00:00').toLocaleDateString('es-PE', { day: 'numeric', month: 'short' }),
-          ventas: trend[d].ventas,
-          count: trend[d].count,
-        }))
+        last14.map((d) => {
+          const [year, month, day] = d.split('-');
+          const dateObj = new Date(Number(year), Number(month) - 1, Number(day));
+          return {
+            date: dateObj.toLocaleDateString('es-PE', { day: 'numeric', month: 'short' }),
+            ventas: trend[d].ventas,
+            count: trend[d].count,
+          };
+        })
       );
 
-      // Business growth (last 6 months)
-      const growth: Record<string, { creados: number; activos: number }> = {};
-      const last6 = Array.from({ length: 6 }, (_, i) => {
-        const d = new Date();
-        d.setMonth(d.getMonth() - (5 - i));
-        const key = d.toLocaleDateString('es-PE', { month: 'short' });
-        return key;
-      });
-
-      last6.forEach((m) => (growth[m] = { creados: 0, activos: 0 }));
+      // Business name mapper for activities
+      const negocioNames: Record<string, string> = {};
       negocios.forEach((n) => {
-        const month = new Date(n.created_at).toLocaleDateString('es-PE', { month: 'short' });
-        if (growth[month] !== undefined) {
-          growth[month].creados += 1;
-          if (n.estado === 'activo') growth[month].activos += 1;
-        }
+        negocioNames[n.id] = n.nombre;
       });
 
-      setBusinessGrowth(
-        last6.map((m) => ({
-          month: m,
-          creados: growth[m].creados,
-          activos: growth[m].activos,
-        }))
-      );
+      // Map recent activity
+      const activity: RecentActivity[] = [];
 
-      // Recent activity
-      const activity: RecentActivity[] = [
-        ...(negociosRecientesResult.data || []).map((n) => ({
+      // Add business creations
+      negocios.slice(0, 5).forEach((n) => {
+        activity.push({
           id: `n-${n.id}`,
-          type: 'negocio_created' as const,
+          type: 'negocio_created',
           negocio_nombre: n.nombre,
-          created_at: n.created_at,
-        })),
-        ...(ventasRecientesResult.data || []).slice(0, 8).map((v) => ({
-          id: `v-${v.id}`,
-          type: 'venta' as const,
-          monto: Number(v.total) || 0,
-          created_at: v.created_at,
-        })),
-      ]
-        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-        .slice(0, 10);
+          created_at: n.created_at || new Date().toISOString(),
+        });
+      });
 
-      setRecentActivity(activity);
-    } catch (error) {
+      // Add sales
+      ventas.slice(0, 8).forEach((v) => {
+        activity.push({
+          id: `v-${v.id}`,
+          type: 'venta',
+          monto: Number(v.total) || 0,
+          negocio_nombre: negocioNames[v.negocio_id] || 'Negocio',
+          created_at: v.created_at || v.fecha || new Date().toISOString(),
+        });
+      });
+
+      // Add user signups
+      usuarios.slice(0, 5).forEach((u) => {
+        activity.push({
+          id: `u-${u.id}`,
+          type: 'user_created',
+          user_nombre: u.nombre || 'Colaborador',
+          negocio_nombre: negocioNames[u.negocio_id] || 'Plataforma',
+          created_at: u.created_at || new Date().toISOString(),
+        });
+      });
+
+      // Sort and slice
+      const sortedActivity = activity
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        .slice(0, 8);
+
+      setRecentActivity(sortedActivity);
+      
+      if (isRefresh) {
+        toast.success('Métricas actualizadas desde la base de datos');
+      }
+    } catch (error: any) {
       console.error('Error fetching dashboard data:', error);
+      setDbStatus('offline');
+      toast.error('Error de conexión con la base de datos');
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, []);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // Handle business quick status toggle
+  const handleToggleStatus = async (id: string, currentStatus: string) => {
+    const newStatus = currentStatus === 'activo' ? 'suspendido' : 'activo';
+    try {
+      const { error } = await supabase
+        .from('negocios')
+        .update({ estado: newStatus })
+        .eq('id', id);
+
+      if (error) throw error;
+      
+      toast.success(`Negocio ${newStatus === 'activo' ? 'activado' : 'suspendido'}`);
+      setNegociosList((prev) =>
+        prev.map((n) => (n.id === id ? { ...n, estado: newStatus } : n))
+      );
+      
+      // Refresh statistics counters
+      fetchData(false);
+    } catch (error: any) {
+      toast.error('Error al cambiar estado: ' + error.message);
+    }
+  };
+
+  // Filter businesses
+  const filteredNegocios = useMemo(() => {
+    if (!searchQuery.trim()) return negociosList;
+    const query = searchQuery.toLowerCase();
+    return negociosList.filter(
+      (n) =>
+        n.nombre.toLowerCase().includes(query) ||
+        n.slug.toLowerCase().includes(query)
+    );
+  }, [negociosList, searchQuery]);
 
   if (loading) {
     return (
@@ -431,31 +320,31 @@ export default function SuperAdminDashboard() {
       value: formatNumber(stats.totalNegocios),
       sub: `${stats.negociosActivos} activos · ${stats.negociosSuspendidos} suspendidos`,
       icon: Building2,
-      trend: stats.negociosActivos > 0 ? 'up' : 'neutral' as const,
+      trendText: 'SaaS Tenants',
       color: CHART_COLORS.primary,
     },
     {
-      title: 'Volumen Total',
+      title: 'Volumen Facturado',
       value: formatCurrency(stats.totalVentas),
       sub: `${formatCurrency(stats.ventasEstaSemana)} esta semana`,
       icon: Wallet,
-      trend: 'up' as const,
+      trendText: 'Acumulado',
       color: CHART_COLORS.success,
     },
     {
-      title: 'Usuarios',
-      value: formatNumber(stats.totalUsuarios),
-      sub: 'Perfiles registrados',
-      icon: Users,
-      trend: 'neutral' as const,
+      title: 'Ventas de Hoy',
+      value: formatCurrency(stats.ventasHoy),
+      sub: 'En todos los locales',
+      icon: ShoppingCart,
+      trendText: 'Tiempo Real',
       color: '#8b5cf6',
     },
     {
-      title: 'Salud del Sistema',
-      value: `${latency}ms`,
-      sub: `Latencia de respuesta`,
-      icon: Zap,
-      trend: latency < 300 ? 'up' : 'neutral' as const,
+      title: 'Usuarios Totales',
+      value: formatNumber(stats.totalUsuarios),
+      sub: 'Colaboradores registrados',
+      icon: Users,
+      trendText: 'Personal',
       color: CHART_COLORS.warning,
     },
   ];
@@ -463,13 +352,32 @@ export default function SuperAdminDashboard() {
   return (
     <div className="space-y-8 max-w-[1440px]">
       {/* Header */}
-      <motion.div {...ANIMATIONS.fadeUp}>
-        <h1 className="text-2xl lg:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
-          Global Dashboard
-        </h1>
-        <p className="text-sm font-semibold text-slate-500 dark:text-slate-400 mt-1">
-          Métricas y actividad de la plataforma KODEFY
-        </p>
+      <motion.div {...ANIMATIONS.fadeUp} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl lg:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
+            Panel de Control Global
+          </h1>
+          <p className="text-sm font-semibold text-slate-500 dark:text-slate-400 mt-1">
+            Administración centralizada de locales, ventas y rendimiento de KODEFY
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => fetchData(true)}
+            disabled={refreshing}
+            className="flex items-center gap-2 px-4 py-2 text-xs font-bold bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700 transition-all shadow-sm disabled:opacity-50"
+          >
+            <RefreshCw size={14} className={cn(refreshing && 'animate-spin')} />
+            {refreshing ? 'Actualizando...' : 'Actualizar Datos'}
+          </button>
+          <Link
+            href="/super-admin/negocios"
+            className="flex items-center gap-2 px-4 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition-all shadow-sm shadow-blue-500/25"
+          >
+            <Plus size={14} />
+            Nuevo Local
+          </Link>
+        </div>
       </motion.div>
 
       {/* Stat Cards */}
@@ -479,7 +387,7 @@ export default function SuperAdminDashboard() {
             key={card.title}
             {...ANIMATIONS.stagger(i)}
             whileHover={{ y: -2 }}
-            className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-5 shadow-sm hover:shadow-md transition-shadow"
+            className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-5 shadow-sm hover:shadow-md transition-all duration-200"
           >
             <div className="flex items-start justify-between mb-3">
               <div
@@ -488,11 +396,9 @@ export default function SuperAdminDashboard() {
               >
                 <card.icon size={20} style={{ color: card.color }} />
               </div>
-              {card.trend === 'up' && (
-                <div className="flex items-center gap-0.5 text-emerald-600 dark:text-emerald-400 text-xs font-bold">
-                  <TrendingUp size={12} />
-                </div>
-              )}
+              <Badge variant="neutral" size="sm" className="font-bold text-[10px] opacity-75">
+                {card.trendText}
+              </Badge>
             </div>
             <h3 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">
               {card.title}
@@ -507,417 +413,349 @@ export default function SuperAdminDashboard() {
         ))}
       </div>
 
-      {/* Charts Row */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-        {/* Sales Trend Chart */}
+      {/* Grid: Left Management & Right Charts */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        {/* Left Column: Tenant Management Panel */}
         <motion.div
           {...ANIMATIONS.stagger(4)}
-          className="xl:col-span-2 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 shadow-sm"
+          className="xl:col-span-2 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 shadow-sm flex flex-col min-w-0"
         >
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
             <div>
-              <h3 className="text-sm font-black text-slate-900 dark:text-white">
-                Volumen de Ventas
+              <h3 className="text-base font-black text-slate-900 dark:text-white">
+                Locales Registrados (Tenants)
               </h3>
               <p className="text-xs font-medium text-slate-400 dark:text-slate-500 mt-0.5">
-                Últimos 14 días
+                Control directo de accesos y estado operativo
               </p>
             </div>
-            <Badge variant="info" size="sm">Soles (PEN)</Badge>
+            {/* Search Input */}
+            <div className="relative">
+              <Search className="absolute left-3 top-2.5 text-slate-400" size={14} />
+              <input
+                type="text"
+                placeholder="Buscar local o slug..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 pr-4 py-1.5 w-full sm:w-60 text-xs rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 font-semibold"
+              />
+            </div>
           </div>
-          <div className="h-72">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={salesTrend} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
-                <defs>
-                  <linearGradient id="salesGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={CHART_COLORS.primary} stopOpacity={0.2} />
-                    <stop offset="100%" stopColor={CHART_COLORS.primary} stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" className="dark:opacity-20" />
-                <XAxis
-                  dataKey="date"
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fontSize: 11, fill: '#94a3b8' }}
-                  dy={10}
-                />
-                <YAxis
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fontSize: 11, fill: '#94a3b8' }}
-                  tickFormatter={(v) => `S/ ${v}`}
-                />
-                <Tooltip
-                  contentStyle={{
-                    background: '#ffffff',
-                    border: '1px solid #e2e8f0',
-                    borderRadius: '12px',
-                    boxShadow: '0 10px 25px rgba(0,0,0,0.08)',
-                    fontSize: '13px',
-                    fontWeight: 600,
-                  }}
-                  formatter={(value: number | undefined) => [formatCurrency(value || 0), 'Ventas']}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="ventas"
-                  stroke={CHART_COLORS.primary}
-                  strokeWidth={2}
-                  fill="url(#salesGradient)"
-                  dot={false}
-                  activeDot={{ r: 5, strokeWidth: 2, fill: '#fff', stroke: CHART_COLORS.primary }}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+
+          <div className="overflow-x-auto -mx-6">
+            <div className="inline-block min-w-full align-middle px-6">
+              <div className="overflow-hidden border border-slate-100 dark:border-slate-700 rounded-xl">
+                <table className="min-w-full divide-y divide-slate-100 dark:divide-slate-700">
+                  <thead className="bg-slate-50 dark:bg-slate-900">
+                    <tr>
+                      <th scope="col" className="px-4 py-3 text-left text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                        Nombre / Slug
+                      </th>
+                      <th scope="col" className="px-4 py-3 text-left text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                        Estado
+                      </th>
+                      <th scope="col" className="px-4 py-3 text-left text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                        Creado
+                      </th>
+                      <th scope="col" className="px-4 py-3 text-right text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                        Acciones
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-700 bg-white dark:bg-slate-800">
+                    {filteredNegocios.length === 0 ? (
+                      <tr>
+                        <td colSpan={4} className="px-4 py-8 text-center">
+                          <EmptyState
+                            title="No se encontraron locales"
+                            description="Prueba con otra búsqueda o registra un nuevo local."
+                          />
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredNegocios.map((negocio) => (
+                        <tr key={negocio.id} className="hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors">
+                          <td className="px-4 py-3.5 whitespace-nowrap">
+                            <div className="flex flex-col">
+                              <span className="text-sm font-bold text-slate-900 dark:text-white">
+                                {negocio.nombre}
+                              </span>
+                              <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500">
+                                /{negocio.slug}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3.5 whitespace-nowrap">
+                            <Badge variant={negocio.estado === 'activo' ? 'success' : 'danger'} size="sm" className="font-bold">
+                              {negocio.estado === 'activo' ? 'Activo' : 'Suspendido'}
+                            </Badge>
+                          </td>
+                          <td className="px-4 py-3.5 whitespace-nowrap text-xs font-semibold text-slate-500 dark:text-slate-400">
+                            {new Date(negocio.created_at).toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: 'numeric' })}
+                          </td>
+                          <td className="px-4 py-3.5 whitespace-nowrap text-right text-xs font-semibold space-x-1">
+                            <button
+                              onClick={() => handleToggleStatus(negocio.id, negocio.estado)}
+                              className={cn(
+                                'inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border text-[11px] font-bold transition-all shadow-sm',
+                                negocio.estado === 'activo'
+                                  ? 'border-red-200 text-red-600 bg-red-50/50 hover:bg-red-50 dark:border-red-500/20 dark:text-red-400 dark:bg-red-500/5 dark:hover:bg-red-500/10'
+                                  : 'border-emerald-200 text-emerald-600 bg-emerald-50/50 hover:bg-emerald-50 dark:border-emerald-500/20 dark:text-emerald-400 dark:bg-emerald-500/5 dark:hover:bg-emerald-500/10'
+                              )}
+                              title={negocio.estado === 'activo' ? 'Suspender local' : 'Activar local'}
+                            >
+                              {negocio.estado === 'activo' ? (
+                                <>
+                                  <PowerOff size={11} />
+                                  Suspender
+                                </>
+                              ) : (
+                                <>
+                                  <Power size={11} />
+                                  Activar
+                                </>
+                              )}
+                            </button>
+                            <a
+                              href={`/${negocio.slug}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-[11px] font-bold transition-all shadow-sm"
+                            >
+                              <ExternalLink size={11} />
+                              Visitar
+                            </a>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         </motion.div>
 
-        {/* Business Growth Chart */}
+        {/* Right Column: Platform Sales Volume Chart */}
         <motion.div
           {...ANIMATIONS.stagger(5)}
-          className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 shadow-sm"
+          className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 shadow-sm flex flex-col justify-between"
         >
-          <div className="mb-6">
-            <h3 className="text-sm font-black text-slate-900 dark:text-white">
-              Crecimiento
-            </h3>
-            <p className="text-xs font-medium text-slate-400 dark:text-slate-500 mt-0.5">
-              Negocios por mes
-            </p>
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-base font-black text-slate-900 dark:text-white">
+                  Volumen Consolidado
+                </h3>
+                <p className="text-xs font-medium text-slate-400 dark:text-slate-500 mt-0.5">
+                  Ventas agregadas de todos los locales (últimos 14 días)
+                </p>
+              </div>
+              <Badge variant="info" size="sm">Soles (PEN)</Badge>
+            </div>
+            
+            <div className="h-64 mt-2">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={salesTrend} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
+                  <defs>
+                    <linearGradient id="salesGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={CHART_COLORS.primary} stopOpacity={0.2} />
+                      <stop offset="100%" stopColor={CHART_COLORS.primary} stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" className="dark:opacity-10" />
+                  <XAxis
+                    dataKey="date"
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fontSize: 10, fill: '#94a3b8' }}
+                  />
+                  <YAxis
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fontSize: 10, fill: '#94a3b8' }}
+                    tickFormatter={(v) => `S/${v}`}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      background: '#ffffff',
+                      border: '1px solid #e2e8f0',
+                      borderRadius: '12px',
+                      boxShadow: '0 10px 25px rgba(0,0,0,0.08)',
+                      fontSize: '11px',
+                      fontWeight: 700,
+                    }}
+                    formatter={(value: any) => [formatCurrency(Number(value) || 0), 'Ventas']}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="ventas"
+                    stroke={CHART_COLORS.primary}
+                    strokeWidth={2}
+                    fill="url(#salesGradient)"
+                    dot={false}
+                    activeDot={{ r: 4, strokeWidth: 1.5, fill: '#fff', stroke: CHART_COLORS.primary }}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
           </div>
-          <div className="h-72">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={businessGrowth} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" className="dark:opacity-20" />
-                <XAxis
-                  dataKey="month"
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fontSize: 11, fill: '#94a3b8' }}
-                />
-                <YAxis
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fontSize: 11, fill: '#94a3b8' }}
-                  allowDecimals={false}
-                />
-                <Tooltip
-                  contentStyle={{
-                    background: '#ffffff',
-                    border: '1px solid #e2e8f0',
-                    borderRadius: '12px',
-                    boxShadow: '0 10px 25px rgba(0,0,0,0.08)',
-                    fontSize: '13px',
-                    fontWeight: 600,
-                  }}
-                />
-                <Bar dataKey="creados" fill={CHART_COLORS.primary} radius={[6, 6, 0, 0]} name="Creados" />
-              </BarChart>
-            </ResponsiveContainer>
+
+          <div className="pt-4 border-t border-slate-100 dark:border-slate-700/50 mt-4 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+            <span className="font-semibold flex items-center gap-1.5">
+              <TrendingUp size={14} className="text-emerald-500" />
+              Actualización automatizada
+            </span>
+            <span className="font-bold">
+              {salesTrend.length} días graficados
+            </span>
           </div>
         </motion.div>
       </div>
 
-      {/* Grid for Activity and Security */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-        {/* Activity Feed */}
+      {/* Grid: Diagnostics and Activity */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        {/* Left/Middle: Recent Activity Feed */}
         <motion.div
           {...ANIMATIONS.stagger(6)}
           className="xl:col-span-2 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm"
         >
           <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-700">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-sm font-black text-slate-900 dark:text-white">
-                  Actividad Reciente
-                </h3>
-                <p className="text-xs font-medium text-slate-400 dark:text-slate-500 mt-0.5">
-                  Últimos eventos en la plataforma
-                </p>
-              </div>
-              <button
-                onClick={fetchData}
-                className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
-              >
-                Refrescar
-              </button>
-            </div>
+            <h3 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
+              <Activity size={16} className="text-blue-500 animate-pulse" />
+              Actividad Reciente en la Plataforma
+            </h3>
+            <p className="text-xs font-medium text-slate-400 dark:text-slate-500 mt-0.5">
+              Monitoreo en tiempo real de nuevos registros y operaciones críticas
+            </p>
           </div>
-          <div className="divide-y divide-slate-50 dark:divide-slate-700/50">
+          <div className="divide-y divide-slate-100 dark:divide-slate-700/50">
             {recentActivity.length === 0 ? (
               <div className="px-6 py-12 text-center">
                 <Clock size={32} className="mx-auto text-slate-300 dark:text-slate-600 mb-3" />
                 <p className="text-sm font-semibold text-slate-400 dark:text-slate-500">
-                  Sin actividad reciente
+                  Sin actividad registrada en la plataforma
                 </p>
               </div>
             ) : (
               recentActivity.map((item, i) => (
                 <motion.div
                   key={item.id}
-                  initial={{ opacity: 0, x: -10 }}
+                  initial={{ opacity: 0, x: -8 }}
                   animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: i * 0.04 }}
-                  className="flex items-center gap-4 px-6 py-3.5 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
+                  transition={{ delay: i * 0.03 }}
+                  className="flex items-center justify-between gap-4 px-6 py-3.5 hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-colors"
                 >
-                  <div
-                    className={cn(
-                      'w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0',
-                      item.type === 'negocio_created'
-                        ? 'bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400'
-                        : item.type === 'venta'
-                        ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400'
-                        : 'bg-purple-50 text-purple-600 dark:bg-purple-500/10 dark:text-purple-400'
-                    )}
-                  >
-                    {item.type === 'negocio_created' ? (
-                      <Building2 size={14} />
-                    ) : item.type === 'venta' ? (
-                      <ShoppingCart size={14} />
-                    ) : (
-                      <Users size={14} />
-                    )}
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div
+                      className={cn(
+                        'w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0',
+                        item.type === 'negocio_created'
+                          ? 'bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400'
+                          : item.type === 'venta'
+                          ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400'
+                          : 'bg-purple-50 text-purple-600 dark:bg-purple-500/10 dark:text-purple-400'
+                      )}
+                    >
+                      {item.type === 'negocio_created' ? (
+                        <Building2 size={14} />
+                      ) : item.type === 'venta' ? (
+                        <ShoppingCart size={14} />
+                      ) : (
+                        <Users size={14} />
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold text-slate-700 dark:text-slate-300 truncate">
+                        {item.type === 'negocio_created' && (
+                          <>Se registró un nuevo negocio: <span className="text-blue-600 dark:text-blue-400">{item.negocio_nombre}</span></>
+                        )}
+                        {item.type === 'venta' && (
+                          <>Venta concretada en <span className="font-black text-slate-800 dark:text-slate-200">{item.negocio_nombre}</span></>
+                        )}
+                        {item.type === 'user_created' && (
+                          <>Colaborador registrado: <span className="text-purple-600 dark:text-purple-400">{item.user_nombre}</span> en <span className="font-semibold">{item.negocio_nombre}</span></>
+                        )}
+                      </p>
+                      <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 mt-0.5 flex items-center gap-1">
+                        <Clock size={10} />
+                        {formatRelativeTime(item.created_at)}
+                      </p>
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-slate-700 dark:text-slate-300 truncate">
-                      {item.type === 'negocio_created'
-                        ? `Nuevo negocio: ${item.negocio_nombre}`
-                        : item.type === 'venta'
-                        ? `Venta registrada: ${formatCurrency(item.monto || 0)}`
-                        : `Nuevo usuario: ${item.user_nombre}`}
-                    </p>
-                    <p className="text-[11px] font-medium text-slate-400 dark:text-slate-500 mt-0.5">
-                      {formatRelativeTime(item.created_at)}
-                    </p>
-                  </div>
+                  {item.type === 'venta' && (
+                    <div className="text-right flex-shrink-0">
+                      <span className="text-xs font-black text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 px-2 py-1 rounded-lg">
+                        +{formatCurrency(item.monto || 0)}
+                      </span>
+                    </div>
+                  )}
                 </motion.div>
               ))
             )}
           </div>
         </motion.div>
 
-        {/* Device Security Configuration */}
+        {/* Right Column: Platform Diagnostics & Health */}
         <motion.div
           {...ANIMATIONS.stagger(7)}
-          className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 shadow-sm flex flex-col"
+          className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 shadow-sm flex flex-col justify-between"
         >
-          <div className="mb-6">
-            <h3 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
-              <Shield size={16} className="text-blue-500" />
-              Seguridad del Dispositivo
-            </h3>
-            <p className="text-xs font-medium text-slate-400 dark:text-slate-500 mt-0.5">
-              Protege el Acceso Administrativo en este equipo
-            </p>
+          <div className="space-y-6">
+            <div>
+              <h3 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
+                <ShieldCheck size={16} className="text-blue-500" />
+                Diagnóstico del Sistema
+              </h3>
+              <p className="text-xs font-medium text-slate-400 dark:text-slate-500 mt-0.5">
+                Estado y salud técnica de la base de datos
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              {/* Database Status */}
+              <div className="flex items-center justify-between p-3 rounded-xl border border-slate-100 dark:border-slate-700/50 bg-slate-50/50 dark:bg-slate-800/50">
+                <div className="flex items-center gap-3">
+                  <Database size={16} className={cn(dbStatus === 'online' ? 'text-emerald-500' : 'text-red-500')} />
+                  <div>
+                    <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                      Base de Datos
+                    </h4>
+                    <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500">
+                      Servidor de Supabase Postgres
+                    </p>
+                  </div>
+                </div>
+                <Badge variant={dbStatus === 'online' ? 'success' : 'danger'} size="sm" className="font-bold">
+                  {dbStatus === 'online' ? 'Online' : 'Offline'}
+                </Badge>
+              </div>
+
+              {/* Latency / Performance */}
+              <div className="flex items-center justify-between p-3 rounded-xl border border-slate-100 dark:border-slate-700/50 bg-slate-50/50 dark:bg-slate-800/50">
+                <div className="flex items-center gap-3">
+                  <Zap size={16} className="text-amber-500 animate-pulse" />
+                  <div>
+                    <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                      Latencia de Consulta
+                    </h4>
+                    <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500">
+                      Tiempo de respuesta de queries
+                    </p>
+                  </div>
+                </div>
+                <span className="text-xs font-black text-slate-900 dark:text-white bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded-lg">
+                  {latency} ms
+                </span>
+              </div>
+            </div>
           </div>
 
-          <div className="space-y-6 flex-1">
-            {/* Biometrics */}
-            <div className="p-4 rounded-xl border border-slate-100 dark:border-slate-700/50 bg-slate-50/50 dark:bg-slate-800/50">
-              <div className="flex items-start justify-between">
-                <div className="flex gap-3">
-                  <div className="w-9 h-9 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-500 flex-shrink-0">
-                    <Fingerprint size={18} />
-                  </div>
-                  <div>
-                    <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                      Huella / Rostro (Biometría)
-                    </h4>
-                    <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 mt-0.5">
-                      {isBiometricSupported
-                        ? 'Usa Windows Hello, TouchID o FaceID de tu equipo.'
-                        : 'No soportado por tu navegador o equipo.'}
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <div className="mt-4">
-                {isBiometricEnabled ? (
-                  <button
-                    onClick={handleRemoveBiometrics}
-                    className="w-full py-2 px-3 rounded-lg border border-red-200 text-red-600 bg-red-50/50 hover:bg-red-50 text-[11px] font-bold transition-all"
-                  >
-                    Desactivar Biometría
-                  </button>
-                ) : (
-                  <button
-                    disabled={!isBiometricSupported}
-                    onClick={() => setShowBiometricDialog(true)}
-                    className="w-full py-2 px-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
-                  >
-                    Vincular Huella/Rostro
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* Pattern Lock */}
-            <div className="p-4 rounded-xl border border-slate-100 dark:border-slate-700/50 bg-slate-50/50 dark:bg-slate-800/50">
-              <div className="flex items-start justify-between">
-                <div className="flex gap-3">
-                  <div className="w-9 h-9 rounded-lg bg-purple-500/10 flex items-center justify-center text-purple-500 flex-shrink-0">
-                    <KeyRound size={18} />
-                  </div>
-                  <div>
-                    <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                      Patrón de Seguridad
-                    </h4>
-                    <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 mt-0.5">
-                      Dibuja un patrón táctil o de mouse para ingresar.
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <div className="mt-4">
-                {isPatternEnabled ? (
-                  <button
-                    onClick={handleRemovePattern}
-                    className="w-full py-2 px-3 rounded-lg border border-red-200 text-red-600 bg-red-50/50 hover:bg-red-50 text-[11px] font-bold transition-all"
-                  >
-                    Desactivar Patrón
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => {
-                      setPatternStep(1);
-                      setTempPattern([]);
-                      setShowPatternDialog(true);
-                    }}
-                    className="w-full py-2 px-3 rounded-lg bg-purple-600 hover:bg-purple-700 text-white text-[11px] font-bold transition-all shadow-sm"
-                  >
-                    Configurar Patrón
-                  </button>
-                )}
-              </div>
-            </div>
+          <div className="mt-6 pt-4 border-t border-slate-100 dark:border-slate-700/50 text-[10px] font-bold text-slate-400 dark:text-slate-500 text-center uppercase tracking-wider">
+            KODEFY ADMIN v1.0.0
           </div>
         </motion.div>
       </div>
-
-      {/* Biometric Link Dialog */}
-      <Dialog
-        open={showBiometricDialog}
-        onClose={() => {
-          setShowBiometricDialog(false);
-          setAdminPassword('');
-        }}
-        title="Vincular Biometría"
-        description="Por seguridad, escribe tu contraseña de administrador para registrar tu huella/rostro en este dispositivo."
-      >
-        <form onSubmit={handleRegisterBiometrics} className="space-y-4">
-          <div>
-            <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2 ml-1">
-              Contraseña
-            </label>
-            <input
-              type="password"
-              required
-              value={adminPassword}
-              onChange={(e) => setAdminPassword(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm font-semibold text-slate-900 dark:text-white outline-none focus:border-blue-500 transition-all"
-              placeholder="••••••••"
-            />
-          </div>
-          <div className="flex gap-3">
-            <button
-              type="button"
-              onClick={() => {
-                setShowBiometricDialog(false);
-                setAdminPassword('');
-              }}
-              className="flex-1 px-4 py-2.5 rounded-xl font-bold text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 transition-all"
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              className="flex-1 px-4 py-2.5 rounded-xl font-bold text-xs bg-blue-600 hover:bg-blue-700 text-white transition-all shadow-md"
-            >
-              Confirmar y Registrar
-            </button>
-          </div>
-        </form>
-      </Dialog>
-
-      {/* Pattern Link Dialog */}
-      <Dialog
-        open={showPatternDialog}
-        onClose={() => setShowPatternDialog(false)}
-        title={patternStep === 1 ? 'Configurar Patrón' : 'Confirmar Patrón'}
-        description={
-          patternStep === 1
-            ? 'Dibuja un patrón conectando al menos 3 puntos.'
-            : 'Vuelve a dibujar el patrón para confirmarlo.'
-        }
-      >
-        <div className="py-4">
-          <PatternLock onComplete={handlePatternComplete} error={patternError} />
-        </div>
-        <div className="flex justify-center">
-          <button
-            type="button"
-            onClick={() => setShowPatternDialog(false)}
-            className="px-5 py-2 rounded-xl font-bold text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 transition-all"
-          >
-            Cancelar
-          </button>
-        </div>
-      </Dialog>
-
-      {/* Floating Pending Session Notification Banner */}
-      <AnimatePresence>
-        {pendingSession && (
-          <motion.div
-            initial={{ opacity: 0, y: -50, scale: 0.9 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -50, scale: 0.9 }}
-            className="fixed top-6 left-1/2 -translate-x-1/2 z-[9999] w-full max-w-md px-4"
-          >
-            <div className="bg-slate-900 text-white rounded-2xl p-5 shadow-2xl border border-slate-700 flex flex-col gap-4">
-              <div className="flex gap-3">
-                <div className="w-10 h-10 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center flex-shrink-0 animate-pulse">
-                  <Shield size={20} />
-                </div>
-                <div>
-                  <h4 className="text-xs font-black uppercase tracking-wider text-blue-400">
-                    Verificación de Seguridad
-                  </h4>
-                  <p className="text-sm font-bold mt-1">
-                    ¿Estás intentando iniciar sesión en otro equipo?
-                  </p>
-                  <p className="text-[10px] text-slate-400 font-medium mt-1 font-mono">
-                    Dispositivo: {pendingSession.user_agent || 'Desconocido'}
-                  </p>
-                </div>
-              </div>
-              
-              <div className="flex gap-3">
-                <button
-                  disabled={sessionActionLoading}
-                  onClick={() => handleSessionAction('rejected')}
-                  className="flex-1 py-2 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-red-400 border border-slate-700 transition-all disabled:opacity-50"
-                >
-                  No, bloquear
-                </button>
-                <button
-                  disabled={sessionActionLoading}
-                  onClick={() => handleSessionAction('approved')}
-                  className="flex-1 py-2 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white transition-all shadow-md shadow-blue-500/20 disabled:opacity-50 flex items-center justify-center gap-1.5"
-                >
-                  {sessionActionLoading ? (
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  ) : (
-                    <>
-                      Sí, aprobar
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }
