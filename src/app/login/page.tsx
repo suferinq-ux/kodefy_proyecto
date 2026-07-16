@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Loader2, Eye, EyeOff, AlertCircle, ArrowRight, ShieldCheck, CheckCircle2 } from 'lucide-react';
+import { Loader2, Eye, EyeOff, AlertCircle, ArrowRight, ShieldCheck, CheckCircle2, Building2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import gsap from 'gsap';
 import { supabase } from '@/lib/supabase';
@@ -15,6 +15,10 @@ type FieldErrors = {
 };
 
 export default function LoginPage() {
+  const [step, setStep] = useState<1 | 2>(1);
+  const [businessCode, setBusinessCode] = useState('');
+  const [businessInfo, setBusinessInfo] = useState<{ id: string; nombre: string; logo_url: string | null; color_primario: string | null } | null>(null);
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -62,6 +66,38 @@ export default function LoginPage() {
     return () => ctx.revert();
   }, []);
 
+  const handleBusinessCodeSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!businessCode.trim()) {
+      setError('Por favor ingresa el código de tu negocio.');
+      setShakeError(true);
+      return;
+    }
+    setError(null);
+    setLoading(true);
+
+    try {
+      const { data, error: dbError } = await supabase
+        .from('negocios')
+        .select('id, nombre, logo_url, color_primario')
+        .eq('slug', businessCode.trim().toLowerCase())
+        .single();
+
+      if (dbError || !data) {
+        setError('Código de negocio no encontrado. Verifica e intenta nuevamente.');
+        setShakeError(true);
+        return;
+      }
+
+      setBusinessInfo(data);
+      setStep(2);
+    } catch (err: any) {
+      setError('Error al verificar el código.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const validateEmail = useCallback((value: string) => {
     if (!value.trim()) return 'El correo es obligatorio';
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim()))
@@ -75,8 +111,9 @@ export default function LoginPage() {
   }, []);
 
   const isFormValid = useMemo(() => {
+    if (step === 1) return businessCode.trim().length > 0;
     return email.trim().length > 0 && password.length > 0 && !validateEmail(email) && !validatePassword(password);
-  }, [email, password, validateEmail, validatePassword]);
+  }, [step, businessCode, email, password, validateEmail, validatePassword]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -138,20 +175,14 @@ export default function LoginPage() {
         return;
       }
 
-      const { data: negocio, error: negocioError } = await supabase
-        .from('negocios')
-        .select('slug')
-        .eq('id', profile.negocio_id)
-        .single();
-
-      if (negocioError || !negocio?.slug) {
+      if (profile.negocio_id !== businessInfo?.id) {
         await supabase.auth.signOut();
-        setError('No encontramos el negocio asociado a tu usuario.');
+        setError('No tienes acceso a este negocio. Verifica tu código.');
         setShakeError(true);
         return;
       }
 
-      router.push(`/${negocio.slug}/dashboard`);
+      router.push(`/${businessCode.trim().toLowerCase()}/dashboard`);
     } catch (err: any) {
       console.error('[LoginPage] Error:', err);
       setError(err.message || 'Error al conectar con el servidor.');
@@ -171,7 +202,14 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen w-full flex bg-slate-50 dark:bg-slate-950">
       {/* Left panel — brand & illustration */}
-      <div className="relative hidden lg:flex w-1/2 overflow-hidden bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900">
+      <div className="relative hidden lg:flex w-1/2 overflow-hidden bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 transition-colors duration-500">
+        {/* Dynamic primary color overlay based on businessInfo if in step 2 */}
+        {step === 2 && businessInfo?.color_primario && (
+           <div 
+             className="absolute inset-0 opacity-40 mix-blend-color transition-all duration-1000 ease-in-out" 
+             style={{ backgroundColor: businessInfo.color_primario }} 
+           />
+        )}
         {/* Grid pattern overlay */}
         <div className="absolute inset-0 opacity-[0.03]" style={{
           backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'60\' height=\'60\' viewBox=\'0 0 60 60\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'none\' fill-rule=\'evenodd\'%3E%3Cg fill=\'%23ffffff\' fill-opacity=\'1\'%3E%3Cpath d=\'M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z\'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")',
@@ -205,7 +243,7 @@ export default function LoginPage() {
             className="max-w-lg"
           >
             <h1 className="text-5xl xl:text-6xl font-black text-white leading-[1.1] tracking-tight">
-              Operación
+              {step === 1 ? 'Operación' : (businessInfo?.nombre || 'Operación')}
               <br />
               <span className="bg-gradient-to-r from-blue-400 via-cyan-400 to-indigo-400 bg-clip-text text-transparent">
                 sin fricción.
@@ -262,6 +300,7 @@ export default function LoginPage() {
 
         <AnimatePresence mode="wait">
           <motion.div
+            key={`step-${step}`}
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -12 }}
@@ -269,31 +308,53 @@ export default function LoginPage() {
             className="relative w-full max-w-[400px]"
           >
             {/* Mobile logo */}
-            <div className="lg:hidden flex items-center mb-10 justify-center gap-3">
-              <img
-                src="/images/KODEFY-LOGO.png"
-                alt="KODEFYTECH"
-                className="kodefy-logo-img h-16 w-auto object-contain dark:brightness-0 dark:invert"
-              />
-              <div className="text-3xl font-black tracking-tight uppercase flex" style={{ perspective: '1000px' }}>
-                <span className="kodefy-text-kodefy text-slate-900 dark:text-white origin-bottom inline-block">KODEFY</span>
-                <span className="kodefy-text-tech text-blue-400 inline-block">TECH</span>
+            {step === 1 && (
+              <div className="lg:hidden flex items-center mb-10 justify-center gap-3">
+                <img
+                  src="/images/KODEFY-LOGO.png"
+                  alt="KODEFYTECH"
+                  className="kodefy-logo-img h-16 w-auto object-contain dark:brightness-0 dark:invert"
+                />
+                <div className="text-3xl font-black tracking-tight uppercase flex" style={{ perspective: '1000px' }}>
+                  <span className="kodefy-text-kodefy text-slate-900 dark:text-white origin-bottom inline-block">KODEFY</span>
+                  <span className="kodefy-text-tech text-blue-400 inline-block">TECH</span>
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Header */}
             <div className="mb-8">
-              <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
-                Bienvenido de nuevo
-              </h2>
-              <p className="mt-2 text-sm font-medium text-slate-500 dark:text-slate-400">
-                Ingresa tus credenciales para acceder al panel
-              </p>
+              {step === 1 ? (
+                <>
+                  <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+                    Acceso a tu Negocio
+                  </h2>
+                  <p className="mt-2 text-sm font-medium text-slate-500 dark:text-slate-400">
+                    Ingresa el código de tu empresa para continuar
+                  </p>
+                </>
+              ) : (
+                <div className="flex flex-col items-center sm:items-start">
+                  {businessInfo?.logo_url ? (
+                    <img src={businessInfo.logo_url} alt={businessInfo.nombre} className="h-20 w-auto mb-6 object-contain drop-shadow-md rounded-xl" />
+                  ) : (
+                    <div className="h-16 w-16 mb-6 bg-slate-900 dark:bg-white rounded-2xl flex items-center justify-center text-white dark:text-slate-900 text-3xl font-black shadow-lg">
+                      {businessInfo?.nombre?.charAt(0).toUpperCase() || 'N'}
+                    </div>
+                  )}
+                  <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+                    Hola de nuevo
+                  </h2>
+                  <p className="mt-2 text-sm font-medium text-slate-500 dark:text-slate-400">
+                    Ingresa tus credenciales para acceder a <span className="font-bold text-slate-900 dark:text-white">{businessInfo?.nombre}</span>
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Success alert (post-registration) */}
             <AnimatePresence>
-              {justRegistered && (
+              {justRegistered && step === 1 && (
                 <motion.div
                   initial={{ opacity: 0, height: 0, marginBottom: 0 }}
                   animate={{ opacity: 1, height: 'auto', marginBottom: 20 }}
@@ -304,7 +365,7 @@ export default function LoginPage() {
                   <div>
                     <p className="text-sm font-bold text-emerald-700 dark:text-emerald-300">Cuenta creada exitosamente</p>
                     <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400 mt-0.5">
-                      Ya puedes iniciar sesión con tus credenciales.
+                      Ingresa el código de tu negocio para iniciar sesión.
                     </p>
                   </div>
                 </motion.div>
@@ -331,213 +392,307 @@ export default function LoginPage() {
             </AnimatePresence>
 
             {/* Form */}
-            <form onSubmit={handleSubmit} className="space-y-5" noValidate>
-              {/* Email field */}
-              <div>
-                <label
-                  htmlFor="email"
-                  className={cn(
-                    'mb-2 flex items-center justify-between'
-                  )}
-                >
-                  <span className={cn(
-                    'text-xs font-bold uppercase tracking-wider transition-colors',
-                    fieldErrors.email
-                      ? 'text-red-500 dark:text-red-400'
-                      : focusedField === 'email'
-                      ? 'text-blue-600 dark:text-blue-400'
-                      : 'text-slate-400 dark:text-slate-500'
-                  )}>
-                    Correo electrónico
-                  </span>
-                </label>
-                <div className={cn(
-                  'relative rounded-xl border transition-all duration-200',
-                  fieldErrors.email
-                    ? 'border-red-300 dark:border-red-500/40 ring-4 ring-red-500/10'
-                    : focusedField === 'email'
-                    ? 'border-blue-500 dark:border-blue-400 ring-4 ring-blue-500/10'
-                    : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
-                )}>
-                  <input
-                    id="email"
-                    type="email"
-                    inputMode="email"
-                    autoComplete="email"
-                    value={email}
-                    onChange={(e) => {
-                      setEmail(e.target.value);
-                      if (fieldErrors.email) setFieldErrors((prev) => ({ ...prev, email: undefined }));
-                      if (error) setError(null);
-                    }}
-                    onFocus={() => setFocusedField('email')}
-                    onBlur={() => setFocusedField(null)}
-                    placeholder="tu@empresa.com"
-                    className={cn(
-                      'w-full h-12 bg-transparent px-4 text-sm font-semibold rounded-xl outline-none',
-                      'text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500',
-                      'disabled:opacity-60 disabled:cursor-not-allowed'
-                    )}
-                    aria-invalid={!!fieldErrors.email}
-                    disabled={loading}
-                  />
-                </div>
-                <AnimatePresence>
-                  {fieldErrors.email && (
-                    <motion.p
-                      initial={{ opacity: 0, y: -4 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -4 }}
-                      className="mt-1.5 text-xs font-semibold text-red-500 dark:text-red-400"
-                    >
-                      {fieldErrors.email}
-                    </motion.p>
-                  )}
-                </AnimatePresence>
-              </div>
-
-              {/* Password field */}
-              <div>
-                <div className="mb-2 flex items-center justify-between">
+            {step === 1 ? (
+              <form onSubmit={handleBusinessCodeSubmit} className="space-y-5" noValidate>
+                <div>
                   <label
-                    htmlFor="password"
+                    htmlFor="businessCode"
                     className={cn(
+                      'mb-2 flex items-center justify-between'
+                    )}
+                  >
+                    <span className={cn(
                       'text-xs font-bold uppercase tracking-wider transition-colors',
-                      fieldErrors.password
-                        ? 'text-red-500 dark:text-red-400'
-                        : focusedField === 'password'
+                      focusedField === 'businessCode'
                         ? 'text-blue-600 dark:text-blue-400'
                         : 'text-slate-400 dark:text-slate-500'
-                    )}
-                  >
-                    Contraseña
+                    )}>
+                      Código de Negocio
+                    </span>
                   </label>
-                  <Link
-                    href="/forgot-password"
-                    className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
-                  >
-                    ¿Olvidaste tu contraseña?
-                  </Link>
+                  <div className={cn(
+                    'relative rounded-xl border transition-all duration-200 flex items-center bg-white dark:bg-slate-900',
+                    focusedField === 'businessCode'
+                      ? 'border-blue-500 dark:border-blue-400 ring-4 ring-blue-500/10'
+                      : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
+                  )}>
+                    <div className="pl-4 text-slate-400">
+                      <Building2 size={18} />
+                    </div>
+                    <input
+                      id="businessCode"
+                      type="text"
+                      value={businessCode}
+                      onChange={(e) => {
+                        setBusinessCode(e.target.value);
+                        if (error) setError(null);
+                      }}
+                      onFocus={() => setFocusedField('businessCode')}
+                      onBlur={() => setFocusedField(null)}
+                      placeholder="ej. mi-empresa"
+                      className={cn(
+                        'w-full h-12 bg-transparent px-3 text-sm font-semibold rounded-xl outline-none',
+                        'text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500',
+                        'disabled:opacity-60 disabled:cursor-not-allowed'
+                      )}
+                      disabled={loading}
+                    />
+                  </div>
                 </div>
-                <div className={cn(
-                  'relative rounded-xl border transition-all duration-200',
-                  fieldErrors.password
-                    ? 'border-red-300 dark:border-red-500/40 ring-4 ring-red-500/10'
-                    : focusedField === 'password'
-                    ? 'border-blue-500 dark:border-blue-400 ring-4 ring-blue-500/10'
-                    : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
-                )}>
-                  <input
-                    id="password"
-                    type={showPassword ? 'text' : 'password'}
-                    autoComplete="current-password"
-                    value={password}
-                    onChange={(e) => {
-                      setPassword(e.target.value);
-                      if (fieldErrors.password) setFieldErrors((prev) => ({ ...prev, password: undefined }));
-                      if (error) setError(null);
-                    }}
-                    onFocus={() => setFocusedField('password')}
-                    onBlur={() => setFocusedField(null)}
-                    placeholder="••••••••"
-                    className={cn(
-                      'w-full h-12 bg-transparent px-4 pr-12 text-sm font-semibold rounded-xl outline-none',
-                      'text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500',
-                      'disabled:opacity-60 disabled:cursor-not-allowed'
-                    )}
-                    aria-invalid={!!fieldErrors.password}
-                    disabled={loading}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                    tabIndex={-1}
-                    aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
-                  >
-                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
-                </div>
-                <AnimatePresence>
-                  {fieldErrors.password && (
-                    <motion.p
-                      initial={{ opacity: 0, y: -4 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -4 }}
-                      className="mt-1.5 text-xs font-semibold text-red-500 dark:text-red-400"
-                    >
-                      {fieldErrors.password}
-                    </motion.p>
-                  )}
-                </AnimatePresence>
-              </div>
 
-              {/* Remember me */}
-              <div className="flex items-center gap-3">
                 <button
-                  type="button"
-                  onClick={() => setRememberMe(!rememberMe)}
+                  type="submit"
+                  disabled={loading || !isFormValid}
                   className={cn(
-                    'w-[18px] h-[18px] rounded-md border-2 transition-all duration-200 flex items-center justify-center flex-shrink-0',
-                    rememberMe
-                      ? 'bg-blue-600 dark:bg-blue-500 border-blue-600 dark:border-blue-500'
-                      : 'border-slate-300 dark:border-slate-600 hover:border-blue-400 dark:hover:border-blue-400 bg-white dark:bg-slate-800'
+                    'group relative w-full h-12 rounded-xl font-bold text-sm transition-all duration-200 mt-6',
+                    'flex items-center justify-center gap-2',
+                    'focus:outline-none focus:ring-4',
+                    isFormValid && !loading
+                      ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-slate-200 shadow-lg shadow-slate-900/10 dark:shadow-white/5 focus:ring-slate-900/20 dark:focus:ring-white/20 active:scale-[0.98]'
+                      : 'bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-500 cursor-not-allowed'
                   )}
-                  aria-label="Recordar mi correo"
                 >
-                  {rememberMe && (
-                    <motion.svg
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      className="w-3 h-3 text-white"
-                      viewBox="0 0 12 12"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <path d="M2 6l3 3 5-5" />
-                    </motion.svg>
+                  {loading ? (
+                    <>
+                      <Loader2 size={18} className="animate-spin" />
+                      Buscando...
+                    </>
+                  ) : (
+                    <>
+                      Continuar
+                      <ArrowRight
+                        size={16}
+                        className="transition-transform group-hover:translate-x-0.5"
+                      />
+                    </>
                   )}
                 </button>
-                <span
-                  className="text-sm font-medium text-slate-600 dark:text-slate-400 cursor-pointer select-none"
-                  onClick={() => setRememberMe(!rememberMe)}
-                >
-                  Recordar mi correo
-                </span>
-              </div>
-
-              {/* Submit button */}
-              <button
-                type="submit"
-                disabled={loading || !isFormValid}
-                className={cn(
-                  'group relative w-full h-12 rounded-xl font-bold text-sm transition-all duration-200',
-                  'flex items-center justify-center gap-2',
-                  'focus:outline-none focus:ring-4',
-                  isFormValid && !loading
-                    ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-slate-200 shadow-lg shadow-slate-900/10 dark:shadow-white/5 focus:ring-slate-900/20 dark:focus:ring-white/20 active:scale-[0.98]'
-                    : 'bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-500 cursor-not-allowed'
-                )}
-              >
-                {loading ? (
-                  <>
-                    <Loader2 size={18} className="animate-spin" />
-                    Verificando...
-                  </>
-                ) : (
-                  <>
-                    Iniciar sesión
-                    <ArrowRight
-                      size={16}
-                      className="transition-transform group-hover:translate-x-0.5"
+              </form>
+            ) : (
+              <form onSubmit={handleSubmit} className="space-y-5" noValidate>
+                {/* Email field */}
+                <div>
+                  <label
+                    htmlFor="email"
+                    className={cn(
+                      'mb-2 flex items-center justify-between'
+                    )}
+                  >
+                    <span className={cn(
+                      'text-xs font-bold uppercase tracking-wider transition-colors',
+                      fieldErrors.email
+                        ? 'text-red-500 dark:text-red-400'
+                        : focusedField === 'email'
+                        ? 'text-blue-600 dark:text-blue-400'
+                        : 'text-slate-400 dark:text-slate-500'
+                    )}>
+                      Correo electrónico
+                    </span>
+                  </label>
+                  <div className={cn(
+                    'relative rounded-xl border transition-all duration-200',
+                    fieldErrors.email
+                      ? 'border-red-300 dark:border-red-500/40 ring-4 ring-red-500/10'
+                      : focusedField === 'email'
+                      ? 'border-blue-500 dark:border-blue-400 ring-4 ring-blue-500/10'
+                      : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
+                  )}>
+                    <input
+                      id="email"
+                      type="email"
+                      inputMode="email"
+                      autoComplete="email"
+                      value={email}
+                      onChange={(e) => {
+                        setEmail(e.target.value);
+                        if (fieldErrors.email) setFieldErrors((prev) => ({ ...prev, email: undefined }));
+                        if (error) setError(null);
+                      }}
+                      onFocus={() => setFocusedField('email')}
+                      onBlur={() => setFocusedField(null)}
+                      placeholder="tu@empresa.com"
+                      className={cn(
+                        'w-full h-12 bg-transparent px-4 text-sm font-semibold rounded-xl outline-none',
+                        'text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500',
+                        'disabled:opacity-60 disabled:cursor-not-allowed'
+                      )}
+                      aria-invalid={!!fieldErrors.email}
+                      disabled={loading}
                     />
-                  </>
-                )}
-              </button>
-            </form>
+                  </div>
+                  <AnimatePresence>
+                    {fieldErrors.email && (
+                      <motion.p
+                        initial={{ opacity: 0, y: -4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -4 }}
+                        className="mt-1.5 text-xs font-semibold text-red-500 dark:text-red-400"
+                      >
+                        {fieldErrors.email}
+                      </motion.p>
+                    )}
+                  </AnimatePresence>
+                </div>
+
+                {/* Password field */}
+                <div>
+                  <div className="mb-2 flex items-center justify-between">
+                    <label
+                      htmlFor="password"
+                      className={cn(
+                        'text-xs font-bold uppercase tracking-wider transition-colors',
+                        fieldErrors.password
+                          ? 'text-red-500 dark:text-red-400'
+                          : focusedField === 'password'
+                          ? 'text-blue-600 dark:text-blue-400'
+                          : 'text-slate-400 dark:text-slate-500'
+                      )}
+                    >
+                      Contraseña
+                    </label>
+                    <Link
+                      href="/forgot-password"
+                      className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
+                    >
+                      ¿Olvidaste tu contraseña?
+                    </Link>
+                  </div>
+                  <div className={cn(
+                    'relative rounded-xl border transition-all duration-200',
+                    fieldErrors.password
+                      ? 'border-red-300 dark:border-red-500/40 ring-4 ring-red-500/10'
+                      : focusedField === 'password'
+                      ? 'border-blue-500 dark:border-blue-400 ring-4 ring-blue-500/10'
+                      : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
+                  )}>
+                    <input
+                      id="password"
+                      type={showPassword ? 'text' : 'password'}
+                      autoComplete="current-password"
+                      value={password}
+                      onChange={(e) => {
+                        setPassword(e.target.value);
+                        if (fieldErrors.password) setFieldErrors((prev) => ({ ...prev, password: undefined }));
+                        if (error) setError(null);
+                      }}
+                      onFocus={() => setFocusedField('password')}
+                      onBlur={() => setFocusedField(null)}
+                      placeholder="••••••••"
+                      className={cn(
+                        'w-full h-12 bg-transparent px-4 pr-12 text-sm font-semibold rounded-xl outline-none',
+                        'text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500',
+                        'disabled:opacity-60 disabled:cursor-not-allowed'
+                      )}
+                      aria-invalid={!!fieldErrors.password}
+                      disabled={loading}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                      tabIndex={-1}
+                      aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                    >
+                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
+                  <AnimatePresence>
+                    {fieldErrors.password && (
+                      <motion.p
+                        initial={{ opacity: 0, y: -4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -4 }}
+                        className="mt-1.5 text-xs font-semibold text-red-500 dark:text-red-400"
+                      >
+                        {fieldErrors.password}
+                      </motion.p>
+                    )}
+                  </AnimatePresence>
+                </div>
+
+                {/* Remember me */}
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setRememberMe(!rememberMe)}
+                    className={cn(
+                      'w-[18px] h-[18px] rounded-md border-2 transition-all duration-200 flex items-center justify-center flex-shrink-0',
+                      rememberMe
+                        ? 'bg-blue-600 dark:bg-blue-500 border-blue-600 dark:border-blue-500'
+                        : 'border-slate-300 dark:border-slate-600 hover:border-blue-400 dark:hover:border-blue-400 bg-white dark:bg-slate-800'
+                    )}
+                    aria-label="Recordar mi correo"
+                  >
+                    {rememberMe && (
+                      <motion.svg
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        className="w-3 h-3 text-white"
+                        viewBox="0 0 12 12"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M2 6l3 3 5-5" />
+                      </motion.svg>
+                    )}
+                  </button>
+                  <span
+                    className="text-sm font-medium text-slate-600 dark:text-slate-400 cursor-pointer select-none"
+                    onClick={() => setRememberMe(!rememberMe)}
+                  >
+                    Recordar mi correo
+                  </span>
+                </div>
+
+                {/* Submit button */}
+                <button
+                  type="submit"
+                  disabled={loading || !isFormValid}
+                  className={cn(
+                    'group relative w-full h-12 rounded-xl font-bold text-sm transition-all duration-200',
+                    'flex items-center justify-center gap-2',
+                    'focus:outline-none focus:ring-4',
+                    isFormValid && !loading
+                      ? (businessInfo?.color_primario 
+                          ? 'text-white hover:brightness-110 shadow-lg' 
+                          : 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-slate-200 shadow-lg shadow-slate-900/10 dark:shadow-white/5')
+                      : 'bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-500 cursor-not-allowed'
+                  )}
+                  style={isFormValid && !loading && businessInfo?.color_primario ? { backgroundColor: businessInfo.color_primario } : undefined}
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 size={18} className="animate-spin" />
+                      Iniciando sesión...
+                    </>
+                  ) : (
+                    <>
+                      Iniciar sesión
+                      <ArrowRight
+                        size={16}
+                        className="transition-transform group-hover:translate-x-0.5"
+                      />
+                    </>
+                  )}
+                </button>
+
+                <div className="pt-2 text-center">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setStep(1);
+                      setError(null);
+                    }}
+                    className="text-xs font-semibold text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+                  >
+                    Cambiar de negocio
+                  </button>
+                </div>
+              </form>
+            )}
 
             {/* Social login divider */}
             <div className="mt-8 pt-8 border-t border-slate-200 dark:border-slate-700/50">
