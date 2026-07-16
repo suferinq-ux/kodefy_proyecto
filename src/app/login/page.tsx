@@ -77,18 +77,15 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const { data, error: dbError } = await supabase
-        .from('negocios')
-        .select('id, nombre, logo_url, color_primario, slug')
-        .eq('codigo_acceso', businessCode.trim())
-        .single();
+      const res = await fetch(`/api/negocio/info?pin=${encodeURIComponent(businessCode.trim())}`);
 
-      if (dbError || !data) {
+      if (!res.ok) {
         setError('PIN incorrecto. Verifica el código de tu negocio e intenta nuevamente.');
         setShakeError(true);
         return;
       }
 
+      const data = await res.json();
       setBusinessInfo(data);
       setStep(2);
     } catch (err: any) {
