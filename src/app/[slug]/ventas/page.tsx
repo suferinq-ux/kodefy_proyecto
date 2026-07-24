@@ -377,6 +377,7 @@ function MesasActivasContent() {
                                                 onPay={() => abrirModalCobro(venta.id, null, undefined, venta.items, venta.total)}
                                                 onPrint={() => handlePrintPreCuenta(false, venta.items, venta.total, venta.id)}
                                                 onCancel={() => handleCancelClick(venta.id, null, 'Para Llevar')}
+                                                onEdit={() => handleEditClick(venta)}
                                             />
                                         ))}
                                     </AnimatePresence>
@@ -432,6 +433,7 @@ function MesasActivasContent() {
                                                 onPay={() => abrirModalCobro(mesa.venta!.id, mesa.id, mesa.numero, mesa.venta!.items, mesa.venta!.total)}
                                                 onPrint={() => handlePrintPreCuenta(true, mesa.venta!.items, mesa.venta!.total, mesa.venta!.id, mesa.numero, mesa.venta!.costo_envio)}
                                                 onCancel={() => handleCancelClick(mesa.venta!.id, mesa.id, `Mesa ${mesa.numero}`)}
+                                                onEdit={() => handleEditClick(mesa.venta!)}
                                             />
                                         ))}
                                     </AnimatePresence>
@@ -690,7 +692,7 @@ function VentaCard({ venta, label, idx, onPay, onPrint, onCancel, onEdit }: { ve
                 ))}
             </div>
             <div className="flex gap-3">
-                {(user?.rol === 'admin' || user?.rol === 'cajero') && !isReadOnly(user?.rol) && (
+                {(user?.rol === 'admin' || user?.rol === 'cajero' || user?.rol === 'super_admin') && !isReadOnly(user?.rol) && (
                     <button onClick={onPay} className="flex-1 py-4 bg-slate-900 text-white font-black text-[11px] uppercase tracking-widest rounded-none hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-2 shadow-lg shadow-slate-200">
                         <CreditCard size={14} /> COBRAR
                     </button>
@@ -698,12 +700,12 @@ function VentaCard({ venta, label, idx, onPay, onPrint, onCancel, onEdit }: { ve
                 <button onClick={onPrint} className={`py-4 px-4 bg-white border-2 border-slate-100 text-slate-600 font-black text-[11px] uppercase tracking-widest rounded-none hover:bg-slate-50 transition-all shadow-sm ${user?.rol === 'mozo' ? 'flex-1' : ''}`}>
                     <Printer size={16} /> {(user?.rol === 'mozo' || !onPay) && ' IMPRIMIR'}
                 </button>
-                {onEdit && !isReadOnly(user?.rol) && (
+                {onEdit && (user?.rol === 'admin' || user?.rol === 'super_admin' || user?.rol === 'cajero') && !isReadOnly(user?.rol) && (
                     <button onClick={onEdit} className="py-4 px-4 bg-white border-2 border-slate-100 text-blue-500 font-black text-[11px] uppercase tracking-widest rounded-none hover:bg-blue-50 hover:border-blue-100 transition-all shadow-sm">
                         <Edit3 size={16} />
                     </button>
                 )}
-                {(user?.rol === 'admin' || user?.rol === 'cajero') && !isReadOnly(user?.rol) && (
+                {(user?.rol === 'admin' || user?.rol === 'cajero' || user?.rol === 'super_admin') && !isReadOnly(user?.rol) && (
                     <button onClick={onCancel} className="py-4 px-4 bg-white border-2 border-slate-100 text-red-500 font-black text-[11px] uppercase tracking-widest rounded-none hover:bg-red-50 hover:border-red-100 transition-all shadow-sm">
                         <Trash2 size={16} />
                     </button>

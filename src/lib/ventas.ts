@@ -318,18 +318,37 @@ export const actualizarVenta = async (
         const totalProductos = itemsParaCalculo.reduce((sum, item) => sum + item.subtotal, 0);
         const totalFinal = totalProductos + (ventaActual.costo_envio || 0);
 
-        // 6. Actualizar en BD
+        // 6. Detectar items NUEVOS para reimprimir
+        const itemsAnteriores = (ventaActual.items || []) as ItemVenta[];
+        const hayItemsNuevos = listaFinalItems.some(itemNuevo => {
+            const itemAnterior = itemsAnteriores.find(
+                (ia: any) => ia.nombre === itemNuevo.nombre && 
+                             JSON.stringify(ia.detalles || {}) === JSON.stringify(itemNuevo.detalles || {})
+            );
+            if (!itemAnterior) return true; // Item completamente nuevo
+            if (itemNuevo.cantidad > (itemAnterior as any).cantidad) return true; // Más cantidad
+            return false;
+        });
+
+        // 7. Actualizar en BD
+        const updatePayload: any = {
+            items: listaFinalItems,
+            total: totalFinal,
+            pollos_restados: nuevoPollos,
+            gaseosas_restadas: nuevoGaseosas,
+            chicha_restada: nuevoChicha,
+            bebidas_detalle: nuevoDetalle,
+            usuario_nombre: usuarioNombre || undefined
+        };
+
+        // Si hay items nuevos, marcar para impresión
+        if (hayItemsNuevos) {
+            updatePayload.estado_impresion = 'pendiente';
+        }
+
         const { data, error: errorUpdate } = await supabase
             .from('ventas')
-            .update({
-                items: listaFinalItems,
-                total: totalFinal,
-                pollos_restados: nuevoPollos,
-                gaseosas_restadas: nuevoGaseosas,
-                chicha_restada: nuevoChicha,
-                bebidas_detalle: nuevoDetalle,
-                usuario_nombre: usuarioNombre || undefined
-            })
+            .update(updatePayload)
             .eq('id', ventaId)
             .select()
             .single();
