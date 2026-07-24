@@ -11,6 +11,7 @@ import ReceiptModal from '@/components/ReceiptModal';
 import SplitPaymentModal from '@/components/SplitPaymentModal';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { useAuth } from '@/contexts/AuthContext';
+import { useBusiness } from '@/contexts/BusinessContext';
 import { isReadOnly } from '@/lib/roles';
 import { supabase as supabaseClient } from '@/lib/supabase';
 
@@ -28,6 +29,7 @@ export default function MesasActivasPage() {
 
 function MesasActivasContent() {
     const { user } = useAuth();
+    const { business } = useBusiness();
     const [mesasActivas, setMesasActivas] = useState<MesaConVenta[]>([]);
     const [ventasParaLlevar, setVentasParaLlevar] = useState<Venta[]>([]);
     const [ventasDelivery, setVentasDelivery] = useState<Venta[]>([]);
@@ -85,10 +87,10 @@ function MesasActivasContent() {
 
         const channel = supabase
             .channel('mesas-ventas-changes')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'mesas' }, () => {
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'mesas', filter: `negocio_id=eq.${business?.id}` }, () => {
                 cargarPedidosPendientes();
             })
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'ventas' }, () => {
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'ventas', filter: `negocio_id=eq.${business?.id}` }, () => {
                 cargarPedidosPendientes();
             })
             .subscribe();
@@ -96,7 +98,7 @@ function MesasActivasContent() {
         return () => {
             supabase.removeChannel(channel);
         };
-    }, []);
+    }, [business?.id]);
 
     const cargarPedidosPendientes = async () => {
         try {
@@ -112,6 +114,7 @@ function MesasActivasContent() {
                         numero
                     )
                 `)
+                .eq('negocio_id', business?.id)
                 .eq('estado_pago', 'pendiente')
                 .eq('fecha', hoy)
                 .order('created_at', { ascending: false });

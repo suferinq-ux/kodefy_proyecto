@@ -247,7 +247,8 @@ export const registrarVenta = async (
                 geometria_envio: deliveryData?.geometria_envio || null,
                 metodo_pago: deliveryData?.metodo_pago || 'efectivo',
                 usuario_nombre: usuarioNombre || null,
-                negocio_id: negocioId
+                negocio_id: negocioId,
+                estado_impresion: 'pendiente'   // El Worker local lo detecta y lo imprime
             })
             .select()
             .single();

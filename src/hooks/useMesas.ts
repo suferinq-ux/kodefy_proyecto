@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import type { Mesa } from '@/lib/database.types';
+import { useBusiness } from '@/contexts/BusinessContext';
 
 export function useMesas() {
+    const { business } = useBusiness();
     const [mesas, setMesas] = useState<Mesa[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -14,6 +16,7 @@ export function useMesas() {
             const { data, error: fetchError } = await supabase
                 .from('mesas')
                 .select('*')
+                .eq('negocio_id', business?.id)
                 .order('numero', { ascending: true });
 
             if (fetchError) throw fetchError;
@@ -125,7 +128,8 @@ export function useMesas() {
                 {
                     event: '*',
                     schema: 'public',
-                    table: 'mesas'
+                    table: 'mesas',
+                    filter: `negocio_id=eq.${business?.id}`
                 },
                 (payload) => {
                     console.log('Mesa actualizada:', payload);
@@ -137,7 +141,7 @@ export function useMesas() {
         return () => {
             supabase.removeChannel(channel);
         };
-    }, []);
+    }, [business?.id]);
 
     return {
         mesas,

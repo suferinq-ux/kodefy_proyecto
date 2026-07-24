@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import type { Negocio } from '@/lib/database.types';
 import {
@@ -21,6 +21,11 @@ import {
   AlertCircle,
   Globe,
   Palette,
+  Upload,
+  ImageIcon,
+  XCircle,
+  Loader2,
+  Settings2,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -30,6 +35,7 @@ import { TableSkeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
 import { cn } from '@/lib/cn';
 import { formatRelativeTime, generateSlug, ANIMATIONS } from '@/lib/admin-constants';
+import Link from 'next/link';
 
 type SortField = 'nombre' | 'estado' | 'created_at';
 type SortOrder = 'asc' | 'desc';
@@ -51,6 +57,167 @@ const EMPTY_FORM: FormData = {
   color_secundario: '#1e40af',
   logo_url: '',
 };
+
+// ─── Logo Upload Component ───────────────────────────────────────────────────
+function LogoUploader({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (url: string) => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [dragging, setDragging] = useState(false);
+
+  const handleFile = useCallback(
+    async (file: File) => {
+      if (!file.type.startsWith('image/')) {
+        toast.error('Solo se permiten imágenes (PNG, JPG, WEBP, etc.)');
+        return;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('La imagen no puede superar los 5 MB');
+        return;
+      }
+
+      setUploading(true);
+      try {
+        // Usar la API route que usa supabaseAdmin (bypass RLS)
+        const body = new FormData();
+        body.append('file', file);
+
+        const res = await fetch('/api/upload-logo', {
+          method: 'POST',
+          body,
+        });
+
+        const json = await res.json();
+
+        if (!res.ok) throw new Error(json.error ?? 'Error al subir');
+
+        onChange(json.url);
+        toast.success('Logo subido correctamente ✅');
+      } catch (err: any) {
+        toast.error('Error al subir el logo: ' + err.message);
+      } finally {
+        setUploading(false);
+      }
+    },
+    [onChange]
+  );
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      setDragging(false);
+      const file = e.dataTransfer.files[0];
+      if (file) handleFile(file);
+    },
+    [handleFile]
+  );
+
+  return (
+    <div className="space-y-3">
+      <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider ml-1">
+        Logo del Negocio (opcional)
+      </label>
+
+      {/* Drop zone */}
+      <div
+        onClick={() => !uploading && inputRef.current?.click()}
+        onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={handleDrop}
+        className={cn(
+          'relative rounded-xl border-2 border-dashed transition-all cursor-pointer overflow-hidden',
+          dragging
+            ? 'border-blue-500 bg-blue-50 dark:bg-blue-500/10'
+            : 'border-slate-200 dark:border-slate-600 hover:border-blue-400 dark:hover:border-blue-500 bg-slate-50 dark:bg-slate-700/50'
+        )}
+      >
+        {/* Image preview */}
+        {value ? (
+          <div className="relative">
+            <img
+              src={value}
+              alt="Logo"
+              className="w-full h-32 object-contain p-3"
+              onError={(e) => {
+                (e.target as HTMLImageElement).src =
+                  'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect fill="%23e2e8f0" width="100" height="100"/><text y=".9em" font-size="40" x="50%" text-anchor="middle">🖼</text></svg>';
+              }}
+            />
+            {/* Overlay al hover */}
+            <div className="absolute inset-0 bg-black/50 opacity-0 hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2">
+              <Upload size={20} className="text-white" />
+              <span className="text-white text-xs font-bold">Cambiar imagen</span>
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center py-8 px-4 gap-2">
+            {uploading ? (
+              <>
+                <Loader2 size={28} className="text-blue-500 animate-spin" />
+                <span className="text-xs font-semibold text-blue-500">Subiendo imagen...</span>
+              </>
+            ) : (
+              <>
+                <div className={cn(
+                  'w-12 h-12 rounded-xl flex items-center justify-center transition-colors',
+                  dragging ? 'bg-blue-100 dark:bg-blue-500/20' : 'bg-slate-100 dark:bg-slate-700'
+                )}>
+                  <ImageIcon size={22} className={dragging ? 'text-blue-500' : 'text-slate-400'} />
+                </div>
+                <div className="text-center">
+                  <p className="text-xs font-bold text-slate-600 dark:text-slate-300">
+                    {dragging ? 'Suelta la imagen aquí' : 'Haz clic o arrastra una imagen'}
+                  </p>
+                  <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">
+                    PNG, JPG, WEBP · Máx. 5 MB
+                  </p>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Spinner sobre la preview si está subiendo */}
+        {uploading && value && (
+          <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center gap-2">
+            <Loader2 size={28} className="text-white animate-spin" />
+            <span className="text-white text-xs font-bold">Subiendo...</span>
+          </div>
+        )}
+
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) handleFile(file);
+            e.target.value = '';
+          }}
+        />
+      </div>
+
+      {/* Botón para quitar el logo */}
+      {value && !uploading && (
+        <button
+          type="button"
+          onClick={() => onChange('')}
+          className="flex items-center gap-1.5 text-[11px] font-bold text-red-500 hover:text-red-600 transition-colors"
+        >
+          <XCircle size={13} />
+          Quitar logo
+        </button>
+      )}
+    </div>
+  );
+}
+// ─────────────────────────────────────────────────────────────────────────────
 
 export default function NegociosPage() {
   const [negocios, setNegocios] = useState<Negocio[]>([]);
@@ -482,10 +649,18 @@ export default function NegociosPage() {
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Link
+                          href={`/super-admin/negocios/${negocio.id}`}
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-lg transition-all"
+                          title="Gestionar negocio"
+                        >
+                          <Settings2 size={14} />
+                          Gestionar
+                        </Link>
                         <button
                           onClick={() => handleOpenEdit(negocio)}
                           className="p-2 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-lg transition-all"
-                          title="Editar negocio"
+                          title="Editar rápido"
                         >
                           <Edit2 size={16} />
                         </button>
@@ -680,35 +855,10 @@ export default function NegociosPage() {
             </div>
           </div>
 
-          <div>
-            <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2 ml-1">
-              URL del Logo (opcional)
-            </label>
-            <input
-              type="text"
-              value={formData.logo_url}
-              onChange={(e) => setFormData({ ...formData, logo_url: e.target.value })}
-              className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm font-semibold text-slate-900 dark:text-white placeholder-slate-400 focus:border-blue-500 dark:focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
-              placeholder="https://ejemplo.com/logo.png"
-            />
-            {formData.logo_url && (
-              <div className="mt-2 flex items-center gap-2">
-                <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 overflow-hidden">
-                  <img
-                    src={formData.logo_url}
-                    alt="Preview"
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).style.display = 'none';
-                    }}
-                  />
-                </div>
-                <span className="text-[11px] text-slate-400 dark:text-slate-500 font-medium">
-                  Vista previa del logo
-                </span>
-              </div>
-            )}
-          </div>
+          <LogoUploader
+            value={formData.logo_url}
+            onChange={(url) => setFormData({ ...formData, logo_url: url })}
+          />
 
           <div className="flex gap-3 pt-2">
             <button
