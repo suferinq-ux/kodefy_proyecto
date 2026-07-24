@@ -713,15 +713,17 @@ function ConfiguracionContent() {
     const probarImpresora = async (printer: any) => {
         toast.loading('Enviando ticket de prueba...', { id: 'test-print' });
         try {
-            // Insertamos un pedido de prueba que el worker debe detectar
+            // Insertamos una venta de prueba que el worker debe detectar
             const { error } = await supabase
-                .from('pedidos')
+                .from('ventas')
                 .insert([{
                     negocio_id: user?.negocio_id,
                     total: 0,
                     items: [{ nombre: 'TICKET DE PRUEBA KODEFY', cantidad: 1, precio: 0 }],
-                    estado: 'completado',
-                    tipo_pago: 'efectivo',
+                    metodo_pago: 'efectivo',
+                    estado_pedido: 'entregado',
+                    estado_pago: 'pagado',
+                    tipo_pedido: 'mesa',
                     estado_impresion: 'pendiente'
                 }]);
 
