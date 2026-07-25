@@ -116,7 +116,6 @@ function MesasActivasContent() {
                 `)
                 .eq('negocio_id', business?.id)
                 .eq('estado_pago', 'pendiente')
-                .eq('fecha', hoy)
                 .order('created_at', { ascending: false });
 
             if (ventasError) throw ventasError;
