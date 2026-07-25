@@ -389,10 +389,15 @@ function ConfiguracionContent() {
         }
         setSaving(true);
         try {
+            const negocioId = (user?.negocio_id && user.negocio_id !== 'null') ? user.negocio_id : config?.id;
+            if (!negocioId || negocioId === 'null') {
+                throw new Error('No se detectó el ID del negocio. Intenta recargar la página.');
+            }
+
             const payload: any = {
                 numero: numMesa,
                 estado: 'libre',
-                negocio_id: user?.negocio_id
+                negocio_id: negocioId
             };
             const numPiso = parseInt(pisoMesa);
             if (!isNaN(numPiso)) payload.piso = numPiso;
@@ -432,11 +437,16 @@ function ConfiguracionContent() {
 
         setSaving(true);
         try {
+            const negocioId = (user?.negocio_id && user.negocio_id !== 'null') ? user.negocio_id : config?.id;
+            if (!negocioId || negocioId === 'null') {
+                throw new Error('No se detectó el ID del negocio. Intenta recargar la página.');
+            }
+
             // 1. Obtener el número más alto directamente de la base de datos (evita RLS o fallos locales de carga)
             const { data: maxMesaData, error: errMax } = await supabase
                 .from('mesas')
                 .select('numero')
-                .eq('negocio_id', user?.negocio_id)
+                .eq('negocio_id', negocioId)
                 .order('numero', { ascending: false })
                 .limit(1);
 
@@ -450,7 +460,7 @@ function ConfiguracionContent() {
                 numero: maxNumero + i + 1,
                 piso: numPisoMasivo,
                 estado: 'libre',
-                negocio_id: user?.negocio_id
+                negocio_id: negocioId
             }));
 
             // 3. Insertar todas de golpe
