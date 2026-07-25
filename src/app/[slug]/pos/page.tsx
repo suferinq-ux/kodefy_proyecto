@@ -479,6 +479,7 @@ function POSContent() {
                 }
                 refetch();
                 refetchMesas();
+                cargarVentasPendientes();
             } else {
                 toast.error(resultado.message);
             }
@@ -532,14 +533,14 @@ function POSContent() {
 
     if (view === 'start') {
         return (
-            <div className="min-h-[80vh] flex items-center justify-center p-4">
+            <div className="min-h-[80vh] flex flex-col items-center justify-center p-4">
                 <div className="max-w-5xl w-full grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-8">
                     <motion.button
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         whileHover={{ scale: 1.02, y: -5 }}
                         whileTap={{ scale: 0.98 }}
-                        onClick={() => setView('mesas')}
+                        onClick={() => { setTipoVistaPOS('salon'); setView('mesas'); }}
                         className="group relative bg-white p-6 md:p-10 rounded-none border-2 border-slate-100 shadow-xl flex flex-row md:flex-col items-center text-left md:text-center transition-all hover:border-rodrigo-mustard/30 hover:shadow-2xl overflow-hidden"
                     >
                         <div className="absolute top-0 right-0 w-24 md:w-32 h-24 md:h-32 bg-slate-50 rounded-none -mr-12 -mt-12 md:-mr-16 md:-mt-16 group-hover:bg-rodrigo-mustard/5 transition-colors duration-500"></div>
@@ -561,6 +562,11 @@ function POSContent() {
                         onClick={() => handleTableClick(null)}
                         className="group relative bg-white p-6 md:p-10 rounded-none border-2 border-slate-100 shadow-xl flex flex-row md:flex-col items-center text-left md:text-center transition-all hover:border-rodrigo-mustard/30 hover:shadow-2xl overflow-hidden"
                     >
+                        {ventasParaLlevarPendientes.length > 0 && (
+                            <span className="absolute top-3 right-3 bg-amber-500 text-white text-[10px] font-black uppercase px-2.5 py-1 rounded-full shadow-md z-20 animate-pulse">
+                                🥡 {ventasParaLlevarPendientes.length} Pendiente{ventasParaLlevarPendientes.length > 1 ? 's' : ''}
+                            </span>
+                        )}
                         <div className="absolute top-0 right-0 w-24 md:w-32 h-24 md:h-32 bg-slate-50 rounded-none -mr-12 -mt-12 md:-mr-16 md:-mt-16 group-hover:bg-rodrigo-mustard/5 transition-colors duration-500"></div>
                         <div className="w-16 h-16 md:w-24 md:h-24 bg-slate-50 rounded-none flex items-center justify-center mb-0 md:mb-8 mr-6 md:mr-0 -rotate-3 shadow-sm border border-slate-100 group-hover:bg-white group-hover:rotate-0 transition-transform duration-500 shrink-0">
                             <ShoppingBag size={32} className="md:w-12 md:h-12 text-slate-400 group-hover:text-rodrigo-terracotta transition-colors" />
@@ -588,6 +594,11 @@ function POSContent() {
                         }}
                         className="group relative bg-white p-6 md:p-10 rounded-none border-2 border-slate-100 shadow-xl flex flex-row md:flex-col items-center text-left md:text-center transition-all hover:border-rodrigo-mustard/30 hover:shadow-2xl overflow-hidden"
                     >
+                        {ventasDeliveryPendientes.length > 0 && (
+                            <span className="absolute top-3 right-3 bg-indigo-600 text-white text-[10px] font-black uppercase px-2.5 py-1 rounded-full shadow-md z-20 animate-pulse">
+                                🛵 {ventasDeliveryPendientes.length} Pendiente{ventasDeliveryPendientes.length > 1 ? 's' : ''}
+                            </span>
+                        )}
                         <div className="absolute top-0 right-0 w-24 md:w-32 h-24 md:h-32 bg-slate-50 rounded-none -mr-12 -mt-12 md:-mr-16 md:-mt-16 group-hover:bg-rodrigo-mustard/5 transition-colors duration-500"></div>
                         <div className="w-16 h-16 md:w-24 md:h-24 bg-slate-50 rounded-none flex items-center justify-center mb-0 md:mb-8 mr-6 md:mr-0 rotate-3 shadow-sm border border-slate-100 group-hover:bg-white group-hover:rotate-0 transition-transform duration-500 shrink-0">
                             <Navigation2 size={32} className="md:w-12 md:h-12 text-slate-400 group-hover:text-rodrigo-terracotta transition-colors" />
@@ -598,6 +609,55 @@ function POSContent() {
                         </div>
                     </motion.button>
                 </div>
+
+                {ventasPendientes.length > 0 && (
+                    <div className="mt-12 max-w-5xl w-full">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-lg md:text-xl font-black text-slate-900 uppercase italic tracking-tight flex items-center gap-2">
+                                <ClipboardList className="text-amber-500" size={22} />
+                                Pedidos Activos sin Mesa ({ventasPendientes.length})
+                            </h3>
+                            <button
+                                onClick={() => { setTipoVistaPOS('llevar'); setView('mesas'); }}
+                                className="text-xs font-black uppercase text-amber-600 hover:text-amber-700 underline"
+                            >
+                                Ver todos en panel ➔
+                            </button>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                            {ventasPendientes.map((v) => (
+                                <motion.div
+                                    key={v.id}
+                                    whileHover={{ scale: 1.02 }}
+                                    onClick={() => handlePendingSaleClick(v)}
+                                    className="bg-white p-5 rounded-none border-2 border-slate-100 shadow-md hover:border-amber-400 cursor-pointer flex flex-col justify-between"
+                                >
+                                    <div>
+                                        <div className="flex items-center justify-between mb-2">
+                                            <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-none ${
+                                                v.tipo_pedido === 'delivery' ? 'bg-indigo-100 text-indigo-700' : 'bg-amber-100 text-amber-700'
+                                            }`}>
+                                                {v.tipo_pedido === 'delivery' ? '🛵 DELIVERY' : '🥡 LLEVAR'}
+                                            </span>
+                                            <span className="text-[10px] font-bold text-slate-400 font-mono">
+                                                #{v.id.slice(0, 6)}
+                                            </span>
+                                        </div>
+                                        <p className="text-xs font-black text-slate-800 line-clamp-2 mb-2">
+                                            {(v.items || []).map((it: any) => `${it.cantidad}x ${it.nombre}`).join(', ')}
+                                        </p>
+                                        {v.notas && <p className="text-[11px] text-slate-500 italic bg-slate-50 p-1.5 rounded mb-2">"{v.notas}"</p>}
+                                        {v.direccion_envio && <p className="text-[11px] text-indigo-600 font-bold truncate">📍 {v.direccion_envio}</p>}
+                                    </div>
+                                    <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-100">
+                                        <span className="text-base font-black text-slate-900">S/ {v.total.toFixed(2)}</span>
+                                        <span className="text-xs font-bold text-amber-600 bg-amber-50 px-2.5 py-1 rounded-none border border-amber-200">✏️ Ver / Editar</span>
+                                    </div>
+                                </motion.div>
+                            ))}
+                        </div>
+                    </div>
+                )}
             </div>
         );
     }
@@ -610,102 +670,317 @@ function POSContent() {
 
         return (
             <div className="space-y-6 md:space-y-8 pb-32">
-                {/* Header con estadísticas de disponibilidad */}
+                {/* Header con pestañas principal (Salón / Llevar / Delivery) */}
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 md:gap-6 border-b border-slate-100 pb-4">
                     <div className="flex items-center gap-3 md:gap-4">
                         <button onClick={() => setView('start')} className="w-10 h-10 md:w-12 md:h-12 bg-white border border-slate-200 rounded-xl md:rounded-2xl flex items-center justify-center text-slate-500 shadow-sm hover:bg-slate-50 transition-all">
                             <ArrowRight className="rotate-180" size={20} />
                         </button>
                         <div>
-                            <h1 className="text-2xl md:text-5xl font-black text-slate-900 italic tracking-tighter uppercase leading-none">Salón Principal</h1>
+                            <h1 className="text-2xl md:text-4xl font-black text-slate-900 italic tracking-tighter uppercase leading-none">
+                                {tipoVistaPOS === 'salon' ? 'Salón Principal' : tipoVistaPOS === 'llevar' ? 'Pedidos Para Llevar' : 'Pedidos Delivery'}
+                            </h1>
                             <p className="text-slate-400 text-[9px] md:text-xs font-black uppercase tracking-[0.2em] mt-1 md:mt-2">
-                                Selecciona una mesa por piso o ambiente
+                                {tipoVistaPOS === 'salon' ? 'Selecciona una mesa por piso o ambiente' : 'Visualiza y modifica pedidos activos'}
                             </p>
                         </div>
                     </div>
 
-                    {/* Resumen de Disponibilidad */}
-                    <div className="flex items-center gap-2 sm:gap-3 bg-slate-50 p-2.5 sm:p-3 border border-slate-200/60 rounded-xl">
-                        <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg">
-                            <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-                            <span className="text-xs font-black uppercase italic">{totalLibres} Libres</span>
-                        </div>
-                        <div className="flex items-center gap-2 px-3 py-1.5 bg-rose-50 text-rose-700 border border-rose-200 rounded-lg">
-                            <div className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse" />
-                            <span className="text-xs font-black uppercase italic">{totalOcupadas} Ocupadas</span>
-                        </div>
+                    {/* Pestañas de Vista */}
+                    <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+                        <button
+                            onClick={() => setTipoVistaPOS('salon')}
+                            className={`px-4 py-2.5 rounded-xl font-black uppercase tracking-wider text-xs flex items-center gap-2 transition-all ${
+                                tipoVistaPOS === 'salon'
+                                    ? 'bg-slate-900 text-white shadow-md'
+                                    : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+                            }`}
+                        >
+                            <UtensilsCrossed size={16} />
+                            Salón ({totalOcupadas}/{mesas.length})
+                        </button>
+
+                        <button
+                            onClick={() => setTipoVistaPOS('llevar')}
+                            className={`px-4 py-2.5 rounded-xl font-black uppercase tracking-wider text-xs flex items-center gap-2 transition-all ${
+                                tipoVistaPOS === 'llevar'
+                                    ? 'bg-amber-500 text-white shadow-md'
+                                    : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+                            }`}
+                        >
+                            <ShoppingBag size={16} />
+                            Para Llevar ({ventasParaLlevarPendientes.length})
+                        </button>
+
+                        <button
+                            onClick={() => setTipoVistaPOS('delivery')}
+                            className={`px-4 py-2.5 rounded-xl font-black uppercase tracking-wider text-xs flex items-center gap-2 transition-all ${
+                                tipoVistaPOS === 'delivery'
+                                    ? 'bg-indigo-600 text-white shadow-md'
+                                    : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+                            }`}
+                        >
+                            <Navigation2 size={16} />
+                            Delivery ({ventasDeliveryPendientes.length})
+                        </button>
                     </div>
                 </div>
 
-                {/* Filtro por PISO / AMBIENTE */}
-                <div className="flex items-center gap-2 overflow-x-auto pb-2 border-b border-slate-100 no-scrollbar">
-                    <button
-                        type="button"
-                        onClick={() => setFiltroPisoPOS(0)}
-                        className={`px-4 py-2.5 text-xs font-black uppercase tracking-wider transition-all italic shrink-0 rounded-lg border ${
-                            filtroPisoPOS === 0
-                                ? 'bg-slate-900 text-white border-slate-900 shadow-md'
-                                : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
-                        }`}
-                    >
-                        Todos ({mesas.length})
-                    </button>
-                    {pisosExistentes.map(pisoNum => {
-                        const mesasPiso = mesas.filter(m => (m.piso || 1) === pisoNum);
-                        const libresPiso = mesasPiso.filter(m => m.estado === 'libre').length;
-                        const label = pisoNum === 5 ? 'Terraza' : `${pisoNum}° Piso`;
-                        return (
+                {tipoVistaPOS === 'salon' && (
+                    <>
+                        {/* Filtro por PISO / AMBIENTE */}
+                        <div className="flex items-center gap-2 overflow-x-auto pb-2 border-b border-slate-100 no-scrollbar">
                             <button
-                                key={pisoNum}
                                 type="button"
-                                onClick={() => setFiltroPisoPOS(pisoNum)}
+                                onClick={() => setFiltroPisoPOS(0)}
                                 className={`px-4 py-2.5 text-xs font-black uppercase tracking-wider transition-all italic shrink-0 rounded-lg border ${
-                                    filtroPisoPOS === pisoNum
+                                    filtroPisoPOS === 0
                                         ? 'bg-slate-900 text-white border-slate-900 shadow-md'
                                         : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
                                 }`}
                             >
-                                {label} ({libresPiso}/{mesasPiso.length} libres)
+                                Todos ({mesas.length})
                             </button>
-                        );
-                    })}
-                </div>
-
-                {/* Grid de Mesas */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-3 md:gap-4">
-                    {mesasFiltradas.length === 0 ? (
-                        <div className="col-span-full py-12 text-center text-slate-400 font-bold text-sm bg-white border border-slate-100 p-8 rounded-2xl">
-                            No hay mesas en este piso.
+                            {pisosExistentes.map(pisoNum => {
+                                const mesasPiso = mesas.filter(m => (m.piso || 1) === pisoNum);
+                                const libresPiso = mesasPiso.filter(m => m.estado === 'libre').length;
+                                const label = pisoNum === 5 ? 'Terraza' : `${pisoNum}° Piso`;
+                                return (
+                                    <button
+                                        key={pisoNum}
+                                        type="button"
+                                        onClick={() => setFiltroPisoPOS(pisoNum)}
+                                        className={`px-4 py-2.5 text-xs font-black uppercase tracking-wider transition-all italic shrink-0 rounded-lg border ${
+                                            filtroPisoPOS === pisoNum
+                                                ? 'bg-slate-900 text-white border-slate-900 shadow-md'
+                                                : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                                        }`}
+                                    >
+                                        {label} ({libresPiso}/{mesasPiso.length} libres)
+                                    </button>
+                                );
+                            })}
                         </div>
-                    ) : (
-                        mesasFiltradas.map((mesa) => (
-                            <motion.button
-                                key={mesa.id}
-                                onClick={() => handleTableClick(mesa)}
-                                whileHover={{ scale: 1.03 }}
-                                whileTap={{ scale: 0.97 }}
-                                className={`relative aspect-square rounded-2xl flex flex-col items-center justify-center p-3 transition-all duration-300 group shadow-sm border ${
-                                    mesa.estado === 'libre'
-                                        ? 'bg-white border-slate-200 text-slate-900 hover:border-slate-400 hover:shadow-md'
-                                        : 'bg-rose-500 text-white border-rose-600 shadow-md shadow-rose-500/20'
-                                }`}
-                            >
-                                <span className={`absolute top-2 right-2 text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-md ${
-                                    mesa.estado === 'libre' ? 'bg-slate-100 text-slate-500' : 'bg-black/20 text-white'
-                                }`}>
-                                    {(mesa.piso || 1) === 5 ? 'Terraza' : `${mesa.piso || 1}° P.`}
-                                </span>
 
-                                <span className="text-2xl md:text-4xl font-black italic tracking-tighter">Mesa {mesa.numero}</span>
-                                <span className={`text-[8px] md:text-[10px] font-black uppercase tracking-[0.15em] mt-1 ${
-                                    mesa.estado === 'libre' ? 'text-emerald-600' : 'text-white/90'
-                                }`}>
-                                    {mesa.estado === 'libre' ? 'Libre' : 'Ocupada'}
-                                </span>
-                            </motion.button>
-                        ))
-                    )}
-                </div>
+                        {/* Grid de Mesas */}
+                        <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-3 md:gap-4">
+                            {mesasFiltradas.length === 0 ? (
+                                <div className="col-span-full py-12 text-center text-slate-400 font-bold text-sm bg-white border border-slate-100 p-8 rounded-2xl">
+                                    No hay mesas en este piso.
+                                </div>
+                            ) : (
+                                mesasFiltradas.map((mesa) => (
+                                    <motion.button
+                                        key={mesa.id}
+                                        onClick={() => handleTableClick(mesa)}
+                                        whileHover={{ scale: 1.03 }}
+                                        whileTap={{ scale: 0.97 }}
+                                        className={`relative aspect-square rounded-2xl flex flex-col items-center justify-center p-3 transition-all duration-300 group shadow-sm border ${
+                                            mesa.estado === 'libre'
+                                                ? 'bg-white border-slate-200 text-slate-900 hover:border-slate-400 hover:shadow-md'
+                                                : 'bg-rose-500 text-white border-rose-600 shadow-md shadow-rose-500/20'
+                                        }`}
+                                    >
+                                        <span className={`absolute top-2 right-2 text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-md ${
+                                            mesa.estado === 'libre' ? 'bg-slate-100 text-slate-500' : 'bg-black/20 text-white'
+                                        }`}>
+                                            {(mesa.piso || 1) === 5 ? 'Terraza' : `${mesa.piso || 1}° P.`}
+                                        </span>
+
+                                        <span className="text-2xl md:text-4xl font-black italic tracking-tighter">Mesa {mesa.numero}</span>
+                                        <span className={`text-[8px] md:text-[10px] font-black uppercase tracking-[0.15em] mt-1 ${
+                                            mesa.estado === 'libre' ? 'text-emerald-600' : 'text-white/90'
+                                        }`}>
+                                            {mesa.estado === 'libre' ? 'Libre' : 'Ocupada'}
+                                        </span>
+                                    </motion.button>
+                                ))
+                            )}
+                        </div>
+                    </>
+                )}
+
+                {tipoVistaPOS === 'llevar' && (
+                    <div className="space-y-6">
+                        <div className="flex items-center justify-between bg-amber-50/50 p-4 border border-amber-200/60 rounded-2xl">
+                            <div>
+                                <h2 className="text-lg font-black text-amber-900 uppercase italic">Pedidos Para Llevar Activos</h2>
+                                <p className="text-xs text-amber-700 font-medium">Haz clic en cualquier pedido para ver detalles o agregar más productos.</p>
+                            </div>
+                            <button
+                                onClick={() => handleTableClick(null)}
+                                className="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 shadow-md transition-all active:scale-95"
+                            >
+                                <Plus size={16} /> + Nuevo Pedido Para Llevar
+                            </button>
+                        </div>
+
+                        {ventasParaLlevarPendientes.length === 0 ? (
+                            <div className="text-center py-16 bg-white border border-dashed border-slate-200 rounded-3xl p-8">
+                                <ShoppingBag size={48} className="mx-auto text-slate-300 mb-4" />
+                                <h3 className="text-lg font-black text-slate-700 uppercase italic mb-1">Sin pedidos para llevar pendientes</h3>
+                                <p className="text-xs text-slate-400 font-bold mb-6">Todos los pedidos para llevar han sido cobrados o no hay nuevos registrados.</p>
+                                <button
+                                    onClick={() => handleTableClick(null)}
+                                    className="bg-amber-500 text-white px-6 py-3 rounded-2xl font-black uppercase text-xs shadow-lg hover:bg-amber-600 transition-all"
+                                >
+                                    + Crear Nuevo Pedido Para Llevar
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                                {ventasParaLlevarPendientes.map((v) => (
+                                    <motion.div
+                                        key={v.id}
+                                        whileHover={{ scale: 1.02 }}
+                                        className="bg-white p-5 rounded-2xl border-2 border-slate-100 shadow-md hover:border-amber-400 flex flex-col justify-between"
+                                    >
+                                        <div>
+                                            <div className="flex items-center justify-between mb-3 border-b border-slate-100 pb-2">
+                                                <span className="text-xs font-black text-amber-600 bg-amber-50 px-2.5 py-1 rounded-lg uppercase">
+                                                    🥡 LLEVAR #{v.id.slice(0, 6)}
+                                                </span>
+                                                <span className="text-[10px] font-bold text-slate-400">
+                                                    {new Date(v.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                </span>
+                                            </div>
+                                            <div className="space-y-1 mb-3">
+                                                {(v.items || []).map((it: any, idx: number) => (
+                                                    <div key={idx} className="flex justify-between text-xs font-bold text-slate-800">
+                                                        <span>{it.cantidad}x {it.nombre}</span>
+                                                        <span className="text-slate-400">S/ {(it.precio * it.cantidad).toFixed(2)}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            {v.notas && (
+                                                <div className="bg-slate-50 p-2 rounded-lg text-[11px] text-slate-600 italic border border-slate-100 mb-3">
+                                                    <span className="font-bold text-slate-400 not-italic uppercase text-[9px]">Nota:</span> {v.notas}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                                            <div>
+                                                <p className="text-[10px] text-slate-400 font-bold uppercase">Total acumulado</p>
+                                                <p className="text-lg font-black text-slate-900">S/ {v.total.toFixed(2)}</p>
+                                            </div>
+                                            <button
+                                                onClick={() => handlePendingSaleClick(v)}
+                                                className="bg-amber-500 hover:bg-amber-600 text-white text-xs font-black uppercase px-3.5 py-2 rounded-xl shadow-md transition-colors"
+                                            >
+                                                ✏️ Ver / Modificar
+                                            </button>
+                                        </div>
+                                    </motion.div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {tipoVistaPOS === 'delivery' && (
+                    <div className="space-y-6">
+                        <div className="flex items-center justify-between bg-indigo-50/50 p-4 border border-indigo-200/60 rounded-2xl">
+                            <div>
+                                <h2 className="text-lg font-black text-indigo-900 uppercase italic">Pedidos Delivery Activos</h2>
+                                <p className="text-xs text-indigo-700 font-medium">Haz clic en cualquier pedido para ver detalles o agregar más productos.</p>
+                            </div>
+                            <button
+                                onClick={() => {
+                                    setIsDelivery(true);
+                                    setIsParaLlevar(false);
+                                    setSelectedTable(null);
+                                    setCarrito([]);
+                                    setOrderNotes('');
+                                    setView('pedido');
+                                    setShowDeliveryMap(true);
+                                }}
+                                className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 shadow-md transition-all active:scale-95"
+                            >
+                                <Plus size={16} /> + Nuevo Pedido Delivery
+                            </button>
+                        </div>
+
+                        {ventasDeliveryPendientes.length === 0 ? (
+                            <div className="text-center py-16 bg-white border border-dashed border-slate-200 rounded-3xl p-8">
+                                <Navigation2 size={48} className="mx-auto text-slate-300 mb-4" />
+                                <h3 className="text-lg font-black text-slate-700 uppercase italic mb-1">Sin pedidos de delivery pendientes</h3>
+                                <p className="text-xs text-slate-400 font-bold mb-6">No hay pedidos pendientes de entrega o cobro.</p>
+                                <button
+                                    onClick={() => {
+                                        setIsDelivery(true);
+                                        setIsParaLlevar(false);
+                                        setSelectedTable(null);
+                                        setCarrito([]);
+                                        setOrderNotes('');
+                                        setView('pedido');
+                                        setShowDeliveryMap(true);
+                                    }}
+                                    className="bg-indigo-600 text-white px-6 py-3 rounded-2xl font-black uppercase text-xs shadow-lg hover:bg-indigo-700 transition-all"
+                                >
+                                    + Crear Nuevo Pedido Delivery
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                                {ventasDeliveryPendientes.map((v) => (
+                                    <motion.div
+                                        key={v.id}
+                                        whileHover={{ scale: 1.02 }}
+                                        className="bg-white p-5 rounded-2xl border-2 border-slate-100 shadow-md hover:border-indigo-400 flex flex-col justify-between"
+                                    >
+                                        <div>
+                                            <div className="flex items-center justify-between mb-3 border-b border-slate-100 pb-2">
+                                                <span className="text-xs font-black text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-lg uppercase">
+                                                    🛵 DELIVERY #{v.id.slice(0, 6)}
+                                                </span>
+                                                <span className="text-[10px] font-bold text-slate-400">
+                                                    {new Date(v.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                </span>
+                                            </div>
+                                            {v.direccion_envio && (
+                                                <p className="text-xs font-black text-indigo-700 mb-2 truncate">
+                                                    📍 {v.direccion_envio}
+                                                </p>
+                                            )}
+                                            {v.telefono_envio && (
+                                                <p className="text-[11px] text-slate-500 font-bold mb-2">
+                                                    📞 {v.telefono_envio}
+                                                </p>
+                                            )}
+                                            <div className="space-y-1 mb-3">
+                                                {(v.items || []).map((it: any, idx: number) => (
+                                                    <div key={idx} className="flex justify-between text-xs font-bold text-slate-800">
+                                                        <span>{it.cantidad}x {it.nombre}</span>
+                                                        <span className="text-slate-400">S/ {(it.precio * it.cantidad).toFixed(2)}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            {v.notas && (
+                                                <div className="bg-slate-50 p-2 rounded-lg text-[11px] text-slate-600 italic border border-slate-100 mb-3">
+                                                    <span className="font-bold text-slate-400 not-italic uppercase text-[9px]">Nota:</span> {v.notas}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                                            <div>
+                                                <p className="text-[10px] text-slate-400 font-bold uppercase">Total inc. Envío</p>
+                                                <p className="text-lg font-black text-slate-900">S/ {v.total.toFixed(2)}</p>
+                                            </div>
+                                            <button
+                                                onClick={() => handlePendingSaleClick(v)}
+                                                className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black uppercase px-3.5 py-2 rounded-xl shadow-md transition-colors"
+                                            >
+                                                ✏️ Ver / Modificar
+                                            </button>
+                                        </div>
+                                    </motion.div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                )}
             </div>
         );
     }
@@ -715,19 +990,23 @@ function POSContent() {
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="flex items-center gap-3 md:gap-4">
                     <button onClick={() => {
-                        if (isParaLlevar || isDelivery) {
-                            setCarrito([]);
-                            setOrderNotes('');
-                            setView('start');
-                        } else {
-                            setCarrito([]);
-                            setOrderNotes('');
-                            setView('mesas');
-                        }
-                    }} className="w-10 h-10 md:w-12 md:h-12 bg-white border border-slate-200 rounded-xl md:rounded-2xl flex items-center justify-center text-slate-400 shadow-sm"><ArrowRight className="rotate-180" size={18} /></button>
+                        setCarrito([]);
+                        setOrderNotes('');
+                        setCurrentVentaId(null);
+                        setSelectedTable(null);
+                        setIsParaLlevar(false);
+                        setIsDelivery(false);
+                        setView('mesas');
+                    }} className="w-10 h-10 md:w-12 md:h-12 bg-white border border-slate-200 rounded-xl md:rounded-2xl flex items-center justify-center text-slate-400 shadow-sm hover:bg-slate-50 transition-all">
+                        <ArrowRight className="rotate-180" size={18} />
+                    </button>
                     <div>
-                        <h1 className="text-xl md:text-2xl font-black text-slate-900 italic tracking-tight uppercase">
-                            {isDelivery ? "Delivery" : isParaLlevar ? "Recojo" : `Mesa ${selectedTable?.numero}`}
+                        <h1 className="text-xl md:text-2xl font-black text-slate-900 italic tracking-tight uppercase flex items-center gap-2">
+                            {isDelivery
+                                ? (currentVentaId ? `🛵 Delivery #${currentVentaId.slice(0, 6)} (Modificando)` : "🛵 Nuevo Delivery")
+                                : isParaLlevar
+                                    ? (currentVentaId ? `🥡 Para Llevar #${currentVentaId.slice(0, 6)} (Modificando)` : "🥡 Nuevo Pedido Para Llevar")
+                                    : `Mesa ${selectedTable?.numero}`}
                         </h1>
                         {isDelivery && deliveryInfo && (
                             <button
