@@ -392,9 +392,23 @@ function ConfiguracionContent() {
             const numPiso = parseInt(pisoMesa);
             if (!isNaN(numPiso)) payload.piso = numPiso;
 
-            const { error } = await supabase.from('mesas').insert(payload);
-            if (error) throw error;
-            toast.success('Mesa creada');
+            let { error } = await supabase.from('mesas').insert(payload);
+            
+            if (error) {
+                // Reintento sin campo piso si la columna no existe en la BD
+                if (error.message.includes('piso') || error.message.includes('column') || error.code === '42703') {
+                    delete payload.piso;
+                    const retry = await supabase.from('mesas').insert(payload);
+                    if (retry.error) throw retry.error;
+                    toast.success('Mesa creada (sin piso asignado)');
+                    toast.error('Para habilitar pisos, ve al Dashboard de Supabase y ejecuta el SQL de migración.', { duration: 8000 });
+                } else {
+                    throw error;
+                }
+            } else {
+                toast.success('Mesa creada');
+            }
+            
             setNuevaMesa('');
             cargarMesas();
         } catch (error) {
@@ -428,11 +442,23 @@ function ConfiguracionContent() {
             }));
 
             // 3. Insertar todas de golpe
-            const { error } = await supabase.from('mesas').insert(nuevasMesas);
+            let { error } = await supabase.from('mesas').insert(nuevasMesas);
             
-            if (error) throw error;
+            if (error) {
+                // Reintento sin campo piso si la columna no existe en la BD
+                if (error.message.includes('piso') || error.message.includes('column') || error.code === '42703') {
+                    const mesasSinPiso = nuevasMesas.map(({ piso, ...rest }) => rest);
+                    const retry = await supabase.from('mesas').insert(mesasSinPiso);
+                    if (retry.error) throw retry.error;
+                    toast.success(`${cantidad} mesas añadidas (sin piso asignado)`);
+                    toast.error('Para habilitar pisos, ve al Dashboard de Supabase y ejecuta el SQL de migración.', { duration: 8000 });
+                } else {
+                    throw error;
+                }
+            } else {
+                toast.success(`${cantidad} mesas añadidas`);
+            }
             
-            toast.success(`${cantidad} mesas añadidas`);
             setCantidadMasiva('1');
             cargarMesas();
         } catch (error) {
@@ -1550,7 +1576,9 @@ function ConfiguracionContent() {
                                                 onChange={async (e) => {
                                                     const nuevoPiso = parseInt(e.target.value);
                                                     const { error } = await supabase.from('mesas').update({ piso: nuevoPiso }).eq('id', mesa.id);
-                                                    if (!error) {
+                                                    if (error) {
+                                                        toast.error('No se pudo actualizar. Ejecuta el SQL de migración en Supabase para habilitar pisos.');
+                                                    } else {
                                                         toast.success(`Mesa ${mesa.numero} movida al Piso ${nuevoPiso}`);
                                                         cargarMesas();
                                                     }
