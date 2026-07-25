@@ -11,13 +11,17 @@ const PRINTER_PORT = parseInt(process.env.PRINTER_PORT || '9100');
 export async function POST(request: Request) {
     try {
         const body = await request.json();
-        const { mesa, items, notas, id, tipo, fecha } = body;
+        const { mesa, items, notas, id, tipo, fecha, es_adicional, items_adicionales } = body;
+        
+        const itemsAImprimir = (es_adicional && items_adicionales && items_adicionales.length > 0)
+            ? items_adicionales
+            : items;
+
         console.error('--- [DEBUG] INICIO DE IMPRESIÓN ---');
         console.error(`[DEBUG] IP Objetivo: ${PRINTER_IP}, Puerto: ${PRINTER_PORT}`);
 
-
         // Validar datos mínimos
-        if (!items || items.length === 0) {
+        if (!itemsAImprimir || itemsAImprimir.length === 0) {
             return NextResponse.json({ success: false, message: 'No hay items para imprimir' }, { status: 400 });
         }
 
@@ -32,9 +36,9 @@ export async function POST(request: Request) {
             .align('center')
             .bold(true)
             .size(1, 1)
-            .text("Rodrigo's - Brasas & Broasters CHICKEN")
+            .text("Reykelt - Brasas & Broasters")
             .newline()
-            .text("COCINA")
+            .text(es_adicional ? "*** COMANDA ADICIONAL ***" : "COCINA")
             .newline()
             .bold(false)
             .size(0, 0)
@@ -54,7 +58,7 @@ export async function POST(request: Request) {
             .align('left');
 
         // 2. Items
-        items.forEach((item: any) => {
+        itemsAImprimir.forEach((item: any) => {
             encoder
                 .bold(true)
                 .size(2, 2) // TRIPLE TAMAÑO (Gigante)

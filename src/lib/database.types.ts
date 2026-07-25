@@ -135,6 +135,8 @@ export interface Venta {
     repartidor_id?: string; // UUID del repartidor asignado
     estado_delivery?: 'buscando_repartidor' | 'asignado' | 'en_camino' | 'entregado';
     estado_impresion?: 'pendiente' | 'impreso' | 'error'; // Control de impresion local
+    items_adicionales?: ItemVenta[]; // Items añadidos en actualización
+    es_adicional?: boolean; // Flag para indicar que es comanda adicional
     referencia_envio?: string;
     telefono_envio?: string;
     tiempo_estimado_envio?: string;

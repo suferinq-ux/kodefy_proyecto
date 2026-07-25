@@ -318,16 +318,25 @@ export const actualizarVenta = async (
         const totalProductos = itemsParaCalculo.reduce((sum, item) => sum + item.subtotal, 0);
         const totalFinal = totalProductos + (ventaActual.costo_envio || 0);
 
-        // 6. Detectar items NUEVOS para reimprimir
+        // 6. Detectar items NUEVOS o ADICIONALES para la comanda adicional de cocina
         const itemsAnteriores = (ventaActual.items || []) as ItemVenta[];
-        const hayItemsNuevos = listaFinalItems.some(itemNuevo => {
+        const itemsAdicionales: ItemVenta[] = [];
+
+        listaFinalItems.forEach(itemNuevo => {
             const itemAnterior = itemsAnteriores.find(
                 (ia: any) => ia.nombre === itemNuevo.nombre && 
                              JSON.stringify(ia.detalles || {}) === JSON.stringify(itemNuevo.detalles || {})
             );
-            if (!itemAnterior) return true; // Item completamente nuevo
-            if (itemNuevo.cantidad > (itemAnterior as any).cantidad) return true; // Más cantidad
-            return false;
+            if (!itemAnterior) {
+                // Item completamente nuevo
+                itemsAdicionales.push(itemNuevo);
+            } else if (itemNuevo.cantidad > (itemAnterior as any).cantidad) {
+                // Se incrementó la cantidad
+                itemsAdicionales.push({
+                    ...itemNuevo,
+                    cantidad: itemNuevo.cantidad - (itemAnterior as any).cantidad
+                });
+            }
         });
 
         // 7. Actualizar en BD
@@ -341,17 +350,33 @@ export const actualizarVenta = async (
             usuario_nombre: usuarioNombre || undefined
         };
 
-        // Si hay items nuevos, marcar para impresión
-        if (hayItemsNuevos) {
+        // Si hay items nuevos, marcar para impresión de comanda adicional
+        if (itemsAdicionales.length > 0) {
             updatePayload.estado_impresion = 'pendiente';
+            updatePayload.items_adicionales = itemsAdicionales;
+            updatePayload.es_adicional = true;
         }
 
-        const { data, error: errorUpdate } = await supabase
+        let { data, error: errorUpdate } = await supabase
             .from('ventas')
             .update(updatePayload)
             .eq('id', ventaId)
             .select()
             .single();
+
+        // Fallback por si la columna items_adicionales no está migrada en la BD
+        if (errorUpdate && (errorUpdate.message.includes('items_adicionales') || errorUpdate.message.includes('es_adicional') || errorUpdate.code === '42703')) {
+            delete updatePayload.items_adicionales;
+            delete updatePayload.es_adicional;
+            const retry = await supabase
+                .from('ventas')
+                .update(updatePayload)
+                .eq('id', ventaId)
+                .select()
+                .single();
+            data = retry.data;
+            errorUpdate = retry.error;
+        }
 
         if (errorUpdate) {
             return { success: false, message: `Error al actualizar: ${errorUpdate.message}` };
