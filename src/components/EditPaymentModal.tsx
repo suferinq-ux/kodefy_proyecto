@@ -311,8 +311,8 @@ export default function EditPaymentModal({ isOpen, onClose, venta, onUpdate }: E
                                                 <p className="text-[10px] font-bold text-slate-400 mt-0.5">
                                                     S/ {item.precio.toFixed(2)} c/u &bull; Subtotal: <span className="text-slate-900 font-black">S/ {(item.precio * item.cantidad).toFixed(2)}</span>
                                                 </p>
-                                                {item.notas && (
-                                                    <p className="text-[9px] font-bold text-amber-600 mt-0.5">Nota: {item.notas}</p>
+                                                {(item.notas || item.detalles?.notas) && (
+                                                    <p className="text-[9px] font-bold text-amber-600 mt-0.5">Nota: {item.notas || item.detalles?.notas}</p>
                                                 )}
                                             </div>
                                             <div className="flex items-center gap-2">

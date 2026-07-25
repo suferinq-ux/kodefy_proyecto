@@ -91,6 +91,7 @@ export interface ItemVenta {
     cantidad: number;
     precio: number;
     fraccion_pollo: number;
+    notas?: string;
     // Detalle de bebida para este item
     detalle_bebida?: {
         marca: string;
