@@ -182,27 +182,28 @@ export default function ProductOptionsModal({ isOpen, onClose, onConfirm, produc
     return (
         <AnimatePresence>
             {isOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm">
                     <motion.div
                         initial={{ opacity: 0, scale: 0.95 }}
                         animate={{ opacity: 1, scale: 1 }}
                         exit={{ opacity: 0, scale: 0.95 }}
-                        className="bg-white/90 backdrop-blur-xl rounded-none shadow-2xl w-full max-w-md border-2 border-white/50 overflow-hidden max-h-[90vh] overflow-y-auto"
+                        className="bg-white rounded-none shadow-2xl w-full max-w-md border border-slate-100 flex flex-col max-h-[85vh] sm:max-h-[90vh] overflow-hidden"
                     >
-                        <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gradient-to-r from-rodrigo-cream to-white sticky top-0">
+                        <div className="p-4 sm:p-6 border-b border-gray-100 flex justify-between items-center bg-slate-50 shrink-0">
                             <div>
-                                <h2 className="text-2xl font-bold text-slate-900">{producto.nombre}</h2>
-                                <p className="text-theme-primary font-semibold">S/ {producto.precio.toFixed(2)}</p>
+                                <h2 className="text-xl sm:text-2xl font-bold text-slate-900">{producto.nombre}</h2>
+                                <p className="text-theme-primary font-semibold text-sm sm:text-base">S/ {producto.precio.toFixed(2)}</p>
                             </div>
                             <button
                                 onClick={onClose}
-                                className="p-2 hover:bg-red-50 text-gray-400 hover:text-red-500 rounded-none transition-colors"
+                                className="p-2.5 hover:bg-red-50 text-gray-400 hover:text-red-500 rounded-none transition-colors"
                             >
                                 <X size={24} />
                             </button>
                         </div>
 
-                        <form onSubmit={handleSubmit} className="p-6 space-y-5">
+                        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+                            <div className="p-4 sm:p-6 space-y-5 overflow-y-auto flex-1 custom-scrollbar">
                             {/* Selector de Cantidad */}
                             <div className="flex items-center justify-between bg-theme-secondary/10 p-3 rounded-none border border-theme-secondary/20">
                                 <span className="font-bold text-slate-900">Cantidad</span>
@@ -421,14 +422,17 @@ export default function ProductOptionsModal({ isOpen, onClose, onConfirm, produc
                                     </button>
                                 </div>
                             </div>
+                        </div>
 
-                            <button
-                                type="submit"
-                                className="w-full py-4 bg-theme-primary text-white font-bold rounded-none shadow-lg hover:bg-theme-primary-dark hover:shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2"
-                            >
-                                <Check size={20} strokeWidth={3} />
-                                Agregar al Pedido
-                            </button>
+                        <div className="p-4 bg-white border-t border-slate-100 shrink-0">
+                                <button
+                                    type="submit"
+                                    className="w-full py-4 bg-theme-primary text-white font-bold rounded-none shadow-lg hover:bg-theme-primary-dark hover:shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2"
+                                >
+                                    <Check size={20} strokeWidth={3} />
+                                    Agregar al Pedido
+                                </button>
+                            </div>
                         </form>
                     </motion.div>
                 </div>

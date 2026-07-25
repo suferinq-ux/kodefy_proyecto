@@ -499,13 +499,13 @@ function MesasActivasContent() {
             {/* Modal de Edición de Pedido */}
             <AnimatePresence>
                 {showEditModal && editingVenta && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    <div className="fixed inset-0 z-[70] flex items-center justify-center p-3 sm:p-4">
                         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowEditModal(false)} className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
                         <motion.div
                             initial={{ opacity: 0, scale: 0.95, y: 20 }}
                             animate={{ opacity: 1, scale: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                            className="relative bg-white rounded-none w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh] border border-slate-100"
+                            className="relative bg-white rounded-none w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[85vh] sm:max-h-[90vh] border border-slate-100 z-10"
                         >
                             <div className="bg-slate-50 p-6 border-b border-slate-100 flex items-center justify-between">
                                 <div className="flex items-center gap-3">

@@ -76,7 +76,7 @@ export default function TenantLayout({ children }: { children: React.ReactNode }
                         <Navbar />
                     </div>
                     <div className="flex-1 flex flex-col min-h-screen w-full lg:pl-60 relative">
-                        <main className="flex-1 w-full max-w-[100vw] p-4 sm:p-6 lg:p-8 pt-20 lg:pt-6 pb-24 lg:pb-8">
+                        <main className="flex-1 w-full max-w-[100vw] p-3 sm:p-6 lg:p-8 pt-20 lg:pt-6 pb-28 lg:pb-8">
                             {children}
                         </main>
                     </div>

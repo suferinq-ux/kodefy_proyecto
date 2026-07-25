@@ -845,26 +845,28 @@ function ConfiguracionContent() {
                     </div>
 
                     {(user?.rol === 'admin' || user?.rol === 'cajero' || user?.rol === 'invitado') && (
-                        <nav className="flex bg-slate-100 p-1.5 rounded-none border border-slate-200 self-start shadow-sm flex-wrap">
-                            {[
-                                { id: 'precios', icon: Settings, label: 'Precios', roles: ['admin', 'cajero', 'invitado'] },
-                                { id: 'stock', icon: RefreshCw, label: 'Stock', roles: ['admin', 'cajero', 'invitado'] },
-                                { id: 'usuarios', icon: Users, label: 'Usuarios', roles: ['admin', 'invitado'] },
-                                { id: 'bebidas', icon: Package, label: 'Bebidas', roles: ['admin', 'invitado'] },
-                                { id: 'impresoras', icon: Printer, label: 'Impresoras', roles: ['admin', 'invitado'] },
-                                { id: 'mesas', icon: Users, label: 'Mesas', roles: ['admin', 'invitado'] },
-                                { id: 'negocio', icon: Info, label: 'Negocio', roles: ['admin', 'invitado'] }
-                            ].filter(tab => tab.roles.includes(user?.rol as string)).map((tab, idx) => (
-                                <button
-                                    key={tab.id || `tab-${idx}`}
-                                    onClick={() => setActiveTab(tab.id as any)}
-                                    className={`flex items-center gap-2 px-6 py-3 text-[10px] font-black uppercase tracking-widest rounded-none transition-all ${activeTab === tab.id ? 'bg-white text-slate-900 shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
-                                >
-                                    <tab.icon size={14} strokeWidth={3} />
-                                    <span className="hidden sm:inline">{tab.label}</span>
-                                </button>
-                            ))}
-                        </nav>
+                        <div className="w-full md:w-auto overflow-x-auto no-scrollbar pb-1">
+                            <nav className="flex bg-slate-100 p-1.5 rounded-none border border-slate-200 shadow-sm flex-nowrap min-w-max">
+                                {[
+                                    { id: 'precios', icon: Settings, label: 'Precios', roles: ['admin', 'cajero', 'invitado'] },
+                                    { id: 'stock', icon: RefreshCw, label: 'Stock', roles: ['admin', 'cajero', 'invitado'] },
+                                    { id: 'usuarios', icon: Users, label: 'Usuarios', roles: ['admin', 'invitado'] },
+                                    { id: 'bebidas', icon: Package, label: 'Bebidas', roles: ['admin', 'invitado'] },
+                                    { id: 'impresoras', icon: Printer, label: 'Impresoras', roles: ['admin', 'invitado'] },
+                                    { id: 'mesas', icon: Users, label: 'Mesas', roles: ['admin', 'invitado'] },
+                                    { id: 'negocio', icon: Info, label: 'Negocio', roles: ['admin', 'invitado'] }
+                                ].filter(tab => tab.roles.includes(user?.rol as string)).map((tab, idx) => (
+                                    <button
+                                        key={tab.id || `tab-${idx}`}
+                                        onClick={() => setActiveTab(tab.id as any)}
+                                        className={`flex items-center gap-2 px-4 sm:px-6 py-3 text-[11px] font-black uppercase tracking-widest rounded-none transition-all whitespace-nowrap ${activeTab === tab.id ? 'bg-white text-slate-900 shadow-md' : 'text-slate-500 hover:text-slate-900'}`}
+                                    >
+                                        <tab.icon size={15} strokeWidth={2.5} />
+                                        <span>{tab.label}</span>
+                                    </button>
+                                ))}
+                            </nav>
+                        </div>
                     )}
                 </header>
 
@@ -2277,43 +2279,43 @@ function StockAjustePanel({ allBrands, masterStock, updateMasterStock, saving, s
 
     return (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-8">
-            <div className="bg-white p-10 border border-slate-100 rounded-none shadow-sm relative overflow-hidden">
+            <div className="bg-white p-4 sm:p-8 lg:p-10 border border-slate-100 rounded-none shadow-sm relative overflow-hidden">
                 {!stockHoy && (
-                    <div className="absolute top-0 right-0 px-6 py-2 bg-amber-500 text-white text-[9px] font-black uppercase tracking-widest italic shadow-lg z-10">
+                    <div className="absolute top-0 right-0 px-4 sm:px-6 py-1.5 sm:py-2 bg-amber-500 text-white text-[8px] sm:text-[9px] font-black uppercase tracking-widest italic shadow-lg z-10">
                         Modo Preventivo: Editando Master Stock
                     </div>
                 )}
-                <div className="flex items-center justify-between mb-10">
+                <div className="flex items-center justify-between mb-6 sm:mb-10 pt-4 sm:pt-0">
                     <div>
-                        <h3 className="text-xs font-black text-slate-900 uppercase tracking-[0.4em] mb-2 italic flex items-center gap-3">
+                        <h3 className="text-xs font-black text-slate-900 uppercase tracking-[0.3em] sm:tracking-[0.4em] mb-2 italic flex items-center gap-3">
                             <div className="w-8 h-px bg-slate-900" />
                             Gestión Maestro de Bebidas
                         </h3>
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-11">
+                        <p className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-widest sm:ml-11">
                             {stockHoy ? 'Sincronizando con el inventario del día' : 'Actualiza el stock que se cargará en la siguiente apertura'}
                         </p>
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                     {allBrands.map((marca, mIdx) => (
-                        <div key={marca.key || `marca-${mIdx}`} className="bg-slate-50 p-6 rounded-none border border-slate-100 group hover:bg-white hover:border-slate-300 transition-all">
+                        <div key={marca.key || `marca-${mIdx}`} className="bg-slate-50 p-4 sm:p-6 rounded-none border border-slate-100 group hover:bg-white hover:border-slate-300 transition-all">
                             <div className="flex items-center gap-3 mb-4 pb-2 border-b border-slate-200">
                                 <div className={`w-3 h-3 rounded-none ${marca.dot} shadow-sm`} />
                                 <span className="text-[11px] font-black uppercase text-slate-900 tracking-tight italic">{marca.name}</span>
                             </div>
                             <div className="space-y-4">
                                 {marca.sizes.map((size: any, sIdx: number) => (
-                                    <div key={size.key || `size-${mIdx}-${sIdx}`} className="flex items-center justify-between">
-                                        <div className="flex flex-col">
-                                            <span className="text-[10px] font-bold text-slate-500 uppercase">{size.label}</span>
-                                            <span className="text-[8px] font-medium text-slate-300 uppercase">{size.desc}</span>
+                                    <div key={size.key || `size-${mIdx}-${sIdx}`} className="flex items-center justify-between gap-2">
+                                        <div className="flex flex-col min-w-0 flex-1">
+                                            <span className="text-[10px] font-bold text-slate-700 uppercase truncate">{size.label}</span>
+                                            <span className="text-[8px] font-semibold text-slate-400 uppercase truncate">{size.desc}</span>
                                         </div>
                                         <input
                                             type="number"
                                             value={editDetalle?.[marca.key]?.[size.key] ?? 0}
                                             onChange={(e) => handleChange(marca.key, size.key, e.target.value)}
-                                            className="w-20 bg-white border-2 border-slate-100 rounded-none px-3 py-2 text-right text-xs font-black text-slate-900 outline-none focus:border-rodrigo-terracotta/40 transition-all"
+                                            className="w-24 sm:w-24 bg-white border-2 border-slate-200 rounded-none px-3 py-2 text-right text-xs font-black text-slate-900 outline-none focus:border-slate-900 transition-all"
                                         />
                                     </div>
                                 ))}
@@ -2322,19 +2324,19 @@ function StockAjustePanel({ allBrands, masterStock, updateMasterStock, saving, s
                     ))}
                 </div>
 
-                <div className="mt-12 flex flex-col md:flex-row items-center justify-between gap-6 p-6 bg-slate-50 border border-slate-100">
+                <div className="mt-8 sm:mt-12 flex flex-col md:flex-row items-center justify-between gap-6 p-4 sm:p-6 bg-slate-50 border border-slate-100 mb-6 lg:mb-0">
                     <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 bg-indigo-50 text-indigo-500 rounded-none flex items-center justify-center shadow-sm">
+                        <div className="w-10 h-10 bg-indigo-50 text-indigo-500 rounded-none flex items-center justify-center shadow-sm shrink-0">
                             <Info size={20} />
                         </div>
                         <p className="text-[9px] font-bold text-slate-400 uppercase leading-relaxed max-w-sm tracking-wider">
-                            Los cambios realizados aquí se guardan como el inventario actual del negocio. Si el día está abierto, se sincronizarán inmediatamente.
+                            Los cambios realizados aquí se guardan como el inventario actual del negocio. Si el día está abierto, se sincronización inmediatamente.
                         </p>
                     </div>
                     <button
                         onClick={guardarStock}
                         disabled={saving}
-                        className="w-full md:w-auto px-12 py-5 bg-slate-900 text-white font-black text-xs uppercase tracking-[0.3em] rounded-none shadow-2xl hover:bg-black transition-all flex items-center justify-center gap-3 italic"
+                        className="w-full md:w-auto px-8 sm:px-12 py-4 sm:py-5 bg-slate-900 text-white font-black text-xs uppercase tracking-[0.25em] rounded-none shadow-2xl hover:bg-black active:scale-98 transition-all flex items-center justify-center gap-3 italic"
                     >
                         {saving && <Loader2 className="animate-spin" size={16} />}
                         Confirmar y Actualizar Todo
