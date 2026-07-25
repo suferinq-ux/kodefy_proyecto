@@ -1,7 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { DollarSign, ShoppingBag, TrendingUp, TrendingDown, Calendar, FileSpreadsheet, Star, Clock, CreditCard, Home, Package, ChevronLeft, ChevronRight, X, Filter, BarChart3, Printer, FileText, ChevronDown, Download, Pencil } from 'lucide-react';
+import { DollarSign, ShoppingBag, TrendingUp, TrendingDown, Calendar, FileSpreadsheet, Star, Clock, CreditCard, Home, Package, ChevronLeft, ChevronRight, X, Filter, BarChart3, Printer, FileText, ChevronDown, Download, Pencil, Trash2 } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/contexts/AuthContext';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
 import {
     obtenerVentasPorRango,
@@ -43,6 +45,7 @@ const CHART_COLORS = {
     rose: '#f43f5e'
 };
 export default function ReportesPage() {
+    const { user } = useAuth();
     const [tipoRango, setTipoRango] = useState<TipoRango>('dia');
     const [fechaSeleccionada, setFechaSeleccionada] = useState(new Date());
     const [fechaInicio, setFechaInicio] = useState(new Date());
@@ -66,6 +69,19 @@ export default function ReportesPage() {
     const [showAdminReport, setShowAdminReport] = useState(false);
     const [inventarios, setInventarios] = useState<InventarioDiario[]>([]);
     const [gastos, setGastos] = useState<Gasto[]>([]);
+
+    const handleDeleteVenta = async (ventaId: string) => {
+        if (!confirm('¿Está seguro de eliminar esta venta por completo? Esta acción no se puede deshacer.')) return;
+        try {
+            const { error } = await supabase.from('ventas').delete().eq('id', ventaId);
+            if (error) throw error;
+            toast.success('Venta eliminada correctamente');
+            cargarDatos();
+        } catch (error: any) {
+            console.error('Error al eliminar venta:', error);
+            toast.error('Error al eliminar la venta');
+        }
+    };
 
     const metricas = useMetricas(ventas);
     const [topProductos, setTopProductos] = useState<EstadisticaProducto[]>([]);
@@ -839,15 +855,26 @@ export default function ReportesPage() {
                                                         <button
                                                             onClick={() => { setVentaToEdit(v); setShowEditPayment(true); }}
                                                             className="p-3 bg-slate-50 rounded-none text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-all border border-slate-100"
+                                                            title="Editar productos o pago"
                                                         >
                                                             <Pencil size={18} />
                                                         </button>
                                                         <button
                                                             onClick={() => { setSelectedVenta(v); setShowReceipt(true); }}
                                                             className="p-3 bg-slate-50 rounded-none text-slate-400 hover:text-rodrigo-mustard hover:bg-rodrigo-mustard/10 transition-all border border-slate-100"
+                                                            title="Imprimir comprobante"
                                                         >
                                                             <Printer size={18} />
                                                         </button>
+                                                        {(user?.rol === 'admin' || user?.rol === 'cajero' || user?.es_super_admin) && (
+                                                            <button
+                                                                onClick={() => handleDeleteVenta(v.id)}
+                                                                className="p-3 bg-slate-50 rounded-none text-slate-400 hover:text-red-600 hover:bg-red-50 transition-all border border-slate-100"
+                                                                title="Eliminar esta venta por completo"
+                                                            >
+                                                                <Trash2 size={18} />
+                                                            </button>
+                                                        )}
                                                     </div>
                                                 </td>
                                             </tr>
