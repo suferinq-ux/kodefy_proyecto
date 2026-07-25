@@ -171,8 +171,13 @@ function ConfiguracionContent() {
     };
 
     const cargarMesas = async () => {
-        const { data } = await supabase.from('mesas').select('*').order('piso', { ascending: true }).order('numero', { ascending: true });
-        setMesas(data || []);
+        let { data, error } = await supabase.from('mesas').select('*').order('piso', { ascending: true }).order('numero', { ascending: true });
+        if (error) {
+            const fallback = await supabase.from('mesas').select('*').order('numero', { ascending: true });
+            setMesas(fallback.data || []);
+        } else {
+            setMesas(data || []);
+        }
     };
 
     const cargarConfiguracion = async () => {
@@ -411,8 +416,8 @@ function ConfiguracionContent() {
             
             setNuevaMesa('');
             cargarMesas();
-        } catch (error) {
-            toast.error('Error al crear mesa');
+        } catch (error: any) {
+            toast.error('Error al crear mesa: ' + (error?.message || error));
         } finally {
             setSaving(false);
         }
@@ -427,10 +432,17 @@ function ConfiguracionContent() {
 
         setSaving(true);
         try {
-            // 1. Obtener el número más alto actual
-            const maxNumero = mesas.length > 0 
-                ? Math.max(...mesas.map(m => m.numero)) 
-                : 0;
+            // 1. Obtener el número más alto directamente de la base de datos (evita RLS o fallos locales de carga)
+            const { data: maxMesaData, error: errMax } = await supabase
+                .from('mesas')
+                .select('numero')
+                .eq('negocio_id', user?.negocio_id)
+                .order('numero', { ascending: false })
+                .limit(1);
+
+            if (errMax) throw errMax;
+
+            const maxNumero = maxMesaData && maxMesaData.length > 0 ? maxMesaData[0].numero : 0;
 
             // 2. Preparar el array de nuevas mesas
             const numPisoMasivo = parseInt(pisoMasivo) || 1;
@@ -461,9 +473,9 @@ function ConfiguracionContent() {
             
             setCantidadMasiva('1');
             cargarMesas();
-        } catch (error) {
+        } catch (error: any) {
             console.error(error);
-            toast.error('Error al crear mesas masivas');
+            toast.error('Error al crear mesas masivas: ' + (error?.message || error));
         } finally {
             setSaving(false);
         }
