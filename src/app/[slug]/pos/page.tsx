@@ -58,6 +58,7 @@ type Categoria = 'todos' | 'populares' | 'pollos' | 'combos' | 'promociones' | '
 function POSContent() {
     const { user } = useAuth();
     const [view, setView] = useState<'start' | 'mesas' | 'pedido'>('start');
+    const [filtroPisoPOS, setFiltroPisoPOS] = useState<number>(0);
     const [productos, setProductos] = useState<Producto[]>([]);
     const [carrito, setCarrito] = useState<ItemCarrito[]>([]);
     const [loading, setLoading] = useState(true);
@@ -520,29 +521,108 @@ function POSContent() {
     }
 
     if (view === 'mesas') {
+        const pisosExistentes = Array.from(new Set(mesas.map(m => m.piso || 1))).sort((a, b) => a - b);
+        const mesasFiltradas = mesas.filter(m => filtroPisoPOS === 0 || (m.piso || 1) === filtroPisoPOS);
+        const totalLibres = mesasFiltradas.filter(m => m.estado === 'libre').length;
+        const totalOcupadas = mesasFiltradas.filter(m => m.estado === 'ocupada').length;
+
         return (
-            <div className="space-y-4 md:space-y-8 pb-32">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 md:gap-6">
+            <div className="space-y-6 md:space-y-8 pb-32">
+                {/* Header con estadísticas de disponibilidad */}
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 md:gap-6 border-b border-slate-100 pb-4">
                     <div className="flex items-center gap-3 md:gap-4">
-                        <button onClick={() => setView('start')} className="w-10 h-10 md:w-12 md:h-12 bg-white border border-slate-100 rounded-xl md:rounded-2xl flex items-center justify-center text-slate-400 shadow-sm"><ArrowRight className="rotate-180" size={20} /></button>
+                        <button onClick={() => setView('start')} className="w-10 h-10 md:w-12 md:h-12 bg-white border border-slate-200 rounded-xl md:rounded-2xl flex items-center justify-center text-slate-500 shadow-sm hover:bg-slate-50 transition-all">
+                            <ArrowRight className="rotate-180" size={20} />
+                        </button>
                         <div>
                             <h1 className="text-2xl md:text-5xl font-black text-slate-900 italic tracking-tighter uppercase leading-none">Salón Principal</h1>
-                            <p className="text-slate-400 text-[8px] md:text-[10px] font-black uppercase tracking-[0.3em] mt-1 md:mt-2">Selecciona una mesa</p>
+                            <p className="text-slate-400 text-[9px] md:text-xs font-black uppercase tracking-[0.2em] mt-1 md:mt-2">
+                                Selecciona una mesa por piso o ambiente
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* Resumen de Disponibilidad */}
+                    <div className="flex items-center gap-2 sm:gap-3 bg-slate-50 p-2.5 sm:p-3 border border-slate-200/60 rounded-xl">
+                        <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg">
+                            <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                            <span className="text-xs font-black uppercase italic">{totalLibres} Libres</span>
+                        </div>
+                        <div className="flex items-center gap-2 px-3 py-1.5 bg-rose-50 text-rose-700 border border-rose-200 rounded-lg">
+                            <div className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse" />
+                            <span className="text-xs font-black uppercase italic">{totalOcupadas} Ocupadas</span>
                         </div>
                     </div>
                 </div>
 
-                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-3 md:gap-4">
-                    {mesas.map((mesa) => (
-                        <motion.button
-                            key={mesa.id}
-                            onClick={() => handleTableClick(mesa)}
-                            className={`relative aspect-square rounded-none flex flex-col items-center justify-center transition-all duration-300 group shadow-sm ${mesa.estado === 'libre' ? 'bg-white border border-slate-100' : 'bg-theme-primary text-white'}`}
-                        >
-                            <span className="text-2xl md:text-4xl font-black italic tracking-tighter">{mesa.numero}</span>
-                            <span className="text-[7px] md:text-[9px] font-black uppercase tracking-[0.1em] md:tracking-[0.2em] mt-1 md:mt-2">{mesa.estado === 'libre' ? 'Libre' : 'Ocupada'}</span>
-                        </motion.button>
-                    ))}
+                {/* Filtro por PISO / AMBIENTE */}
+                <div className="flex items-center gap-2 overflow-x-auto pb-2 border-b border-slate-100 no-scrollbar">
+                    <button
+                        type="button"
+                        onClick={() => setFiltroPisoPOS(0)}
+                        className={`px-4 py-2.5 text-xs font-black uppercase tracking-wider transition-all italic shrink-0 rounded-lg border ${
+                            filtroPisoPOS === 0
+                                ? 'bg-slate-900 text-white border-slate-900 shadow-md'
+                                : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                        }`}
+                    >
+                        Todos ({mesas.length})
+                    </button>
+                    {pisosExistentes.map(pisoNum => {
+                        const mesasPiso = mesas.filter(m => (m.piso || 1) === pisoNum);
+                        const libresPiso = mesasPiso.filter(m => m.estado === 'libre').length;
+                        const label = pisoNum === 5 ? 'Terraza' : `${pisoNum}° Piso`;
+                        return (
+                            <button
+                                key={pisoNum}
+                                type="button"
+                                onClick={() => setFiltroPisoPOS(pisoNum)}
+                                className={`px-4 py-2.5 text-xs font-black uppercase tracking-wider transition-all italic shrink-0 rounded-lg border ${
+                                    filtroPisoPOS === pisoNum
+                                        ? 'bg-slate-900 text-white border-slate-900 shadow-md'
+                                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                                }`}
+                            >
+                                {label} ({libresPiso}/{mesasPiso.length} libres)
+                            </button>
+                        );
+                    })}
+                </div>
+
+                {/* Grid de Mesas */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-3 md:gap-4">
+                    {mesasFiltradas.length === 0 ? (
+                        <div className="col-span-full py-12 text-center text-slate-400 font-bold text-sm bg-white border border-slate-100 p-8 rounded-2xl">
+                            No hay mesas en este piso.
+                        </div>
+                    ) : (
+                        mesasFiltradas.map((mesa) => (
+                            <motion.button
+                                key={mesa.id}
+                                onClick={() => handleTableClick(mesa)}
+                                whileHover={{ scale: 1.03 }}
+                                whileTap={{ scale: 0.97 }}
+                                className={`relative aspect-square rounded-2xl flex flex-col items-center justify-center p-3 transition-all duration-300 group shadow-sm border ${
+                                    mesa.estado === 'libre'
+                                        ? 'bg-white border-slate-200 text-slate-900 hover:border-slate-400 hover:shadow-md'
+                                        : 'bg-rose-500 text-white border-rose-600 shadow-md shadow-rose-500/20'
+                                }`}
+                            >
+                                <span className={`absolute top-2 right-2 text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-md ${
+                                    mesa.estado === 'libre' ? 'bg-slate-100 text-slate-500' : 'bg-black/20 text-white'
+                                }`}>
+                                    {(mesa.piso || 1) === 5 ? 'Terraza' : `${mesa.piso || 1}° P.`}
+                                </span>
+
+                                <span className="text-2xl md:text-4xl font-black italic tracking-tighter">Mesa {mesa.numero}</span>
+                                <span className={`text-[8px] md:text-[10px] font-black uppercase tracking-[0.15em] mt-1 ${
+                                    mesa.estado === 'libre' ? 'text-emerald-600' : 'text-white/90'
+                                }`}>
+                                    {mesa.estado === 'libre' ? 'Libre' : 'Ocupada'}
+                                </span>
+                            </motion.button>
+                        ))
+                    )}
                 </div>
             </div>
         );
