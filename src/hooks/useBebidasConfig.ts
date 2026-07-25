@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+import { useBusiness } from '@/contexts/BusinessContext';
 
 // Core brands that are always present (hardcoded base)
 const CORE_BRANDS = [
@@ -171,19 +172,22 @@ export interface NuevaBebida {
  */
 export function useBebidasConfig() {
     const { user } = useAuth();
+    const { business } = useBusiness();
     const [customBrands, setCustomBrands] = useState<BrandConfig[]>([]);
     const [masterStock, setMasterStock] = useState<Record<string, Record<string, number>>>({});
     const [loading, setLoading] = useState(true);
     const [loadingMasterStock, setLoadingMasterStock] = useState(true);
 
+    const activeNegocioId = business?.id || (user?.negocio_id && user.negocio_id !== 'null' ? user.negocio_id : null);
+
     const fetchMasterStock = async () => {
-        if (!user?.negocio_id) return;
+        if (!activeNegocioId) return;
         setLoadingMasterStock(true);
         try {
             const { data, error } = await supabase
                 .from('stock_maestro_bebidas')
                 .select('stock')
-                .eq('negocio_id', user.negocio_id)
+                .eq('negocio_id', activeNegocioId)
                 .maybeSingle();
 
             if (data?.stock) {
@@ -235,7 +239,7 @@ export function useBebidasConfig() {
     useEffect(() => {
         fetchCustomBrands();
         fetchMasterStock();
-    }, [user?.negocio_id]);
+    }, [user?.negocio_id, business?.id]);
 
     // Merged list: core brands + custom brands
     const allBrands: BrandConfig[] = [...CORE_BRANDS, ...customBrands];
@@ -340,15 +344,16 @@ export function useBebidasConfig() {
     };
 
     // Master Stock Management
-    const updateMasterStock = async (newStock: Record<string, Record<string, number>>) => {
-        if (!user?.negocio_id) return { success: false, message: 'No hay sesión activa' };
+    const updateMasterStock = async (newStock: Record<string, Record<string, number>>, overrideNegocioId?: string) => {
+        const targetNegocioId = overrideNegocioId || activeNegocioId;
+        if (!targetNegocioId) return { success: false, message: 'No hay sesión o negocio activo' };
         
         try {
             const { error } = await supabase
                 .from('stock_maestro_bebidas')
                 .upsert(
                     {
-                        negocio_id: user.negocio_id,
+                        negocio_id: targetNegocioId,
                         stock: newStock,
                         updated_at: new Date().toISOString()
                     },
