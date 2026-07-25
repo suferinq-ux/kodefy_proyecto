@@ -219,11 +219,28 @@ export const registrarVenta = async (
         // Preparar items para guardar (sin el campo subtotal)
         const itemsParaGuardar: ItemVenta[] = items.map(({ subtotal, ...item }) => item);
 
+        // Obtener la fecha de la jornada activa si existe (para evitar desconexión a medianoche)
+        let fechaVenta = obtenerFechaHoy();
+        if (negocioId) {
+            const { data: invAbierto } = await supabase
+                .from('inventario_diario')
+                .select('fecha')
+                .eq('negocio_id', negocioId)
+                .eq('estado', 'abierto')
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .maybeSingle();
+
+            if (invAbierto?.fecha) {
+                fechaVenta = invAbierto.fecha;
+            }
+        }
+
         // Insertar venta
         const { data, error } = await supabase
             .from('ventas')
             .insert({
-                fecha: obtenerFechaHoy(),
+                fecha: fechaVenta,
                 items: itemsParaGuardar,
                 total: totalConEnvio,
                 pollos_restados: pollosRestados,

@@ -67,21 +67,31 @@ export const useInventario = (): UseInventarioResult => {
 
             const fechaHoy = obtenerFechaHoy();
 
-            // 1. Obtener inventario del día directamente de la tabla
-            const { data: inventario, error: invError } = await supabase
+            // 1. Obtener primero la jornada ABIERTA si existe (para no cortar a medianoche)
+            let { data: inventario } = await supabase
                 .from('inventario_diario')
                 .select('*')
-                .eq('fecha', fechaHoy)
-                .single();
+                .eq('estado', 'abierto')
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .maybeSingle();
 
-            // Si no hay inventario para hoy, no hay apertura
-            if (invError || !inventario) {
+            // Si no hay jornada abierta, buscar por la fecha de hoy
+            if (!inventario) {
+                const { data: invHoy } = await supabase
+                    .from('inventario_diario')
+                    .select('*')
+                    .eq('fecha', fechaHoy)
+                    .order('created_at', { ascending: false })
+                    .limit(1)
+                    .maybeSingle();
+                inventario = invHoy;
+            }
+
+            // Si no hay inventario
+            if (!inventario) {
                 setStock(null);
-                if (invError && invError.code !== 'PGRST116') {
-                    setError(`Error verificando apertura: ${invError.message}`);
-                } else {
-                    setError('No se ha realizado la apertura del día');
-                }
+                setError('No se ha realizado la apertura del día');
                 return;
             }
 
@@ -92,11 +102,13 @@ export const useInventario = (): UseInventarioResult => {
                 return;
             }
 
-            // 2. Obtener TODAS las ventas del día para calcular restas
+            const fechaOperativa = inventario.fecha;
+
+            // 2. Obtener TODAS las ventas de la jornada activa para calcular restas
             const { data: ventasDelDia, error: ventasError } = await supabase
                 .from('ventas')
                 .select('pollos_restados, gaseosas_restadas, chicha_restada, bebidas_detalle')
-                .eq('fecha', fechaHoy);
+                .eq('fecha', fechaOperativa);
 
             if (ventasError) {
                 console.error('Error obteniendo ventas:', ventasError);

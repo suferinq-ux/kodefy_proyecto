@@ -29,7 +29,11 @@ export const formatearFecha = (fecha: Date = new Date()): string => {
     return `${year}-${month}-${day}`;
 };
 
-// Helper para obtener la fecha actual en hora LOCAL
+// Helper para obtener la fecha actual en hora LOCAL (con margen nocturno para restaurantes de 00:00 a 05:59 AM)
 export const obtenerFechaHoy = (): string => {
-    return formatearFecha(new Date());
+    const ahora = new Date();
+    if (ahora.getHours() < 6) {
+        ahora.setDate(ahora.getDate() - 1);
+    }
+    return formatearFecha(ahora);
 };
