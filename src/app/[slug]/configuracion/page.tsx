@@ -37,7 +37,7 @@ function ConfiguracionContent() {
 
     const { user } = useAuth();
     const [activeTab, setActiveTab] = useState<'precios' | 'usuarios' | 'mesas' | 'negocio' | 'impresoras' | 'bebidas' | 'stock'>('precios');
-    const { allBrands, customBrands, deleteBeverage, loading: loadingBebidas, masterStock, updateMasterStock } = useBebidasConfig();
+    const { allBrands, customBrands, deleteBeverage, loading: loadingBebidas, masterStock, updateMasterStock, mergeWithStock } = useBebidasConfig();
     const [config, setConfig] = useState<any>(null);
     
     // Mesas stuff
@@ -1371,6 +1371,7 @@ function ConfiguracionContent() {
                                 updateMasterStock={updateMasterStock}
                                 saving={saving} 
                                 setSaving={setSaving} 
+                                mergeWithStock={mergeWithStock}
                             />
                         </motion.div>
                     )}
@@ -2192,12 +2193,13 @@ function ConfiguracionContent() {
     );
 }
 
-function StockAjustePanel({ allBrands, masterStock, updateMasterStock, saving, setSaving }: { 
+function StockAjustePanel({ allBrands, masterStock, updateMasterStock, saving, setSaving, mergeWithStock }: { 
     allBrands: any[], 
     masterStock: Record<string, any>,
     updateMasterStock: (s: any) => Promise<any>,
     saving: boolean, 
-    setSaving: (s: boolean) => void 
+    setSaving: (s: boolean) => void,
+    mergeWithStock: (existing: Record<string, any>) => Record<string, Record<string, number>>
 }) {
     const [stockHoy, setStockHoy] = useState<any>(null);
     const [editDetalle, setEditDetalle] = useState<any>(null);
@@ -2215,15 +2217,15 @@ function StockAjustePanel({ allBrands, masterStock, updateMasterStock, saving, s
 
             if (data && !error) {
                 setStockHoy(data);
-                // Si hay inventario abierto, cargamos su detalle actual
-                setEditDetalle(data.bebidas_detalle || {});
+                // Si hay inventario abierto, cargamos su detalle actual mezclado con el catálogo completo
+                setEditDetalle(mergeWithStock ? mergeWithStock(data.bebidas_detalle || masterStock || {}) : (data.bebidas_detalle || {}));
             } else {
-                // Si no hay apertura, editamos directamente el Master Stock
-                setEditDetalle(masterStock || {});
+                // Si no hay apertura, editamos directamente el Master Stock mezclado con el catálogo completo
+                setEditDetalle(mergeWithStock ? mergeWithStock(masterStock || {}) : (masterStock || {}));
             }
         } catch (err) {
             console.error('Error cargando stock:', err);
-            setEditDetalle(masterStock || {});
+            setEditDetalle(mergeWithStock ? mergeWithStock(masterStock || {}) : (masterStock || {}));
         } finally {
             setLoading(false);
         }

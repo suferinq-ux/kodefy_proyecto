@@ -30,7 +30,7 @@ import {
 } from 'lucide-react';
 import { supabase, obtenerFechaHoy } from '@/lib/supabase';
 import ProtectedRoute from '@/components/ProtectedRoute';
-import { Producto, ItemCarrito, Mesa } from '@/lib/database.types';
+import { Producto, ItemCarrito, Mesa, Venta } from '@/lib/database.types';
 import ProductOptionsModal from '@/components/ProductOptionsModal';
 import toast from 'react-hot-toast';
 import { useInventario } from '@/hooks/useInventario';
@@ -104,6 +104,10 @@ function POSContent() {
     const [currentVentaId, setCurrentVentaId] = useState<string | null>(null);
     const [showCambiarMesaModal, setShowCambiarMesaModal] = useState(false);
 
+    // Ventas pendientes (para llevar y delivery)
+    const [ventasPendientes, setVentasPendientes] = useState<Venta[]>([]);
+    const [tipoVistaPOS, setTipoVistaPOS] = useState<'salon' | 'llevar' | 'delivery'>('salon');
+
     // Order notes
     const [orderNotes, setOrderNotes] = useState('');
 
@@ -111,6 +115,84 @@ function POSContent() {
     const [showCustomItem, setShowCustomItem] = useState(false);
     const [customItemName, setCustomItemName] = useState('');
     const [customItemPrice, setCustomItemPrice] = useState('');
+
+    const cargarVentasPendientes = async () => {
+        try {
+            const negocioId = user?.negocio_id;
+            let query = supabase
+                .from('ventas')
+                .select('*')
+                .eq('estado_pago', 'pendiente')
+                .eq('fecha', obtenerFechaHoy())
+                .is('mesa_id', null)
+                .order('created_at', { ascending: false });
+
+            if (negocioId) {
+                query = query.eq('negocio_id', negocioId);
+            }
+
+            const { data, error } = await query;
+            if (!error && data) {
+                setVentasPendientes(data);
+            }
+        } catch (e) {
+            console.error('Error al cargar ventas pendientes en POS:', e);
+        }
+    };
+
+    useEffect(() => {
+        cargarVentasPendientes();
+
+        const channel = supabase
+            .channel('ventas-pendientes-pos')
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'ventas' },
+                () => {
+                    cargarVentasPendientes();
+                }
+            )
+            .subscribe();
+
+        return () => { supabase.removeChannel(channel); };
+    }, [user?.negocio_id]);
+
+    const handlePendingSaleClick = (venta: Venta) => {
+        setSelectedTable(null);
+        setCurrentVentaId(venta.id);
+        setIsParaLlevar(venta.tipo_pedido === 'llevar');
+        setIsDelivery(venta.tipo_pedido === 'delivery');
+        setOrderNotes(venta.notas || '');
+
+        if (venta.tipo_pedido === 'delivery' && venta.direccion_envio) {
+            setDeliveryInfo({
+                address: venta.direccion_envio,
+                distanceKm: venta.distancia_km || 0,
+                cost: venta.costo_envio || 0,
+                reference: venta.referencia_envio || undefined,
+                phone: venta.telefono_envio || undefined,
+                estimatedTime: venta.tiempo_estimado_envio || undefined,
+                lat: venta.latitud_envio || undefined,
+                lng: venta.longitud_envio || undefined,
+                geometry: venta.geometria_envio || undefined,
+            });
+        } else {
+            setDeliveryInfo(null);
+        }
+
+        const itemsPrevios: ItemCarrito[] = (venta.items || []).map((it: any) => ({
+            ...it,
+            subtotal: it.cantidad * it.precio,
+            printed: true
+        }));
+
+        setCarrito(itemsPrevios);
+        setView('pedido');
+        toast.success(`Cargando pedido #${venta.id.slice(0, 6)} (${venta.tipo_pedido === 'delivery' ? 'Delivery' : 'Para Llevar'})`);
+    };
+
+    const ventasParaLlevarPendientes = ventasPendientes.filter(v => v.tipo_pedido === 'llevar');
+    const ventasDeliveryPendientes = ventasPendientes.filter(v => v.tipo_pedido === 'delivery');
 
     const cargarProductos = async () => {
         try {

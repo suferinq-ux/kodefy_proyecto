@@ -12,7 +12,9 @@ const CORE_BRANDS = [
         dot: 'bg-yellow-500',
         isCore: true,
         sizes: [
+            { key: 'personal', label: 'Personal', desc: '296ml' },
             { key: 'personal_retornable', label: 'Personal Ret.', desc: '296ml' },
+            { key: '300ml', label: '300ml', desc: '300ml' },
             { key: 'descartable', label: 'Descartable', desc: '600ml' },
             { key: 'gordita', label: 'Gordita', desc: '625ml' },
             { key: 'litro', label: '1 Litro', desc: '1L' },
@@ -26,7 +28,9 @@ const CORE_BRANDS = [
         dot: 'bg-red-600',
         isCore: true,
         sizes: [
+            { key: 'personal', label: 'Personal', desc: '296ml' },
             { key: 'personal_retornable', label: 'Personal Ret.', desc: '296ml' },
+            { key: '300ml', label: '300ml', desc: '300ml' },
             { key: 'descartable', label: 'Descartable', desc: '600ml' },
             { key: 'litro', label: '1 Litro', desc: '1L' },
             { key: 'litro_medio', label: '1.5 Litros', desc: '1.5L' },
@@ -39,16 +43,103 @@ const CORE_BRANDS = [
         dot: 'bg-orange-500',
         isCore: true,
         sizes: [
-            { key: 'descartable', label: 'Personal', desc: '500ml' },
+            { key: 'personal', label: 'Personal', desc: '500ml' },
+            { key: '300ml', label: '300ml', desc: '300ml' },
+            { key: 'descartable', label: 'Descartable', desc: '500ml' },
         ],
     },
     {
-        key: 'agua_mineral',
-        name: 'Agua Mineral',
-        dot: 'bg-sky-400',
+        key: 'piranita',
+        name: 'Pirañita',
+        dot: 'bg-yellow-400',
+        isCore: true,
+        sizes: [
+            { key: 'personal', label: 'Personal', desc: 'Mini' },
+        ],
+    },
+    {
+        key: 'cola_real',
+        name: 'Cola Real',
+        dot: 'bg-amber-600',
+        isCore: true,
+        sizes: [
+            { key: '400ml', label: '400ml', desc: '400ml' },
+        ],
+    },
+    {
+        key: 'agua_angel',
+        name: 'Agua Angel',
+        dot: 'bg-cyan-400',
+        isCore: true,
+        sizes: [
+            { key: 'personal', label: 'Personal', desc: '500ml' },
+        ],
+    },
+    {
+        key: 'agua_san_luis',
+        name: 'Agua San Luis',
+        dot: 'bg-sky-500',
         isCore: true,
         sizes: [
             { key: 'personal', label: 'Personal', desc: '600ml' },
+        ],
+    },
+    {
+        key: 'cerveza_trigo',
+        name: 'Cerveza Trigo',
+        dot: 'bg-amber-500',
+        isCore: true,
+        sizes: [
+            { key: 'personal', label: 'Botella', desc: 'Personal' },
+        ],
+    },
+    {
+        key: 'cerveza_negra',
+        name: 'Cerveza Negra',
+        dot: 'bg-stone-800',
+        isCore: true,
+        sizes: [
+            { key: 'personal', label: 'Botella', desc: 'Personal' },
+        ],
+    },
+    {
+        key: 'frugos',
+        name: 'Frugos',
+        dot: 'bg-emerald-500',
+        isCore: true,
+        sizes: [
+            { key: 'personal', label: 'Personal', desc: '239ml' },
+        ],
+    },
+    {
+        key: 'sporade',
+        name: 'Sporade',
+        dot: 'bg-blue-600',
+        isCore: true,
+        sizes: [
+            { key: 'personal', label: 'Personal', desc: '500ml' },
+        ],
+    },
+    {
+        key: 'chicha',
+        name: 'Chicha Morada',
+        dot: 'bg-purple-700',
+        isCore: true,
+        sizes: [
+            { key: 'vaso', label: 'Vaso', desc: '250ml' },
+            { key: 'medio_litro', label: '1/2 Jarra', desc: '500ml' },
+            { key: 'litro', label: '1 Jarra', desc: '1L' },
+        ],
+    },
+    {
+        key: 'cebada',
+        name: 'Cebada',
+        dot: 'bg-amber-700',
+        isCore: true,
+        sizes: [
+            { key: 'vaso', label: 'Vaso', desc: '250ml' },
+            { key: 'medio_litro', label: '1/2 Jarra', desc: '500ml' },
+            { key: 'litro', label: '1 Jarra', desc: '1L' },
         ],
     },
 ];
