@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Search, Check, X, Package, Pencil, Users, Settings, Trash2, Plus, RefreshCw, Loader2, Info, Printer, Wifi, WifiOff } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { useBusiness } from '@/contexts/BusinessContext';
 import { useBebidasConfig } from '@/hooks/useBebidasConfig';
 import { isReadOnly } from '@/lib/roles';
 import dynamic from 'next/dynamic';
@@ -24,6 +25,7 @@ const TIPO_LABELS: Record<string, string> = {
 };
 
 function ConfiguracionContent() {
+    const { business } = useBusiness();
     const [productos, setProductos] = useState<Producto[]>([]);
     const [loading, setLoading] = useState(true);
     const [busqueda, setBusqueda] = useState('');
@@ -171,9 +173,18 @@ function ConfiguracionContent() {
     };
 
     const cargarMesas = async () => {
-        let { data, error } = await supabase.from('mesas').select('*').order('piso', { ascending: true }).order('numero', { ascending: true });
+        const negocioId = business?.id || ((user?.negocio_id && user.negocio_id !== 'null') ? user.negocio_id : config?.id);
+        let query = supabase.from('mesas').select('*');
+        if (negocioId && negocioId !== 'null') {
+            query = query.eq('negocio_id', negocioId);
+        }
+        let { data, error } = await query.order('piso', { ascending: true }).order('numero', { ascending: true });
         if (error) {
-            const fallback = await supabase.from('mesas').select('*').order('numero', { ascending: true });
+            let fallbackQuery = supabase.from('mesas').select('*');
+            if (negocioId && negocioId !== 'null') {
+                fallbackQuery = fallbackQuery.eq('negocio_id', negocioId);
+            }
+            const fallback = await fallbackQuery.order('numero', { ascending: true });
             setMesas(fallback.data || []);
         } else {
             setMesas(data || []);
@@ -389,7 +400,7 @@ function ConfiguracionContent() {
         }
         setSaving(true);
         try {
-            const negocioId = (user?.negocio_id && user.negocio_id !== 'null') ? user.negocio_id : config?.id;
+            const negocioId = business?.id || ((user?.negocio_id && user.negocio_id !== 'null') ? user.negocio_id : config?.id);
             if (!negocioId || negocioId === 'null') {
                 throw new Error('No se detectó el ID del negocio. Intenta recargar la página.');
             }
@@ -437,7 +448,7 @@ function ConfiguracionContent() {
 
         setSaving(true);
         try {
-            const negocioId = (user?.negocio_id && user.negocio_id !== 'null') ? user.negocio_id : config?.id;
+            const negocioId = business?.id || ((user?.negocio_id && user.negocio_id !== 'null') ? user.negocio_id : config?.id);
             if (!negocioId || negocioId === 'null') {
                 throw new Error('No se detectó el ID del negocio. Intenta recargar la página.');
             }
