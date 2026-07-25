@@ -18,6 +18,7 @@ export default function MesasPage() {
 function MesasContent() {
     const { mesas, loading, ocuparMesa, liberarMesa, refetch } = useMesas();
     const [toggling, setToggling] = useState<number | null>(null);
+    const [filtroPiso, setFiltroPiso] = useState<number>(0); // 0 = Todos
 
     const handleToggleMesa = async (mesaId: number, estadoActual: 'libre' | 'ocupada') => {
         setToggling(mesaId);
@@ -36,14 +37,17 @@ function MesasContent() {
         }
     };
 
-    const mesasLibres = mesas.filter(m => m.estado === 'libre').length;
-    const mesasOcupadas = mesas.filter(m => m.estado === 'ocupada').length;
+    const pisosExistentes = Array.from(new Set(mesas.map(m => m.piso || 1))).sort((a, b) => a - b);
+    const mesasFiltradas = mesas.filter(m => filtroPiso === 0 || (m.piso || 1) === filtroPiso);
+
+    const mesasLibres = mesasFiltradas.filter(m => m.estado === 'libre').length;
+    const mesasOcupadas = mesasFiltradas.filter(m => m.estado === 'ocupada').length;
 
     return (
         <div className="min-h-screen bg-stone-950 p-4 sm:p-8 lg:p-12">
             <div className="max-w-7xl mx-auto">
                 {/* Header */}
-                <header className="mb-12 flex flex-col md:flex-row md:items-end justify-between gap-6">
+                <header className="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-6">
                     <div>
                         <motion.div
                             initial={{ opacity: 0, x: -20 }}
@@ -52,11 +56,11 @@ function MesasContent() {
                         >
                             <div className="w-1.5 h-10 bg-linear-to-b from-rodrigo-terracotta to-rodrigo-mustard rounded-full" />
                             <h1 className="text-4xl md:text-5xl font-black text-white tracking-tighter uppercase italic">
-                                Gestión de Mesas
+                                Gestión de Mesas por Piso
                             </h1>
                         </motion.div>
                         <p className="text-white/40 font-bold uppercase tracking-[0.3em] text-[10px] ml-6 italic">
-                            Control Operativo • Disponibilidad en Tiempo Real
+                            Control Operativo • Disponibilidad por Ambientes
                         </p>
                     </div>
 
@@ -71,6 +75,40 @@ function MesasContent() {
                     </div>
                 </header>
 
+                {/* Filtro por Pisos */}
+                <div className="mb-8 flex items-center gap-3 overflow-x-auto pb-2">
+                    <span className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] italic shrink-0">Filtrar Ambiente:</span>
+                    <button
+                        type="button"
+                        onClick={() => setFiltroPiso(0)}
+                        className={`px-4 py-2 text-xs font-black uppercase tracking-wider rounded-none transition-all italic shrink-0 border ${
+                            filtroPiso === 0
+                                ? 'bg-rodrigo-mustard text-stone-950 border-rodrigo-mustard shadow-lg shadow-rodrigo-mustard/20'
+                                : 'bg-white/5 text-white/60 border-white/10 hover:bg-white/10'
+                        }`}
+                    >
+                        Todos los Pisos ({mesas.length})
+                    </button>
+                    {pisosExistentes.map(pisoNum => {
+                        const count = mesas.filter(m => (m.piso || 1) === pisoNum).length;
+                        const label = pisoNum === 5 ? 'Terraza' : `${pisoNum}° Piso`;
+                        return (
+                            <button
+                                key={pisoNum}
+                                type="button"
+                                onClick={() => setFiltroPiso(pisoNum)}
+                                className={`px-4 py-2 text-xs font-black uppercase tracking-wider rounded-none transition-all italic shrink-0 border ${
+                                    filtroPiso === pisoNum
+                                        ? 'bg-rodrigo-mustard text-stone-950 border-rodrigo-mustard shadow-lg shadow-rodrigo-mustard/20'
+                                        : 'bg-white/5 text-white/60 border-white/10 hover:bg-white/10'
+                                }`}
+                            >
+                                {label} ({count})
+                            </button>
+                        );
+                    })}
+                </div>
+
                 {/* Estadísticas */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
                     <motion.div
@@ -79,9 +117,9 @@ function MesasContent() {
                         className="glass-panel p-8 relative overflow-hidden group"
                     >
                         <div className="absolute top-0 right-0 w-32 h-32 bg-rodrigo-mustard/5 blur-3xl -mr-16 -mt-16 group-hover:bg-rodrigo-mustard/10 transition-colors"></div>
-                        <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.3em] mb-4">Total Salón</p>
+                        <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.3em] mb-4">Total en Vista</p>
                         <div className="flex items-end justify-between">
-                            <h3 className="text-5xl font-black text-white italic">{mesas.length}</h3>
+                            <h3 className="text-5xl font-black text-white italic">{mesasFiltradas.length}</h3>
                             <Users size={32} className="text-rodrigo-mustard/40" />
                         </div>
                     </motion.div>
@@ -127,7 +165,7 @@ function MesasContent() {
                     </div>
                 ) : (
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-6">
-                        {mesas.map((mesa, index) => (
+                        {mesasFiltradas.map((mesa, index) => (
                             <motion.button
                                 key={mesa.id}
                                 initial={{ opacity: 0, scale: 0.9 }}
@@ -149,7 +187,11 @@ function MesasContent() {
                                 </div>
 
                                 <div className="relative z-10 text-center">
-                                    <div className={`w-14 h-14 rounded-2xl mx-auto mb-4 flex items-center justify-center transition-transform duration-500 group-hover:scale-110 ${mesa.estado === 'libre' ? 'bg-emerald-500/10' : 'bg-rodrigo-terracotta/10'}`}>
+                                    <span className="text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-white/10 text-white/60 mb-2 inline-block">
+                                        {(mesa.piso || 1) === 5 ? 'Terraza' : `${mesa.piso || 1}° Piso`}
+                                    </span>
+
+                                    <div className={`w-14 h-14 rounded-2xl mx-auto mb-3 flex items-center justify-center transition-transform duration-500 group-hover:scale-110 ${mesa.estado === 'libre' ? 'bg-emerald-500/10' : 'bg-rodrigo-terracotta/10'}`}>
                                         <Users size={28} className={mesa.estado === 'libre' ? 'text-emerald-400' : 'text-rodrigo-terracotta'} />
                                     </div>
 

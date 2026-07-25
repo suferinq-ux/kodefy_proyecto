@@ -41,7 +41,10 @@ function ConfiguracionContent() {
     // Mesas stuff
     const [mesas, setMesas] = useState<any[]>([]);
     const [nuevaMesa, setNuevaMesa] = useState('');
+    const [pisoMesa, setPisoMesa] = useState('1');
     const [cantidadMasiva, setCantidadMasiva] = useState('1');
+    const [pisoMasivo, setPisoMasivo] = useState('1');
+    const [filtroPisoConfig, setFiltroPisoConfig] = useState(0);
     const [editConfig, setEditConfig] = useState({
         nombre: '',
         logo_url: '',
@@ -168,7 +171,7 @@ function ConfiguracionContent() {
     };
 
     const cargarMesas = async () => {
-        const { data } = await supabase.from('mesas').select('*').order('numero', { ascending: true });
+        const { data } = await supabase.from('mesas').select('*').order('piso', { ascending: true }).order('numero', { ascending: true });
         setMesas(data || []);
     };
 
@@ -381,11 +384,15 @@ function ConfiguracionContent() {
         }
         setSaving(true);
         try {
-            const { error } = await supabase.from('mesas').insert({
+            const payload: any = {
                 numero: numMesa,
                 estado: 'libre',
                 negocio_id: user?.negocio_id
-            });
+            };
+            const numPiso = parseInt(pisoMesa);
+            if (!isNaN(numPiso)) payload.piso = numPiso;
+
+            const { error } = await supabase.from('mesas').insert(payload);
             if (error) throw error;
             toast.success('Mesa creada');
             setNuevaMesa('');
@@ -412,8 +419,10 @@ function ConfiguracionContent() {
                 : 0;
 
             // 2. Preparar el array de nuevas mesas
+            const numPisoMasivo = parseInt(pisoMasivo) || 1;
             const nuevasMesas = Array.from({ length: cantidad }, (_, i) => ({
                 numero: maxNumero + i + 1,
+                piso: numPisoMasivo,
                 estado: 'libre',
                 negocio_id: user?.negocio_id
             }));
@@ -1411,8 +1420,8 @@ function ConfiguracionContent() {
                                         <div className="w-8 h-8 bg-blue-50 text-blue-500 rounded-none flex items-center justify-center"><Plus size={16} /></div>
                                         <h3 className="text-sm font-black text-slate-900 uppercase italic">Añadir una mesa</h3>
                                     </div>
-                                    <div className="flex gap-3 items-end">
-                                        <div className="flex-1 space-y-2">
+                                    <div className="grid grid-cols-2 gap-3 items-end">
+                                        <div className="space-y-2">
                                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Número exacto</label>
                                             <input
                                                 type="number"
@@ -1422,25 +1431,39 @@ function ConfiguracionContent() {
                                                 className="w-full bg-slate-50 border border-slate-100 rounded-none px-4 py-3 text-sm font-bold italic outline-none focus:border-blue-500/30"
                                             />
                                         </div>
-                                        <button
-                                            onClick={crearMesa}
-                                            disabled={saving}
-                                            className="bg-slate-900 text-white px-6 py-3.5 rounded-none font-black text-[10px] uppercase tracking-widest shadow-md hover:bg-black disabled:opacity-50"
-                                        >
-                                            Añadir
-                                        </button>
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Piso / Nivel</label>
+                                            <select
+                                                value={pisoMesa}
+                                                onChange={e => setPisoMesa(e.target.value)}
+                                                className="w-full bg-slate-50 border border-slate-100 rounded-none px-4 py-3 text-xs font-bold italic outline-none focus:border-blue-500/30 text-slate-700"
+                                            >
+                                                <option value="1">1er Piso</option>
+                                                <option value="2">2do Piso</option>
+                                                <option value="3">3er Piso</option>
+                                                <option value="4">4to Piso</option>
+                                                <option value="5">Terraza / Exterior</option>
+                                            </select>
+                                        </div>
                                     </div>
+                                    <button
+                                        onClick={crearMesa}
+                                        disabled={saving}
+                                        className="w-full bg-slate-900 text-white py-3.5 rounded-none font-black text-[10px] uppercase tracking-widest shadow-md hover:bg-black disabled:opacity-50"
+                                    >
+                                        Añadir Mesa
+                                    </button>
                                 </div>
 
                                 {/* Masiva */}
                                 <div className="bg-white border border-slate-100 rounded-none p-8 shadow-sm space-y-4">
                                     <div className="flex items-center gap-3 mb-2">
                                         <div className="w-8 h-8 bg-emerald-50 text-emerald-500 rounded-none flex items-center justify-center"><Users size={16} /></div>
-                                        <h3 className="text-sm font-black text-slate-900 uppercase italic">Carga Masiva</h3>
+                                        <h3 className="text-sm font-black text-slate-900 uppercase italic">Carga Masiva por Piso</h3>
                                     </div>
-                                    <div className="flex gap-3 items-end">
-                                        <div className="flex-1 space-y-2">
-                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">¿Cuántas mesas añadir?</label>
+                                    <div className="grid grid-cols-2 gap-3 items-end">
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">¿Cuántas mesas?</label>
                                             <input
                                                 type="number"
                                                 value={cantidadMasiva}
@@ -1450,34 +1473,103 @@ function ConfiguracionContent() {
                                                 className="w-full bg-slate-50 border border-slate-100 rounded-none px-4 py-3 text-sm font-bold italic outline-none focus:border-emerald-500/30"
                                             />
                                         </div>
-                                        <button
-                                            onClick={crearMesasMasivas}
-                                            disabled={saving}
-                                            className="bg-emerald-600 text-white px-6 py-3.5 rounded-none font-black text-[10px] uppercase tracking-widest shadow-md hover:bg-emerald-700 disabled:opacity-50"
-                                        >
-                                            Crear Grupo
-                                        </button>
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Asignar a Piso</label>
+                                            <select
+                                                value={pisoMasivo}
+                                                onChange={e => setPisoMasivo(e.target.value)}
+                                                className="w-full bg-slate-50 border border-slate-100 rounded-none px-4 py-3 text-xs font-bold italic outline-none focus:border-emerald-500/30 text-slate-700"
+                                            >
+                                                <option value="1">1er Piso</option>
+                                                <option value="2">2do Piso</option>
+                                                <option value="3">3er Piso</option>
+                                                <option value="4">4to Piso</option>
+                                                <option value="5">Terraza / Exterior</option>
+                                            </select>
+                                        </div>
                                     </div>
+                                    <button
+                                        onClick={crearMesasMasivas}
+                                        disabled={saving}
+                                        className="w-full bg-emerald-600 text-white py-3.5 rounded-none font-black text-[10px] uppercase tracking-widest shadow-md hover:bg-emerald-700 disabled:opacity-50"
+                                    >
+                                        Crear Grupo de Mesas
+                                    </button>
                                     <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tight ml-2">
                                         Se añadirán correlativamente después de la mesa {mesas.length > 0 ? Math.max(...mesas.map(m => m.numero)) : 0}
                                     </p>
                                 </div>
                             </div>
 
-                            <div className="space-y-4">
-                                <h2 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] italic ml-4">Distribución Actual ({mesas.length} mesas)</h2>
+                            <div className="space-y-6">
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+                                    <h2 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] italic ml-2">
+                                        Distribución Actual ({mesas.length} mesas)
+                                    </h2>
+                                    {/* Filtro por Piso */}
+                                    <div className="flex flex-wrap gap-2">
+                                        {[0, 1, 2, 3, 4, 5].map(pisoNum => {
+                                            const label = pisoNum === 0 ? 'Todos' : pisoNum === 5 ? 'Terraza' : `${pisoNum}° Piso`;
+                                            const count = pisoNum === 0 ? mesas.length : mesas.filter(m => (m.piso || 1) === pisoNum).length;
+                                            return (
+                                                <button
+                                                    key={pisoNum}
+                                                    type="button"
+                                                    onClick={() => setFiltroPisoConfig(pisoNum)}
+                                                    className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-wider transition-all italic ${
+                                                        filtroPisoConfig === pisoNum
+                                                            ? 'bg-slate-900 text-white shadow-sm'
+                                                            : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                                                    }`}
+                                                >
+                                                    {label} ({count})
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+
                                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                                    {mesas.map((mesa, idx) => (
-                                        <div key={mesa.id || `mesa-${idx}`} className="bg-white border border-slate-100 p-6 rounded-none flex flex-col items-center gap-4 relative group shadow-sm hover:shadow-md transition-all">
+                                    {mesas
+                                        .filter(m => filtroPisoConfig === 0 || (m.piso || 1) === filtroPisoConfig)
+                                        .map((mesa, idx) => (
+                                        <div key={mesa.id || `mesa-${idx}`} className="bg-white border border-slate-100 p-5 rounded-none flex flex-col items-center gap-3 relative group shadow-sm hover:shadow-md transition-all">
                                             <div className="w-12 h-12 bg-slate-50 rounded-none flex items-center justify-center text-slate-400 group-hover:text-blue-500 group-hover:bg-blue-50 transition-colors">
                                                 <Users size={24} />
                                             </div>
-                                            <span className="font-black text-slate-900 uppercase italic text-sm">Mesa {mesa.numero}</span>
+                                            <div className="text-center">
+                                                <span className="font-black text-slate-900 uppercase italic text-sm block">Mesa {mesa.numero}</span>
+                                                <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 bg-slate-100 text-slate-500 mt-1 inline-block">
+                                                    {(mesa.piso || 1) === 5 ? 'Terraza' : `${mesa.piso || 1}° Piso`}
+                                                </span>
+                                            </div>
+
+                                            {/* Selector rápido para cambiar piso */}
+                                            <select
+                                                value={mesa.piso || 1}
+                                                onChange={async (e) => {
+                                                    const nuevoPiso = parseInt(e.target.value);
+                                                    const { error } = await supabase.from('mesas').update({ piso: nuevoPiso }).eq('id', mesa.id);
+                                                    if (!error) {
+                                                        toast.success(`Mesa ${mesa.numero} movida al Piso ${nuevoPiso}`);
+                                                        cargarMesas();
+                                                    }
+                                                }}
+                                                className="text-[9px] font-bold bg-slate-50 border border-slate-200 px-2 py-1 text-slate-600 outline-none w-full text-center hover:border-slate-400"
+                                            >
+                                                <option value={1}>1er Piso</option>
+                                                <option value={2}>2do Piso</option>
+                                                <option value={3}>3er Piso</option>
+                                                <option value={4}>4to Piso</option>
+                                                <option value={5}>Terraza</option>
+                                            </select>
+
                                             <button 
                                                 onClick={() => eliminarMesa(mesa.id)}
-                                                className="absolute top-2 right-2 w-8 h-8 bg-red-50 text-red-500 rounded-none flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500 hover:text-white"
+                                                className="absolute top-2 right-2 w-7 h-7 bg-red-50 text-red-500 rounded-none flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500 hover:text-white"
+                                                title="Eliminar mesa"
                                             >
-                                                <Trash2 size={14} />
+                                                <Trash2 size={13} />
                                             </button>
                                         </div>
                                     ))}

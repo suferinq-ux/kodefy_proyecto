@@ -151,6 +151,7 @@ export interface Mesa {
     negocio_id: string;
     numero: number;
     estado: 'libre' | 'ocupada';
+    piso?: number; // 1, 2, 3, etc. (por defecto 1)
     created_at: string;
 }
 
