@@ -93,7 +93,16 @@ export default function PedidoCard({ venta, onComplete, onPrint, onCancel, onEdi
                                 </span>
                             </div>
                             <h3 className="text-2xl font-black text-slate-900 leading-none flex items-center gap-3 italic">
-                                MESA {(venta as any).mesas?.numero || venta.mesa_id || 'MOSTRADOR'}
+                                {(venta as any).mesas?.numero ? (
+                                    <>
+                                        MESA {(venta as any).mesas.numero}
+                                        <span className="text-xs not-italic font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-none">
+                                            {(venta as any).mesas.piso === 5 ? 'TERRAZA' : `${(venta as any).mesas.piso || 1}° PISO`}
+                                        </span>
+                                    </>
+                                ) : (
+                                    venta.mesa_id || 'MOSTRADOR'
+                                )}
                                 <span className="text-[10px] font-mono text-slate-300 tracking-tighter not-italic">#TK-{venta.id.slice(0, 4).toUpperCase()}</span>
                             </h3>
                         </div>

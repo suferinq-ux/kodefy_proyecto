@@ -20,13 +20,21 @@ export default function KitchenTicketModal({ isOpen, onClose, venta }: KitchenTi
     });
 
     const mesaNumero = (venta as any).mesas?.numero || venta.mesa_id || null;
+    const mesaPiso = (venta as any).mesas?.piso || null;
+    const pisoLabel = mesaPiso ? (mesaPiso === 5 ? ' (TERRAZA)' : ` (${mesaPiso}° PISO)`) : '';
+    const mesaTextoCompleto = mesaNumero ? `MESA ${mesaNumero}${pisoLabel}` : 'PARA LLEVAR';
+
+    const isAdicional = Boolean((venta as any).es_adicional);
+    const itemsAImprimir = (isAdicional && (venta as any).items_adicionales && (venta as any).items_adicionales.length > 0)
+        ? (venta as any).items_adicionales
+        : venta.items;
 
     // Función de impresión que abre ventana emergente
     const handlePrint = () => {
         // Construir el HTML del ticket
         let itemsHtml = '';
-        venta.items.forEach((item) => {
-            const detalles = (item as any).detalles;
+        itemsAImprimir.forEach((item: any) => {
+            const detalles = item.detalles;
             itemsHtml += `
                 <div class="item">
                     <div class="item-row">
@@ -55,52 +63,52 @@ export default function KitchenTicketModal({ isOpen, onClose, venta }: KitchenTi
                         box-sizing: border-box;
                     }
                     body {
-                        font-family: 'Arial', sans-serif; /* Cambiado a Arial para mejor lectura en tamaño pequeño */
-                        font-size: 10px; /* Reducido de 14px */
-                        width: 72mm; /* Ajustado al ancho imprimible seguro */
+                        font-family: 'Arial', sans-serif;
+                        font-size: 10px;
+                        width: 72mm;
                         margin: 0 auto;
-                        padding: 0mm 2mm 2mm 2mm; /* Top 0mm */
-                        line-height: 1.1; /* Reducido de 1.4 */
+                        padding: 0mm 2mm 2mm 2mm;
+                        line-height: 1.1;
                         color: black;
                         background: white;
                     }
                     .header {
                         text-align: center;
-                        margin-bottom: 2px; /* Reducido */
-                        padding-bottom: 2px; /* Reducido */
-                        border-bottom: 1px dashed black; /* Reducido grosor */
+                        margin-bottom: 2px;
+                        padding-bottom: 2px;
+                        border-bottom: 1px dashed black;
                     }
                     .header h1 {
-                        font-size: 14px; /* Reducido de 20px */
+                        font-size: 14px;
                         margin: 0 0 2px 0;
                         font-weight: 900;
                     }
                     .header .hora {
-                        font-size: 9px; /* Reducido de 12px */
+                        font-size: 9px;
                     }
                     .mesa {
                         text-align: center;
                         font-size: 12px;
                         font-weight: bold;
-                        margin: 6px 0; /* Reducido de 12px */
+                        margin: 6px 0;
                     }
                     .mesa span {
-                        border: 2px solid black; /* Reducido grosor */
-                        padding: 4px 10px; /* Reducido */
+                        border: 2px solid black;
+                        padding: 4px 10px;
                         display: inline-block;
-                        font-size: 14px; /* Reducido de 20px */
+                        font-size: 14px;
                         font-weight: 900;
                     }
                     .divider {
                         border-bottom: 1px dashed black;
-                        margin: 5px 0; /* Reducido de 10px */
+                        margin: 5px 0;
                     }
                     .items {
                         margin: 5px 0;
                     }
                     .item {
                         border-bottom: 0.5px dashed #000;
-                        padding: 4px 0; /* Reducido */
+                        padding: 4px 0;
                     }
                     .item:last-child {
                         border-bottom: none;
@@ -111,19 +119,19 @@ export default function KitchenTicketModal({ isOpen, onClose, venta }: KitchenTi
                     }
                     .item-qty {
                         font-weight: 900;
-                        font-size: 12px; /* Reducido de 16px */
+                        font-size: 12px;
                         margin-right: 5px;
-                        min-width: 25px; /* Reducido */
+                        min-width: 25px;
                     }
                     .item-name {
                         font-weight: 700;
-                        font-size: 11px; /* Reducido de 15px */
+                        font-size: 11px;
                         flex: 1;
                         line-height: 1.1;
                     }
                     .item-detail {
-                        font-size: 9px; /* Reducido */
-                        padding-left: 30px; /* Reducido */
+                        font-size: 9px;
+                        padding-left: 30px;
                         margin-top: 1px;
                     }
                     .item-parte {
@@ -148,46 +156,30 @@ export default function KitchenTicketModal({ isOpen, onClose, venta }: KitchenTi
                         font-size: 8px;
                         margin-top: 2px;
                         padding-top: 2px;
-                        border-top: 1px dashed black;
                     }
                 </style>
             </head>
             <body>
                 <div class="header">
-                    <h1>🍗 COMANDA 🍗</h1>
+                    <h1>Reykelt</h1>
+                    <p class="hora">${isAdicional ? '*** COMANDA ADICIONAL ***' : '--- COMANDA DE COCINA ---'}</p>
                     <p class="hora">Hora: ${horaFormateada}</p>
                 </div>
                 
-                <div class="divider"></div>
-                
                 <div class="mesa">
-                    <span>${
-                        venta.tipo_pedido === 'delivery' ? 'DELIVERY' : 
-                        venta.tipo_pedido === 'llevar' ? 'PARA LLEVAR' : 
-                        mesaNumero ? `MESA ${mesaNumero}` : 'PARA LLEVAR'
-                    }</span>
+                    <span>${venta.tipo_pedido === 'delivery' ? 'DELIVERY' : (venta.tipo_pedido === 'llevar' ? 'PARA LLEVAR' : mesaTextoCompleto)}</span>
                 </div>
-                
-                <div class="divider"></div>
-                
+
                 <div class="items">
                     ${itemsHtml}
                 </div>
-                
+
                 ${venta.notas ? `
-                    <div class="divider"></div>
                     <div class="notas">
-                        <p class="notas-title">⚠️ NOTAS:</p>
-                        <p>${venta.notas}</p>
+                        <div class="notas-title">NOTAS GENERALES:</div>
+                        <div>${venta.notas}</div>
                     </div>
                 ` : ''}
-                
-                <div class="divider"></div>
-                
-                <div class="footer">
-                    <p>#${venta.id.slice(0, 8)}</p>
-                    <p>---</p>
-                </div>
             </body>
             </html>
         `;
@@ -224,7 +216,7 @@ export default function KitchenTicketModal({ isOpen, onClose, venta }: KitchenTi
                             <div className="w-14 h-14 bg-white/20 rounded-none flex items-center justify-center mx-auto mb-2">
                                 <ChefHat size={32} />
                             </div>
-                            <h2 className="text-xl font-bold">Comanda de Cocina</h2>
+                            <h2 className="text-xl font-bold">{isAdicional ? 'Comanda Adicional' : 'Comanda de Cocina'}</h2>
                             <p className="text-white/80 text-sm">
                                 {venta.tipo_pedido === 'delivery' ? 'Delivery 🚀' : 
                                  venta.tipo_pedido === 'llevar' ? 'Para Llevar 🥡' : 
@@ -237,7 +229,9 @@ export default function KitchenTicketModal({ isOpen, onClose, venta }: KitchenTi
                             <div className="bg-white shadow-sm border border-gray-200 p-4 rounded-none text-sm font-mono text-gray-700">
                                 {/* Header de Comanda */}
                                 <div className="text-center border-b border-dashed border-gray-300 pb-3 mb-3">
-                                    <p className="font-black text-lg text-black">🍗 COMANDA 🍗</p>
+                                    <p className="font-black text-lg text-black">
+                                        {isAdicional ? '🔥 COMANDA ADICIONAL 🔥' : '🍗 COMANDA 🍗'}
+                                    </p>
                                     <p className="text-xs mt-1">Hora: {horaFormateada}</p>
                                     {venta.tipo_pedido === 'delivery' && (
                                         <p className="text-base font-black bg-blue-100 text-blue-800 rounded-none px-3 py-1 inline-block mt-2">
@@ -251,7 +245,7 @@ export default function KitchenTicketModal({ isOpen, onClose, venta }: KitchenTi
                                     )}
                                     {venta.tipo_pedido === 'mesa' && mesaNumero && (
                                         <p className="text-base font-black bg-amber-100 text-amber-800 rounded-none px-3 py-1 inline-block mt-2">
-                                            MESA {mesaNumero}
+                                            {mesaTextoCompleto}
                                         </p>
                                     )}
                                     {!venta.tipo_pedido && !mesaNumero && (
@@ -263,7 +257,7 @@ export default function KitchenTicketModal({ isOpen, onClose, venta }: KitchenTi
 
                                 {/* Items - Solo cantidad, nombre y notas */}
                                 <div className="space-y-3 mb-3">
-                                    {venta.items.map((item, idx) => (
+                                    {itemsAImprimir.map((item: any, idx: number) => (
                                         <div key={idx} className="border-b border-gray-100 last:border-0 pb-2 last:pb-0">
                                             <div className="flex items-start gap-2">
                                                 <span className="bg-amber-500 text-white font-black px-2 py-0.5 rounded-none text-sm min-w-[32px] text-center">

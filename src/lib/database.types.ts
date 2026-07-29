@@ -169,6 +169,8 @@ export interface RepartidorUbicacion {
 
 
 export interface StockActual {
+    id?: string;
+    negocio_id?: string;
     fecha: string;
     pollos_enteros: number;
     gaseosas: number;

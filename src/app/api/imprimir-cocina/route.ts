@@ -11,7 +11,7 @@ const PRINTER_PORT = parseInt(process.env.PRINTER_PORT || '9100');
 export async function POST(request: Request) {
     try {
         const body = await request.json();
-        const { mesa, items, notas, id, tipo, fecha, es_adicional, items_adicionales } = body;
+        const { mesa, items, notas, id, tipo, fecha, es_adicional, items_adicionales, piso } = body;
         
         const itemsAImprimir = (es_adicional && items_adicionales && items_adicionales.length > 0)
             ? items_adicionales
@@ -30,6 +30,10 @@ export async function POST(request: Request) {
         // 1. Inicializar
         const fechaObj = fecha ? new Date(fecha) : new Date();
         const fechaFormat = fechaObj.toLocaleString('es-PE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+
+        const pisoNum = piso || 1;
+        const pisoLabel = pisoNum === 5 ? 'TERRAZA' : `${pisoNum}° PISO`;
+        const mesaText = tipo === 'delivery' ? 'DELIVERY' : (tipo === 'llevar' ? 'PARA LLEVAR' : `MESA: ${mesa} (${pisoLabel})`);
 
         const buffer = encoder
             .initialize()
@@ -50,7 +54,7 @@ export async function POST(request: Request) {
             .size(1, 1)
             .text(`PEDIDO #${id?.slice(0, 8) || '???'}`)
             .newline()
-            .text(tipo === 'delivery' ? 'DELIVERY' : (tipo === 'llevar' ? 'PARA LLEVAR' : `MESA: ${mesa}`))
+            .text(mesaText)
             .newline()
             .size(0, 0)
             .bold(false)

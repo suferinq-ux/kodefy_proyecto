@@ -30,7 +30,7 @@ export default function CierreCajaPage() {
 function CierreCajaContent() {
     const router = useRouter();
     const params = useParams();
-    const { stock, loading } = useInventario();
+    const { stock, loading, refetch } = useInventario();
     const { ventas } = useVentas();
     const metricas = useMetricas(ventas);
 
@@ -227,7 +227,7 @@ function CierreCajaContent() {
         setProcesando(true);
 
         try {
-            const { error } = await supabase
+            const queryUpdate = supabase
                 .from('inventario_diario')
                 .update({
                     estado: 'cerrado',
@@ -240,8 +240,11 @@ function CierreCajaContent() {
                     observaciones_cierre: observaciones,
                     // para que la apertura del siguiente día las cargue correctamente
                     bebidas_detalle: bebidasDetalle || null,
-                })
-                .eq('fecha', obtenerFechaHoy());
+                });
+
+            const { error } = stock.id
+                ? await queryUpdate.eq('id', stock.id)
+                : await queryUpdate.eq('fecha', stock.fecha);
 
             // Calcular total efectivo esperado (base + ventas efectivo - gastos efectivo)
             const totalEfectivoEsperado = (ventasPorMetodo['efectivo'] || 0) + (stock?.dinero_inicial || 0) - gastosEfectivo;
@@ -376,6 +379,7 @@ _Generado automáticamente por Rodrigo's - Brasas & Broasters POS_`;
 
             setResumenWhatsApp(mensaje);
             setCierreCompletado(true);
+            await refetch();
             handleConfetti();
             toast.success('¡Jornada finalizada exitosamente!', { duration: 5000 });
 

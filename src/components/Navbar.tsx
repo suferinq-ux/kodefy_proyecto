@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, ShoppingCart, BarChart, Lock, ClipboardList, ChefHat, Package, Menu, X, Settings, RotateCcw, Navigation, Navigation2, LogOut, Building } from 'lucide-react';
+import { Home, ShoppingCart, BarChart, Lock, ClipboardList, ChefHat, Package, Menu, X, Settings, RotateCcw, Navigation, Navigation2, LogOut, Building, MessageSquare } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBusiness } from '@/contexts/BusinessContext';
 import { hasPermission } from '@/lib/roles';
@@ -23,6 +23,7 @@ const menuSections = [
             { icon: ChefHat, label: 'Cocina', href: '/cocina', permission: 'cocina' },
             { icon: Navigation, label: 'Entregas', href: '/delivery', permission: 'delivery' },
             { icon: Navigation2, label: 'Radar Live', href: '/radar', permission: 'pos' },
+            { icon: MessageSquare, label: 'WhatsApp IA', href: '/whatsapp', permission: 'pos' },
         ]
     },
     {
@@ -120,7 +121,12 @@ export default function Navbar() {
                                                 style={active ? { backgroundColor: primaryColor, boxShadow: `0 4px 14px ${primaryColor}33` } : {}}
                                             >
                                                 <item.icon size={18} className={active ? 'text-white' : 'text-slate-400 group-hover:text-slate-600 transition-colors'} />
-                                                <span>{item.label}</span>
+                                                <span className="flex-1 truncate">{item.label}</span>
+                                                {item.href === '/whatsapp' && (
+                                                    <span className={`text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider shrink-0 ${active ? 'bg-amber-400 text-slate-950' : 'bg-amber-100 text-amber-900 border border-amber-300'}`}>
+                                                        BETA
+                                                    </span>
+                                                )}
                                             </div>
                                         </Link>
                                     );

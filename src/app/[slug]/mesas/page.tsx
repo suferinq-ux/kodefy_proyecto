@@ -1,11 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { Users, RefreshCw, Loader2 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Users, RefreshCw, Loader2, Shuffle, ShoppingBag, X } from 'lucide-react';
 import { useMesas } from '@/hooks/useMesas';
 import toast from 'react-hot-toast';
 import ProtectedRoute from '@/components/ProtectedRoute';
+import CambiarMesaModal from '@/components/CambiarMesaModal';
+import { useRouter, useParams } from 'next/navigation';
+import type { Mesa } from '@/lib/database.types';
 
 export default function MesasPage() {
     return (
@@ -16,9 +19,23 @@ export default function MesasPage() {
 }
 
 function MesasContent() {
-    const { mesas, loading, ocuparMesa, liberarMesa, refetch } = useMesas();
+    const router = useRouter();
+    const params = useParams();
+    const { mesas, loading, ocuparMesa, liberarMesa, cambiarMesa, refetch } = useMesas();
     const [toggling, setToggling] = useState<number | null>(null);
     const [filtroPiso, setFiltroPiso] = useState<number>(0); // 0 = Todos
+
+    const [mesaAccionModal, setMesaAccionModal] = useState<Mesa | null>(null);
+    const [showCambiarMesaModal, setShowCambiarMesaModal] = useState(false);
+    const [mesaOrigenParaCambio, setMesaOrigenParaCambio] = useState<Mesa | null>(null);
+
+    const handleMesaClick = (mesa: Mesa) => {
+        if (mesa.estado === 'ocupada') {
+            setMesaAccionModal(mesa);
+        } else {
+            handleToggleMesa(mesa.id, 'libre');
+        }
+    };
 
     const handleToggleMesa = async (mesaId: number, estadoActual: 'libre' | 'ocupada') => {
         setToggling(mesaId);
@@ -34,6 +51,7 @@ function MesasContent() {
             toast.error('Error al cambiar estado de mesa');
         } finally {
             setToggling(null);
+            setMesaAccionModal(null);
         }
     };
 
@@ -171,7 +189,7 @@ function MesasContent() {
                                 initial={{ opacity: 0, scale: 0.9 }}
                                 animate={{ opacity: 1, scale: 1 }}
                                 transition={{ delay: index * 0.05 }}
-                                onClick={() => handleToggleMesa(mesa.id, mesa.estado)}
+                                onClick={() => handleMesaClick(mesa)}
                                 disabled={toggling === mesa.id}
                                 className={`
                                     relative p-8 rounded-[2rem] border-2 transition-all duration-500 overflow-hidden group
@@ -222,10 +240,87 @@ function MesasContent() {
                 >
                     <div className="absolute inset-0 bg-linear-to-r from-rodrigo-mustard/0 via-rodrigo-mustard/5 to-rodrigo-mustard/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
                     <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.4em] italic">
-                        <span className="text-rodrigo-mustard mr-2">💡</span> Click en cualquier mesa para cambiar su estado instantáneamente
+                        <span className="text-rodrigo-mustard mr-2">💡</span> Click en cualquier mesa para gestionar su estado o transferir pedidos
                     </p>
                 </motion.div>
             </div>
+
+            {/* Modal Acciones de Mesa Ocupada */}
+            <AnimatePresence>
+                {mesaAccionModal && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            className="bg-stone-900 border border-white/10 p-8 rounded-2xl max-w-md w-full text-center space-y-6 shadow-2xl"
+                        >
+                            <div className="flex items-center justify-between border-b border-white/10 pb-4">
+                                <h3 className="text-2xl font-black text-white italic uppercase tracking-tight">
+                                    Mesa {mesaAccionModal.numero} (Ocupada)
+                                </h3>
+                                <button
+                                    onClick={() => setMesaAccionModal(null)}
+                                    className="text-white/40 hover:text-white"
+                                >
+                                    <X size={20} />
+                                </button>
+                            </div>
+
+                            <p className="text-xs text-white/60 font-bold uppercase tracking-widest">
+                                ¿Qué acción deseas realizar con esta mesa?
+                            </p>
+
+                            <div className="space-y-3">
+                                <button
+                                    onClick={() => {
+                                        setMesaOrigenParaCambio(mesaAccionModal);
+                                        setMesaAccionModal(null);
+                                        setShowCambiarMesaModal(true);
+                                    }}
+                                    className="w-full p-4 bg-rodrigo-mustard text-stone-950 font-black uppercase tracking-widest text-xs rounded-xl flex items-center justify-center gap-3 hover:brightness-110 transition-all shadow-lg shadow-rodrigo-mustard/20"
+                                >
+                                    <Shuffle size={18} />
+                                    <span>🔀 Cambiar de Mesa (Mover pedido)</span>
+                                </button>
+
+                                <button
+                                    onClick={() => {
+                                        router.push(`/${params.slug}/pos`);
+                                    }}
+                                    className="w-full p-4 bg-white/10 text-white font-black uppercase tracking-widest text-xs rounded-xl flex items-center justify-center gap-3 hover:bg-white/20 transition-all"
+                                >
+                                    <ShoppingBag size={18} />
+                                    <span>📋 Ver Pedido en POS</span>
+                                </button>
+
+                                <button
+                                    onClick={() => handleToggleMesa(mesaAccionModal.id, 'ocupada')}
+                                    className="w-full p-4 bg-red-500/20 text-red-400 border border-red-500/30 font-black uppercase tracking-widest text-xs rounded-xl flex items-center justify-center gap-3 hover:bg-red-500/30 transition-all"
+                                >
+                                    <X size={18} />
+                                    <span>🔓 Marcar como Libre</span>
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
+            {/* Modal Cambiar Mesa */}
+            {showCambiarMesaModal && (
+                <CambiarMesaModal
+                    isOpen={showCambiarMesaModal}
+                    onClose={() => setShowCambiarMesaModal(false)}
+                    mesaOrigen={mesaOrigenParaCambio}
+                    mesas={mesas}
+                    onConfirmCambio={async (origenId, destinoId) => {
+                        const ok = await cambiarMesa(origenId, destinoId);
+                        if (ok) refetch();
+                        return ok;
+                    }}
+                />
+            )}
         </div>
     );
 }

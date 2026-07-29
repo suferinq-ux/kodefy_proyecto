@@ -50,7 +50,14 @@ function generarComandaESCPOST(venta) {
     bufferArray.push(BOLD_ON);
     bufferArray.push(SIZE_MEDIUM);
 
-    const mesaNum = venta.mesas?.numero ? `MESA: ${venta.mesas.numero}` : (venta.tipo_pedido === 'delivery' ? 'DELIVERY' : 'PARA LLEVAR');
+    let mesaNum = 'PARA LLEVAR';
+    if (venta.tipo_pedido === 'delivery') {
+        mesaNum = 'DELIVERY';
+    } else if (venta.mesas?.numero) {
+        const pisoNum = venta.mesas.piso || 1;
+        const pisoLabel = pisoNum === 5 ? 'TERRAZA' : `${pisoNum}° PISO`;
+        mesaNum = `MESA ${venta.mesas.numero} (${pisoLabel})`;
+    }
     bufferArray.push(Buffer.from(`PEDIDO #${venta.id.slice(0, 8)}\n`));
     bufferArray.push(Buffer.from(`${mesaNum}\n`));
     bufferArray.push(Buffer.from("==========================================\n"));
@@ -116,7 +123,7 @@ async function procesarImpresionesPendientes() {
     try {
         const { data: ventas, error } = await supabase
             .from('ventas')
-            .select('*, mesas:mesa_id(numero)')
+            .select('*, mesas:mesa_id(numero, piso)')
             .eq('estado_impresion', 'pendiente')
             .order('created_at', { ascending: true });
 

@@ -154,6 +154,8 @@ export const useInventario = (): UseInventarioResult => {
 
             // 5. Armar el stock completo
             const stockCalculado: StockActual = {
+                id: inventario.id,
+                negocio_id: inventario.negocio_id,
                 fecha: inventario.fecha,
                 pollos_enteros: inventario.pollos_enteros || 0,
                 gaseosas: totalInicialDetalle || inventario.gaseosas || 0,
@@ -168,7 +170,7 @@ export const useInventario = (): UseInventarioResult => {
                 chicha_inicial: inventario.chicha_inicial || 0,
                 chicha_vendida: chichaVendida,
                 chicha_disponible: (inventario.chicha_inicial || 0) - chichaVendida,
-                estado: 'abierto',
+                estado: inventario.estado || 'abierto',
                 bebidas_detalle: bebidasActuales,
             };
 

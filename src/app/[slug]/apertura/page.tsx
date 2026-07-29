@@ -184,16 +184,15 @@ function AperturaContent() {
                 const { error: updateError } = await supabase
                     .from('inventario_diario')
                     .update({
+                        estado: 'abierto',
                         pollos_enteros: pollos,
                         papas_iniciales: papas,
                         chicha_inicial: chicha,
                         gaseosas: totalBebidas,
                         dinero_inicial: parseFloat(dineroInicial) || 0,
                         bebidas_detalle: bebidasDetalle,
-                        // No tocamos la fecha ni el id
                     })
-                    .eq('fecha', fechaHoy)
-                    .eq('negocio_id', business.id);
+                    .eq('id', existente.id);
 
                 if (updateError) throw updateError;
 

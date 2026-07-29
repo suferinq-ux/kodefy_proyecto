@@ -1,30 +1,44 @@
 import { supabase, obtenerFechaHoy } from './supabase';
 
+async function obtenerInventarioActivo() {
+    const fechaHoy = obtenerFechaHoy();
+    let { data } = await supabase
+        .from('inventario_diario')
+        .select('*')
+        .eq('estado', 'abierto')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+    if (!data) {
+        const { data: dataHoy } = await supabase
+            .from('inventario_diario')
+            .select('*')
+            .eq('fecha', fechaHoy)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+        data = dataHoy;
+    }
+    return data;
+}
+
 /**
- * Ajusta el stock de pollos para el día actual sumando la cantidad proporcionada.
+ * Ajusta el stock de pollos para la jornada activa sumando la cantidad proporcionada.
  */
 export async function ajustarStockPollos(cantidad: number): Promise<{ success: boolean; message: string }> {
     try {
-        const fechaHoy = obtenerFechaHoy();
-
-        // 1. Obtener registro actual
-        const { data, error: fetchError } = await supabase
-            .from('inventario_diario')
-            .select('pollos_enteros')
-            .eq('fecha', fechaHoy)
-            .single();
-
-        if (fetchError || !data) {
-            return { success: false, message: 'No se encontró la apertura del día.' };
+        const data = await obtenerInventarioActivo();
+        if (!data) {
+            return { success: false, message: 'No se encontró la apertura de jornada.' };
         }
 
         const nuevoTotal = (data.pollos_enteros || 0) + cantidad;
 
-        // 2. Actualizar
         const { error: updateError } = await supabase
             .from('inventario_diario')
             .update({ pollos_enteros: nuevoTotal })
-            .eq('fecha', fechaHoy);
+            .eq('id', data.id);
 
         if (updateError) throw updateError;
 
@@ -40,26 +54,17 @@ export async function ajustarStockPollos(cantidad: number): Promise<{ success: b
  */
 export async function ajustarCajaChica(monto: number): Promise<{ success: boolean; message: string }> {
     try {
-        const fechaHoy = obtenerFechaHoy();
-
-        // 1. Obtener registro actual
-        const { data, error: fetchError } = await supabase
-            .from('inventario_diario')
-            .select('dinero_inicial')
-            .eq('fecha', fechaHoy)
-            .single();
-
-        if (fetchError || !data) {
-            return { success: false, message: 'No se encontró la apertura del día.' };
+        const data = await obtenerInventarioActivo();
+        if (!data) {
+            return { success: false, message: 'No se encontró la apertura de jornada.' };
         }
 
         const nuevoTotal = (data.dinero_inicial || 0) + monto;
 
-        // 2. Actualizar
         const { error: updateError } = await supabase
             .from('inventario_diario')
             .update({ dinero_inicial: nuevoTotal })
-            .eq('fecha', fechaHoy);
+            .eq('id', data.id);
 
         if (updateError) throw updateError;
 
@@ -75,26 +80,17 @@ export async function ajustarCajaChica(monto: number): Promise<{ success: boolea
  */
 export async function ajustarStockChicha(cantidad: number): Promise<{ success: boolean; message: string }> {
     try {
-        const fechaHoy = obtenerFechaHoy();
-
-        // 1. Obtener registro actual
-        const { data, error: fetchError } = await supabase
-            .from('inventario_diario')
-            .select('chicha_inicial')
-            .eq('fecha', fechaHoy)
-            .single();
-
-        if (fetchError || !data) {
-            return { success: false, message: 'No se encontró la apertura del día.' };
+        const data = await obtenerInventarioActivo();
+        if (!data) {
+            return { success: false, message: 'No se encontró la apertura de jornada.' };
         }
 
         const nuevoTotal = (data.chicha_inicial || 0) + cantidad;
 
-        // 2. Actualizar
         const { error: updateError } = await supabase
             .from('inventario_diario')
             .update({ chicha_inicial: nuevoTotal })
-            .eq('fecha', fechaHoy);
+            .eq('id', data.id);
 
         if (updateError) throw updateError;
 
@@ -104,31 +100,23 @@ export async function ajustarStockChicha(cantidad: number): Promise<{ success: b
         return { success: false, message: error.message || 'Error al actualizar el stock.' };
     }
 }
+
 /**
  * Ajusta el stock de papas (Kg) sumando la cantidad proporcionada.
  */
 export async function ajustarStockPapas(cantidad: number): Promise<{ success: boolean; message: string }> {
     try {
-        const fechaHoy = obtenerFechaHoy();
-
-        // 1. Obtener registro actual
-        const { data, error: fetchError } = await supabase
-            .from('inventario_diario')
-            .select('papas_iniciales')
-            .eq('fecha', fechaHoy)
-            .single();
-
-        if (fetchError || !data) {
-            return { success: false, message: 'No se encontró la apertura del día.' };
+        const data = await obtenerInventarioActivo();
+        if (!data) {
+            return { success: false, message: 'No se encontró la apertura de jornada.' };
         }
 
         const nuevoTotal = (data.papas_iniciales || 0) + cantidad;
 
-        // 2. Actualizar
         const { error: updateError } = await supabase
             .from('inventario_diario')
             .update({ papas_iniciales: nuevoTotal })
-            .eq('fecha', fechaHoy);
+            .eq('id', data.id);
 
         if (updateError) throw updateError;
 

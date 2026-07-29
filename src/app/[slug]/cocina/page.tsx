@@ -47,7 +47,8 @@ function CocinaContent() {
                 .select(`
                     *,
                     mesas:mesa_id (
-                        numero
+                        numero,
+                        piso
                     )
                 `)
                 .eq('estado_pedido', 'pendiente')

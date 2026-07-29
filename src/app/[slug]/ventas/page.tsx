@@ -111,7 +111,8 @@ function MesasActivasContent() {
                     *,
                     mesas:mesa_id (
                         id,
-                        numero
+                        numero,
+                        piso
                     )
                 `)
                 .eq('negocio_id', business?.id)

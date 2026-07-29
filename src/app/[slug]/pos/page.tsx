@@ -26,12 +26,14 @@ import {
     Store,
     Printer,
     ChevronRight,
-    Loader2
+    Loader2,
+    Shuffle
 } from 'lucide-react';
 import { supabase, obtenerFechaHoy } from '@/lib/supabase';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { Producto, ItemCarrito, Mesa, Venta } from '@/lib/database.types';
 import ProductOptionsModal from '@/components/ProductOptionsModal';
+import CambiarMesaModal from '@/components/CambiarMesaModal';
 import toast from 'react-hot-toast';
 import { useInventario } from '@/hooks/useInventario';
 import { useMesas } from '@/hooks/useMesas';
@@ -103,6 +105,19 @@ function POSContent() {
     const { mesas, loading: loadingMesas, ocuparMesa, cambiarMesa, refetch: refetchMesas } = useMesas();
     const [currentVentaId, setCurrentVentaId] = useState<string | null>(null);
     const [showCambiarMesaModal, setShowCambiarMesaModal] = useState(false);
+    const [mesaOrigenParaCambio, setMesaOrigenParaCambio] = useState<Mesa | null>(null);
+
+    const handleConfirmCambioMesa = async (mesaOrigenId: number, mesaDestinoId: number): Promise<boolean> => {
+        const exito = await cambiarMesa(mesaOrigenId, mesaDestinoId);
+        if (exito) {
+            const nuevaMesa = mesas.find(m => m.id === mesaDestinoId);
+            if (nuevaMesa && selectedTable?.id === mesaOrigenId) {
+                setSelectedTable(nuevaMesa);
+            }
+            await refetchMesas();
+        }
+        return exito;
+    };
 
     // Ventas pendientes (para llevar y delivery)
     const [ventasPendientes, setVentasPendientes] = useState<Venta[]>([]);
@@ -435,7 +450,13 @@ function POSContent() {
             }
 
             if (resultado.success) {
-                const itemsParaCocina = carrito.filter(item => !item.printed);
+                const itemsAdicionalesVenta = resultado.data?.items_adicionales;
+                const isAdicionalVenta = Boolean(resultado.data?.es_adicional);
+
+                const itemsParaCocina = (isAdicionalVenta && itemsAdicionalesVenta && itemsAdicionalesVenta.length > 0)
+                    ? itemsAdicionalesVenta
+                    : carrito.filter(item => !item.printed);
+
                 if (itemsParaCocina.length > 0) {
                     try {
                         const { data: config } = await supabase.from('configuracion_negocio').select('ip_impresora_cocina, ip_impresora_caja, modo_impresion, nombre_negocio, telefono').eq('id', 1).single();
@@ -449,7 +470,16 @@ function POSContent() {
                                 await fetch(`${printServerUrl}/print-kitchen`, {
                                     method: 'POST',
                                     headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({ ip: config?.ip_impresora_cocina || '192.168.1.100', mesa: selectedTable ? selectedTable.numero : 'LLEVAR', items: itemsParaCocina, notas: orderNotes })
+                                    body: JSON.stringify({
+                                        ip: config?.ip_impresora_cocina || '192.168.1.100',
+                                        mesa: selectedTable ? selectedTable.numero : 'LLEVAR',
+                                        piso: selectedTable?.piso || 1,
+                                        items: itemsParaCocina,
+                                        items_adicionales: itemsAdicionalesVenta,
+                                        es_adicional: isAdicionalVenta,
+                                        notas: orderNotes,
+                                        id: resultado.data?.id
+                                    })
                                 });
                                 toast.success('Impresión enviada correctamente 🖨️');
                             } catch (e) {
@@ -457,14 +487,8 @@ function POSContent() {
                             }
                         }
 
-                        const printedKeys = new Set(itemsParaCocina.map(p => `${p.producto_id}||${p.detalles?.parte || ''}||${p.detalles?.notas || ''}`));
-                        setCarrito(prev => prev.map(item => {
-                            const itemKey = `${item.producto_id}||${item.detalles?.parte || ''}||${item.detalles?.notas || ''}`;
-                            if (printedKeys.has(itemKey)) {
-                                return { ...item, printed: true };
-                            }
-                            return item;
-                        }));
+                        // Marcar todos los ítems actuales del carrito como impresos
+                        setCarrito(prev => prev.map(item => ({ ...item, printed: true })));
                     } catch (err) {
                         console.error('Error general de impresión:', err);
                     }
@@ -1000,7 +1024,7 @@ function POSContent() {
                     }} className="w-10 h-10 md:w-12 md:h-12 bg-white border border-slate-200 rounded-xl md:rounded-2xl flex items-center justify-center text-slate-400 shadow-sm hover:bg-slate-50 transition-all">
                         <ArrowRight className="rotate-180" size={18} />
                     </button>
-                    <div>
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
                         <h1 className="text-xl md:text-2xl font-black text-slate-900 italic tracking-tight uppercase flex items-center gap-2">
                             {isDelivery
                                 ? (currentVentaId ? `🛵 Delivery #${currentVentaId.slice(0, 6)} (Modificando)` : "🛵 Nuevo Delivery")
@@ -1008,6 +1032,20 @@ function POSContent() {
                                     ? (currentVentaId ? `🥡 Para Llevar #${currentVentaId.slice(0, 6)} (Modificando)` : "🥡 Nuevo Pedido Para Llevar")
                                     : `Mesa ${selectedTable?.numero}`}
                         </h1>
+                        {!isDelivery && !isParaLlevar && selectedTable && selectedTable.estado === 'ocupada' && (
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setMesaOrigenParaCambio(selectedTable);
+                                    setShowCambiarMesaModal(true);
+                                }}
+                                className="px-3.5 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-800 border border-amber-500/30 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 transition-all shadow-xs shrink-0"
+                                title="Mover pedido de esta mesa a otra mesa libre"
+                            >
+                                <Shuffle size={14} />
+                                <span>Cambiar Mesa</span>
+                            </button>
+                        )}
                         {isDelivery && deliveryInfo && (
                             <button
                                 onClick={() => setShowDeliveryMap(true)}
@@ -1205,6 +1243,16 @@ function POSContent() {
                     setView('pedido');
                 }}
             />
+
+            {showCambiarMesaModal && (
+                <CambiarMesaModal
+                    isOpen={showCambiarMesaModal}
+                    onClose={() => setShowCambiarMesaModal(false)}
+                    mesaOrigen={mesaOrigenParaCambio}
+                    mesas={mesas}
+                    onConfirmCambio={handleConfirmCambioMesa}
+                />
+            )}
         </div>
     );
 }

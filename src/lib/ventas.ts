@@ -63,14 +63,27 @@ export const validarStockDisponible = async (
 
     const fechaHoy = obtenerFechaHoy();
 
-    // 1. Obtener inventario del día directamente
-    const { data: inventario, error: invError } = await supabase
+    // 1. Obtener primero la jornada ABIERTA si existe
+    let { data: inventario } = await supabase
         .from('inventario_diario')
         .select('*')
-        .eq('fecha', fechaHoy)
-        .single();
+        .eq('estado', 'abierto')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
-    if (invError || !inventario) {
+    if (!inventario) {
+        const { data: invHoy } = await supabase
+            .from('inventario_diario')
+            .select('*')
+            .eq('fecha', fechaHoy)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+        inventario = invHoy;
+    }
+
+    if (!inventario) {
         return {
             valido: false,
             mensaje: 'No se ha realizado la apertura del día. Por favor, registra el inventario inicial.',
@@ -339,19 +352,38 @@ export const actualizarVenta = async (
         const itemsAnteriores = (ventaActual.items || []) as ItemVenta[];
         const itemsAdicionales: ItemVenta[] = [];
 
-        listaFinalItems.forEach(itemNuevo => {
-            const itemAnterior = itemsAnteriores.find(
-                (ia: any) => ia.nombre === itemNuevo.nombre && 
-                             JSON.stringify(ia.detalles || {}) === JSON.stringify(itemNuevo.detalles || {})
-            );
-            if (!itemAnterior) {
-                // Item completamente nuevo
-                itemsAdicionales.push(itemNuevo);
-            } else if (itemNuevo.cantidad > (itemAnterior as any).cantidad) {
-                // Se incrementó la cantidad
+        // Agrupar cantidades anteriores por clave (nombre + detalles)
+        const prevMap = new Map<string, { item: ItemVenta; totalQty: number }>();
+        itemsAnteriores.forEach(item => {
+            const key = `${item.nombre}||${JSON.stringify(item.detalles || {})}`;
+            const current = prevMap.get(key);
+            if (current) {
+                current.totalQty += item.cantidad;
+            } else {
+                prevMap.set(key, { item, totalQty: item.cantidad });
+            }
+        });
+
+        // Agrupar cantidades nuevas por clave (nombre + detalles)
+        const newMap = new Map<string, { item: ItemVenta; totalQty: number }>();
+        listaFinalItems.forEach(item => {
+            const key = `${item.nombre}||${JSON.stringify(item.detalles || {})}`;
+            const current = newMap.get(key);
+            if (current) {
+                current.totalQty += item.cantidad;
+            } else {
+                newMap.set(key, { item, totalQty: item.cantidad });
+            }
+        });
+
+        newMap.forEach(({ item, totalQty }, key) => {
+            const prev = prevMap.get(key);
+            const prevQty = prev ? prev.totalQty : 0;
+            if (totalQty > prevQty) {
+                const { printed, ...cleanItem } = item as any;
                 itemsAdicionales.push({
-                    ...itemNuevo,
-                    cantidad: itemNuevo.cantidad - (itemAnterior as any).cantidad
+                    ...cleanItem,
+                    cantidad: totalQty - prevQty
                 });
             }
         });
@@ -385,6 +417,7 @@ export const actualizarVenta = async (
         if (errorUpdate && (errorUpdate.message.includes('items_adicionales') || errorUpdate.message.includes('es_adicional') || errorUpdate.code === '42703')) {
             delete updatePayload.items_adicionales;
             delete updatePayload.es_adicional;
+            delete updatePayload.estado_impresion; // Evitar que el worker imprima todo el pedido si no soporta adicional en BD
             const retry = await supabase
                 .from('ventas')
                 .update(updatePayload)
@@ -397,6 +430,11 @@ export const actualizarVenta = async (
 
         if (errorUpdate) {
             return { success: false, message: `Error al actualizar: ${errorUpdate.message}` };
+        }
+
+        if (data && itemsAdicionales.length > 0) {
+            data.items_adicionales = itemsAdicionales;
+            data.es_adicional = true;
         }
 
         return {
