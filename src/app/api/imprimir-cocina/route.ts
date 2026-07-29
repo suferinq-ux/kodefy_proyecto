@@ -31,8 +31,14 @@ export async function POST(request: Request) {
         const fechaObj = fecha ? new Date(fecha) : new Date();
         const fechaFormat = fechaObj.toLocaleString('es-PE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 
-        const pisoNum = piso || 1;
-        const pisoLabel = pisoNum === 5 ? 'TERRAZA' : `${pisoNum}° PISO`;
+        const pisoNum = Number(piso || 1);
+        let pisoLabel = '';
+        if (pisoNum === 1) pisoLabel = '1er PISO';
+        else if (pisoNum === 2) pisoLabel = '2do PISO';
+        else if (pisoNum === 3) pisoLabel = '3er PISO';
+        else if (pisoNum === 5) pisoLabel = 'TERRAZA';
+        else pisoLabel = `PISO ${pisoNum}`;
+
         const mesaText = tipo === 'delivery' ? 'DELIVERY' : (tipo === 'llevar' ? 'PARA LLEVAR' : `MESA: ${mesa} (${pisoLabel})`);
 
         const buffer = encoder
