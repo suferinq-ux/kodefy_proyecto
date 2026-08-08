@@ -41,6 +41,7 @@ import { useEstadisticasProductos } from '@/hooks/useEstadisticasProductos';
 import { registrarVenta, actualizarVenta } from '@/lib/ventas';
 import ReceiptModal from '@/components/ReceiptModal';
 import { useAuth } from '@/contexts/AuthContext';
+import { useBusiness } from '@/contexts/BusinessContext';
 import { isReadOnly } from '@/lib/roles';
 import dynamic from 'next/dynamic';
 const DeliverySelector = dynamic(() => import('@/components/DeliverySelector'), {
@@ -59,6 +60,7 @@ type Categoria = 'todos' | 'populares' | 'pollos' | 'combos' | 'promociones' | '
 
 function POSContent() {
     const { user } = useAuth();
+    const { business } = useBusiness();
     const [view, setView] = useState<'start' | 'mesas' | 'pedido'>('start');
     const [filtroPisoPOS, setFiltroPisoPOS] = useState<number>(0);
     const [productos, setProductos] = useState<Producto[]>([]);
@@ -67,7 +69,7 @@ function POSContent() {
     const [procesando, setProcesando] = useState(false);
     const [categoriaActiva, setCategoriaActiva] = useState<Categoria>('todos');
     const [searchTerm, setSearchTerm] = useState('');
-    const { stock, refetch } = useInventario();
+    const { stock, refetch } = useInventario(business?.id);
 
     // Hook para estadísticas de productos más vendidos
     const { topProductos } = useEstadisticasProductos();
@@ -133,20 +135,17 @@ function POSContent() {
 
     const cargarVentasPendientes = async () => {
         try {
-            const negocioId = user?.negocio_id;
-            let query = supabase
+            const negocioId = business?.id;
+            if (!negocioId) return;
+            const { data, error } = await supabase
                 .from('ventas')
                 .select('*')
                 .eq('estado_pago', 'pendiente')
                 .eq('fecha', obtenerFechaHoy())
+                .eq('negocio_id', negocioId)
                 .is('mesa_id', null)
                 .order('created_at', { ascending: false });
 
-            if (negocioId) {
-                query = query.eq('negocio_id', negocioId);
-            }
-
-            const { data, error } = await query;
             if (!error && data) {
                 setVentasPendientes(data);
             }
@@ -162,7 +161,7 @@ function POSContent() {
             .channel('ventas-pendientes-pos')
             .on(
                 'postgres_changes',
-                { event: '*', schema: 'public', table: 'ventas' },
+                { event: '*', schema: 'public', table: 'ventas', filter: business?.id ? `negocio_id=eq.${business.id}` : undefined },
                 () => {
                     cargarVentasPendientes();
                 }
@@ -170,7 +169,7 @@ function POSContent() {
             .subscribe();
 
         return () => { supabase.removeChannel(channel); };
-    }, [user?.negocio_id]);
+    }, [business?.id]);
 
     const handlePendingSaleClick = (venta: Venta) => {
         setSelectedTable(null);
@@ -211,9 +210,11 @@ function POSContent() {
 
     const cargarProductos = async () => {
         try {
+            if (!business?.id) return;
             const { data, error } = await supabase
                 .from('productos')
                 .select('*')
+                .eq('negocio_id', business.id)
                 .eq('activo', true)
                 .order('nombre', { ascending: true });
 
@@ -228,14 +229,14 @@ function POSContent() {
     };
 
     useEffect(() => {
-        cargarProductos();
+        if (business?.id) cargarProductos();
 
         // Suscripción en tiempo real para actualizar precios al instante
         const channel = supabase
             .channel('productos-changes')
             .on(
                 'postgres_changes',
-                { event: '*', schema: 'public', table: 'productos' },
+                { event: '*', schema: 'public', table: 'productos', filter: business?.id ? `negocio_id=eq.${business.id}` : undefined },
                 () => { cargarProductos(); }
             )
             .subscribe();

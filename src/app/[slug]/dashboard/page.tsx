@@ -22,8 +22,8 @@ import { useBusiness } from '@/contexts/BusinessContext';
 function DashboardContent() {
   const params = useParams();
   const { business } = useBusiness();
-  const { stock, loading, refetch } = useInventario();
-  const { ventas, refetch: refetchVentas } = useVentas();
+  const { stock, loading, refetch } = useInventario(business?.id);
+  const { ventas, refetch: refetchVentas } = useVentas(business?.id);
   const metricasReales = useMetricas(ventas);
   const { user } = useAuth();
   const { allBrands } = useBebidasConfig();
@@ -40,6 +40,7 @@ function DashboardContent() {
 
   const cargarGastos = async () => {
     const { data } = await supabase.from('gastos').select('id, descripcion, monto, metodo_pago')
+      .eq('negocio_id', business?.id)
       .eq('fecha', obtenerFechaHoy()).order('created_at', { ascending: false });
     setGastosDelDia(data || []);
   };
@@ -59,7 +60,7 @@ function DashboardContent() {
     }
   };
 
-  useEffect(() => { cargarGastos(); }, []);
+  useEffect(() => { if (business?.id) cargarGastos(); }, [business?.id]);
 
   const totalGastos = gastosDelDia.reduce((sum, g) => sum + g.monto, 0);
   const fechaHoy = new Date().toLocaleDateString('es-PE', { weekday: 'long', day: 'numeric', month: 'long' });
@@ -433,7 +434,7 @@ function DashboardContent() {
       {/* MODALES */}
       <AnimatePresence>
         {showGastosModal && <GastosModal isOpen={showGastosModal} onClose={() => setShowGastosModal(false)} onGastoRegistrado={cargarGastos} />}
-        {showAdminAjusteModal && <AdminAjusteModal isOpen={showAdminAjusteModal} onClose={() => setShowAdminAjusteModal(false)} onSuccess={() => { refetch(); refetchVentas(); }} />}
+        {showAdminAjusteModal && <AdminAjusteModal isOpen={showAdminAjusteModal} onClose={() => setShowAdminAjusteModal(false)} onSuccess={() => { refetch(); refetchVentas(); }} negocioId={business?.id || ''} />}
       </AnimatePresence>
     </div>
   );

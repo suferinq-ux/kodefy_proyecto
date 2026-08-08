@@ -21,7 +21,7 @@ export type RangoTiempo = 'hoy' | 'ayer' | 'ultimos7dias' | 'mesPasado' | 'perso
 /**
  * Obtiene todas las ventas pagadas del día actual
  */
-export const obtenerVentasDelDia = async (): Promise<Venta[]> => {
+export const obtenerVentasDelDia = async (negocioId: string): Promise<Venta[]> => {
     try {
         const fechaHoy = obtenerFechaHoy();
         const { data, error } = await supabase
@@ -29,6 +29,7 @@ export const obtenerVentasDelDia = async (): Promise<Venta[]> => {
             .select('*, mesas(numero)')
             .eq('fecha', fechaHoy)
             .eq('estado_pago', 'pagado')
+            .eq('negocio_id', negocioId)
             .order('updated_at', { ascending: false });
 
         if (error) throw error;
@@ -44,15 +45,17 @@ export const obtenerVentasDelDia = async (): Promise<Venta[]> => {
  */
 export const obtenerVentasPorRango = async (
     fechaInicio: string,
-    fechaFin: string
+    fechaFin: string,
+    negocioId: string
 ): Promise<Venta[]> => {
     try {
-        console.log('[obtenerVentasPorRango] Consultando:', { fechaInicio, fechaFin });
+        console.log('[obtenerVentasPorRango] Consultando:', { fechaInicio, fechaFin, negocioId });
 
         const { data, error } = await supabase
             .from('ventas')
             .select('*, mesas(numero)')
             .eq('estado_pago', 'pagado')
+            .eq('negocio_id', negocioId)
             .gte('fecha', fechaInicio)
             .lte('fecha', fechaFin)
             .order('updated_at', { ascending: false });
@@ -101,13 +104,15 @@ export const calcularMetricas = (ventas: Venta[]): Metricas => {
  */
 export const obtenerVentasPorDia = async (
     fechaInicio: string,
-    fechaFin: string
+    fechaFin: string,
+    negocioId: string
 ): Promise<VentaPorDia[]> => {
     try {
         const { data, error } = await supabase
             .from('ventas')
             .select('fecha, total')
             .eq('estado_pago', 'pagado')
+            .eq('negocio_id', negocioId)
             .gte('fecha', fechaInicio)
             .lte('fecha', fechaFin)
             .order('fecha', { ascending: true });
@@ -412,7 +417,7 @@ export interface ComparativaSemanal {
     esPositivo: boolean;
 }
 
-export const obtenerComparativaSemanal = async (): Promise<ComparativaSemanal> => {
+export const obtenerComparativaSemanal = async (negocioId: string): Promise<ComparativaSemanal> => {
     const hoy = new Date();
 
     // Esta semana (últimos 7 días)
@@ -425,8 +430,8 @@ export const obtenerComparativaSemanal = async (): Promise<ComparativaSemanal> =
 
     try {
         const [ventasActual, ventasAnterior] = await Promise.all([
-            obtenerVentasPorRango(inicioSemanaActual, finSemanaActual),
-            obtenerVentasPorRango(inicioSemanaAnterior, finSemanaAnterior)
+            obtenerVentasPorRango(inicioSemanaActual, finSemanaActual, negocioId),
+            obtenerVentasPorRango(inicioSemanaAnterior, finSemanaAnterior, negocioId)
         ]);
 
         const semanaActual = ventasActual.reduce((sum, v) => sum + v.total, 0);
@@ -460,12 +465,14 @@ export const obtenerComparativaSemanal = async (): Promise<ComparativaSemanal> =
  */
 export const obtenerInventarioPorRango = async (
     fechaInicio: string,
-    fechaFin: string
+    fechaFin: string,
+    negocioId: string
 ): Promise<InventarioDiario[]> => {
     try {
         const { data, error } = await supabase
             .from('inventario_diario')
             .select('*')
+            .eq('negocio_id', negocioId)
             .gte('fecha', fechaInicio)
             .lte('fecha', fechaFin)
             .order('fecha', { ascending: true });
@@ -483,12 +490,14 @@ export const obtenerInventarioPorRango = async (
  */
 export const obtenerGastosPorRango = async (
     fechaInicio: string,
-    fechaFin: string
+    fechaFin: string,
+    negocioId: string
 ): Promise<Gasto[]> => {
     try {
         const { data, error } = await supabase
             .from('gastos')
             .select('*')
+            .eq('negocio_id', negocioId)
             .gte('fecha', fechaInicio)
             .lte('fecha', fechaFin)
             .order('created_at', { ascending: true });

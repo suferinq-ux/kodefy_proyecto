@@ -202,9 +202,14 @@ export function useBebidasConfig() {
 
     const fetchCustomBrands = async () => {
         try {
+            if (!activeNegocioId) {
+                setCustomBrands([]);
+                return;
+            }
             const { data, error } = await supabase
                 .from('catalogo_bebidas')
                 .select('*')
+                .eq('negocio_id', activeNegocioId)
                 .eq('activo', true)
                 .order('nombre', { ascending: true });
 

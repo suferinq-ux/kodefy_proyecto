@@ -67,7 +67,7 @@ export default function RadarPage() {
             setLoading(true);
             
             // 1. Cargar Pedidos Delivery
-            const data = await getDeliveryOrders();
+            const data = await getDeliveryOrders(business?.id || '');
             setOrders(data);
 
             // 2. Cargar Origen del Negocio

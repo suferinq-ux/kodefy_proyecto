@@ -1,10 +1,11 @@
 import { supabase, obtenerFechaHoy } from './supabase';
 
-async function obtenerInventarioActivo() {
+async function obtenerInventarioActivo(negocioId: string) {
     const fechaHoy = obtenerFechaHoy();
     let { data } = await supabase
         .from('inventario_diario')
         .select('*')
+        .eq('negocio_id', negocioId)
         .eq('estado', 'abierto')
         .order('created_at', { ascending: false })
         .limit(1)
@@ -14,6 +15,7 @@ async function obtenerInventarioActivo() {
         const { data: dataHoy } = await supabase
             .from('inventario_diario')
             .select('*')
+            .eq('negocio_id', negocioId)
             .eq('fecha', fechaHoy)
             .order('created_at', { ascending: false })
             .limit(1)
@@ -26,9 +28,9 @@ async function obtenerInventarioActivo() {
 /**
  * Ajusta el stock de pollos para la jornada activa sumando la cantidad proporcionada.
  */
-export async function ajustarStockPollos(cantidad: number): Promise<{ success: boolean; message: string }> {
+export async function ajustarStockPollos(negocioId: string, cantidad: number): Promise<{ success: boolean; message: string }> {
     try {
-        const data = await obtenerInventarioActivo();
+        const data = await obtenerInventarioActivo(negocioId);
         if (!data) {
             return { success: false, message: 'No se encontró la apertura de jornada.' };
         }
@@ -52,9 +54,9 @@ export async function ajustarStockPollos(cantidad: number): Promise<{ success: b
 /**
  * Ajusta el dinero inicial (Caja Chica) sumando el monto proporcionado.
  */
-export async function ajustarCajaChica(monto: number): Promise<{ success: boolean; message: string }> {
+export async function ajustarCajaChica(negocioId: string, monto: number): Promise<{ success: boolean; message: string }> {
     try {
-        const data = await obtenerInventarioActivo();
+        const data = await obtenerInventarioActivo(negocioId);
         if (!data) {
             return { success: false, message: 'No se encontró la apertura de jornada.' };
         }
@@ -78,9 +80,9 @@ export async function ajustarCajaChica(monto: number): Promise<{ success: boolea
 /**
  * Ajusta el stock de chicha (litros) sumando la cantidad proporcionada.
  */
-export async function ajustarStockChicha(cantidad: number): Promise<{ success: boolean; message: string }> {
+export async function ajustarStockChicha(negocioId: string, cantidad: number): Promise<{ success: boolean; message: string }> {
     try {
-        const data = await obtenerInventarioActivo();
+        const data = await obtenerInventarioActivo(negocioId);
         if (!data) {
             return { success: false, message: 'No se encontró la apertura de jornada.' };
         }
@@ -104,9 +106,9 @@ export async function ajustarStockChicha(cantidad: number): Promise<{ success: b
 /**
  * Ajusta el stock de papas (Kg) sumando la cantidad proporcionada.
  */
-export async function ajustarStockPapas(cantidad: number): Promise<{ success: boolean; message: string }> {
+export async function ajustarStockPapas(negocioId: string, cantidad: number): Promise<{ success: boolean; message: string }> {
     try {
-        const data = await obtenerInventarioActivo();
+        const data = await obtenerInventarioActivo(negocioId);
         if (!data) {
             return { success: false, message: 'No se encontró la apertura de jornada.' };
         }

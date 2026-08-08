@@ -71,11 +71,12 @@ function MesasActivasContent() {
 
     useEffect(() => {
         const loadProductos = async () => {
-            const { data } = await supabaseClient.from('productos').select('*').eq('activo', true).order('nombre');
+            if (!business?.id) return;
+            const { data } = await supabaseClient.from('productos').select('*').eq('negocio_id', business.id).eq('activo', true).order('nombre');
             setProductos(data || []);
         };
         loadProductos();
-    }, []);
+    }, [business?.id]);
 
     const abrirModalCobro = (ventaId: string, mesaId: number | null, mesaNumero: number | undefined, items: ItemVenta[], total: number) => {
         setPayModalData({ ventaId, mesaId, mesaNumero, items, total });

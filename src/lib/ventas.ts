@@ -57,7 +57,8 @@ export const calcularStockRestado = (items: ItemCarrito[]) => {
  * Valida que haya stock suficiente para realizar la venta
  */
 export const validarStockDisponible = async (
-    items: ItemCarrito[]
+    items: ItemCarrito[],
+    negocioId: string
 ): Promise<{ valido: boolean; mensaje: string; advertenciaGaseosas?: string; gaseosasDisponibles?: number }> => {
     const { pollosRestados, gaseosasRestadas, bebidasDetalle } = calcularStockRestado(items);
 
@@ -67,6 +68,7 @@ export const validarStockDisponible = async (
     let { data: inventario } = await supabase
         .from('inventario_diario')
         .select('*')
+        .eq('negocio_id', negocioId)
         .eq('estado', 'abierto')
         .order('created_at', { ascending: false })
         .limit(1)
@@ -76,6 +78,7 @@ export const validarStockDisponible = async (
         const { data: invHoy } = await supabase
             .from('inventario_diario')
             .select('*')
+            .eq('negocio_id', negocioId)
             .eq('fecha', fechaHoy)
             .order('created_at', { ascending: false })
             .limit(1)
@@ -101,6 +104,7 @@ export const validarStockDisponible = async (
     const { data: ventasDelDia, error: ventasError } = await supabase
         .from('ventas')
         .select('pollos_restados, gaseosas_restadas, bebidas_detalle')
+        .eq('negocio_id', negocioId)
         .eq('fecha', fechaHoy);
 
     if (ventasError) {
@@ -216,7 +220,7 @@ export const registrarVenta = async (
 ): Promise<VentaResponse> => {
     try {
         // Validar stock disponible
-        const validacion = await validarStockDisponible(items);
+        const validacion = await validarStockDisponible(items, negocioId || '');
         if (!validacion.valido) {
             return {
                 success: false,
@@ -449,7 +453,7 @@ export const actualizarVenta = async (
 
 // ---------------- DELIVERY FUNCTIONS -----------------
 
-export const getDeliveryOrders = async (): Promise<Venta[]> => {
+export const getDeliveryOrders = async (negocioId: string): Promise<Venta[]> => {
     try {
         const { data, error } = await supabase
             .from('ventas')
@@ -458,6 +462,7 @@ export const getDeliveryOrders = async (): Promise<Venta[]> => {
                 mesas (numero)
             `)
             .eq('tipo_pedido', 'delivery')
+            .eq('negocio_id', negocioId)
             .eq('fecha', obtenerFechaHoy())
             .neq('estado_delivery', 'entregado')
             .order('created_at', { ascending: false });

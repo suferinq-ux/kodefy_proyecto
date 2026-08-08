@@ -59,7 +59,7 @@ export default function DeliveryDashboard() {
     const loadOrders = async () => {
         try {
             setLoading(true);
-            const data = await getDeliveryOrders();
+            const data = await getDeliveryOrders(business?.id || '');
             setOrders(data);
 
             // Cargar origen del negocio (una sola vez)

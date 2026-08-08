@@ -58,7 +58,7 @@ export default function DeliveryRadarModal({ isOpen, onClose }: DeliveryRadarMod
             }
         }
 
-        const data = await getDeliveryOrders();
+        const data = await getDeliveryOrders(business?.id || '');
         setOrders(data);
 
         // Initial fetch of current positions

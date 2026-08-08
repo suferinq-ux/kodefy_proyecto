@@ -10,9 +10,10 @@ interface AdminAjusteModalProps {
     isOpen: boolean;
     onClose: () => void;
     onSuccess: () => void;
+    negocioId: string;
 }
 
-export default function AdminAjusteModal({ isOpen, onClose, onSuccess }: AdminAjusteModalProps) {
+export default function AdminAjusteModal({ isOpen, onClose, onSuccess, negocioId }: AdminAjusteModalProps) {
     const [tipo, setTipo] = useState<'pollos' | 'caja' | 'chicha' | 'papas'>('pollos');
     const [valor, setValor] = useState('');
     const [loading, setLoading] = useState(false);
@@ -36,13 +37,13 @@ export default function AdminAjusteModal({ isOpen, onClose, onSuccess }: AdminAj
         try {
             let resultado;
             if (tipo === 'pollos') {
-                resultado = await ajustarStockPollos(numValor);
+                resultado = await ajustarStockPollos(negocioId, numValor);
             } else if (tipo === 'chicha') {
-                resultado = await ajustarStockChicha(numValor);
+                resultado = await ajustarStockChicha(negocioId, numValor);
             } else if (tipo === 'papas') {
-                resultado = await ajustarStockPapas(numValor);
+                resultado = await ajustarStockPapas(negocioId, numValor);
             } else {
-                resultado = await ajustarCajaChica(numValor);
+                resultado = await ajustarCajaChica(negocioId, numValor);
             }
 
             if (resultado.success) {

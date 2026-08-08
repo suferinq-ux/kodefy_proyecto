@@ -55,7 +55,7 @@ function calcularBebidasActuales(inicial: BebidasDetalle, ventasArray: BebidasDe
  * Hook personalizado para obtener el stock actual del día
  * Obtiene datos DIRECTAMENTE de las tablas, sin depender de funciones RPC
  */
-export const useInventario = (): UseInventarioResult => {
+export const useInventario = (negocioId?: string): UseInventarioResult => {
     const [stock, setStock] = useState<StockActual | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -65,12 +65,19 @@ export const useInventario = (): UseInventarioResult => {
             setLoading(true);
             setError(null);
 
+            if (!negocioId) {
+                setStock(null);
+                setError('Negocio no identificado');
+                return;
+            }
+
             const fechaHoy = obtenerFechaHoy();
 
             // 1. Obtener primero la jornada ABIERTA si existe (para no cortar a medianoche)
             let { data: inventario } = await supabase
                 .from('inventario_diario')
                 .select('*')
+                .eq('negocio_id', negocioId)
                 .eq('estado', 'abierto')
                 .order('created_at', { ascending: false })
                 .limit(1)
@@ -81,6 +88,7 @@ export const useInventario = (): UseInventarioResult => {
                 const { data: invHoy } = await supabase
                     .from('inventario_diario')
                     .select('*')
+                    .eq('negocio_id', negocioId)
                     .eq('fecha', fechaHoy)
                     .order('created_at', { ascending: false })
                     .limit(1)
@@ -108,6 +116,7 @@ export const useInventario = (): UseInventarioResult => {
             const { data: ventasDelDia, error: ventasError } = await supabase
                 .from('ventas')
                 .select('pollos_restados, gaseosas_restadas, chicha_restada, bebidas_detalle')
+                .eq('negocio_id', negocioId)
                 .eq('fecha', fechaOperativa);
 
             if (ventasError) {
@@ -197,6 +206,7 @@ export const useInventario = (): UseInventarioResult => {
                     event: '*',
                     schema: 'public',
                     table: 'ventas',
+                    filter: negocioId ? `negocio_id=eq.${negocioId}` : undefined,
                 },
                 () => {
                     fetchStock();
@@ -208,6 +218,7 @@ export const useInventario = (): UseInventarioResult => {
                     event: '*',
                     schema: 'public',
                     table: 'inventario_diario',
+                    filter: negocioId ? `negocio_id=eq.${negocioId}` : undefined,
                 },
                 () => {
                     fetchStock();
@@ -218,7 +229,7 @@ export const useInventario = (): UseInventarioResult => {
         return () => {
             supabase.removeChannel(channel);
         };
-    }, []);
+    }, [negocioId]);
 
     return {
         stock,

@@ -24,6 +24,7 @@ import {
     type ComparativaSemanal
 } from '@/lib/reportes';
 import { useMetricas } from '@/hooks/useMetricas';
+import { useBusiness } from '@/contexts/BusinessContext';
 import type { Venta, InventarioDiario, Gasto } from '@/lib/database.types';
 import { format, subDays, startOfMonth, endOfMonth, startOfWeek, endOfWeek, addMonths, subMonths, isSameDay, isWithinInterval, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -46,6 +47,7 @@ const CHART_COLORS = {
 };
 export default function ReportesPage() {
     const { user } = useAuth();
+    const { business } = useBusiness();
     const [tipoRango, setTipoRango] = useState<TipoRango>('dia');
     const [fechaSeleccionada, setFechaSeleccionada] = useState(new Date());
     const [fechaInicio, setFechaInicio] = useState(new Date());
@@ -154,11 +156,11 @@ export default function ReportesPage() {
             }
 
             const [ventasData, inventariosData, gastosData, ventasDia, comp] = await Promise.all([
-                obtenerVentasPorRango(inicio, fin),
-                obtenerInventarioPorRango(inicio, fin),
-                obtenerGastosPorRango(inicio, fin),
-                obtenerVentasPorDia(inicio, fin),
-                obtenerComparativaSemanal()
+                obtenerVentasPorRango(inicio, fin, business?.id || ''),
+                obtenerInventarioPorRango(inicio, fin, business?.id || ''),
+                obtenerGastosPorRango(inicio, fin, business?.id || ''),
+                obtenerVentasPorDia(inicio, fin, business?.id || ''),
+                obtenerComparativaSemanal(business?.id || '')
             ]);
 
             setVentas(ventasData);
