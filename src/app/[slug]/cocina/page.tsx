@@ -8,6 +8,8 @@ import KitchenTicketModal from '@/components/KitchenTicketModal';
 import { ChefHat, Loader2, RefreshCw, X, Save, Trash2, Plus, Minus, AlertTriangle, Search } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
+import { useAuth } from '@/contexts/AuthContext';
+import { useBusiness } from '@/contexts/BusinessContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
 
 export default function CocinaPage() {
@@ -19,6 +21,8 @@ export default function CocinaPage() {
 }
 
 function CocinaContent() {
+    const { user } = useAuth();
+    const { business } = useBusiness();
     const [pedidos, setPedidos] = useState<Venta[]>([]);
     const [loading, setLoading] = useState(true);
     const [showTicketModal, setShowTicketModal] = useState(false);
@@ -42,6 +46,7 @@ function CocinaContent() {
         try {
             const hoy = obtenerFechaHoy();
 
+            if (!business?.id) return;
             const { data, error } = await supabase
                 .from('ventas')
                 .select(`
@@ -51,6 +56,7 @@ function CocinaContent() {
                         piso
                     )
                 `)
+                .eq('negocio_id', business.id)
                 .eq('estado_pedido', 'pendiente')
                 .eq('fecha', hoy)
                 .order('created_at', { ascending: true });
@@ -67,9 +73,11 @@ function CocinaContent() {
 
     const cargarProductos = async () => {
         try {
+            if (!business?.id) return;
             const { data, error } = await supabase
                 .from('productos')
                 .select('*')
+                .eq('negocio_id', business.id)
                 .eq('activo', true)
                 .order('nombre');
 
@@ -81,11 +89,12 @@ function CocinaContent() {
     };
 
     useEffect(() => {
+        if (!business?.id) return;
         cargarPedidos();
         cargarProductos();
         const interval = setInterval(cargarPedidos, 15000);
         return () => clearInterval(interval);
-    }, []);
+    }, [business?.id]);
 
     const handleComplete = async (id: string) => {
         try {

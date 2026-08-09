@@ -104,14 +104,16 @@ function CierreCajaContent() {
     // Cargar gastos del día
     useEffect(() => {
         const cargarGastos = async () => {
+            if (!business?.id) return;
             const { data } = await supabase
                 .from('gastos')
                 .select('descripcion, monto, metodo_pago')
+                .eq('negocio_id', business.id)
                 .eq('fecha', obtenerFechaHoy());
             setGastosDelDia(data || []);
         };
         cargarGastos();
-    }, []);
+    }, [business?.id]);
 
     // Agrupar ventas por método de pago (con soporte para pago dividido)
     const ventasPorMetodo = ventas.reduce((acc, venta) => {
@@ -243,8 +245,8 @@ function CierreCajaContent() {
                 });
 
             const { error } = stock.id
-                ? await queryUpdate.eq('id', stock.id)
-                : await queryUpdate.eq('fecha', stock.fecha);
+                ? await queryUpdate.eq('id', stock.id).eq('negocio_id', business.id)
+                : await queryUpdate.eq('fecha', stock.fecha).eq('negocio_id', business.id);
 
             // Calcular total efectivo esperado (base + ventas efectivo - gastos efectivo)
             const totalEfectivoEsperado = (ventasPorMetodo['efectivo'] || 0) + (stock?.dinero_inicial || 0) - gastosEfectivo;

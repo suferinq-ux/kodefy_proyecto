@@ -120,9 +120,11 @@ function ConfiguracionContent() {
 
     const cargarProductos = async () => {
         try {
+            if (!business?.id) return;
             const { data, error } = await supabase
                 .from('productos')
                 .select('*')
+                .eq('negocio_id', business.id)
                 .order('tipo', { ascending: true })
                 .order('nombre', { ascending: true });
 
@@ -168,7 +170,8 @@ function ConfiguracionContent() {
     };
 
     const cargarCategorias = async () => {
-        const { data } = await supabase.from('categorias').select('*').order('nombre', { ascending: true });
+        if (!business?.id) return;
+        const { data } = await supabase.from('categorias').select('*').eq('negocio_id', business.id).order('nombre', { ascending: true });
         setCategorias(data || []);
     };
 
