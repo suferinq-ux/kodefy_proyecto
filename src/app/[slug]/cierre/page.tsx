@@ -16,6 +16,7 @@ import confetti from 'canvas-confetti';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import type { BebidasDetalle } from '@/lib/database.types';
 import { useBebidasConfig } from '@/hooks/useBebidasConfig';
+import { useBusiness } from '@/contexts/BusinessContext';
 
 
 
@@ -30,6 +31,7 @@ export default function CierreCajaPage() {
 function CierreCajaContent() {
     const router = useRouter();
     const params = useParams();
+    const { business } = useBusiness();
     const { stock, loading, refetch } = useInventario();
     const { ventas } = useVentas();
     const metricas = useMetricas(ventas);
@@ -245,8 +247,8 @@ function CierreCajaContent() {
                 });
 
             const { error } = stock.id
-                ? await queryUpdate.eq('id', stock.id).eq('negocio_id', business.id)
-                : await queryUpdate.eq('fecha', stock.fecha).eq('negocio_id', business.id);
+                ? await queryUpdate.eq('id', stock.id).eq('negocio_id', business?.id || '')
+                : await queryUpdate.eq('fecha', stock.fecha).eq('negocio_id', business?.id || '');
 
             // Calcular total efectivo esperado (base + ventas efectivo - gastos efectivo)
             const totalEfectivoEsperado = (ventasPorMetodo['efectivo'] || 0) + (stock?.dinero_inicial || 0) - gastosEfectivo;
