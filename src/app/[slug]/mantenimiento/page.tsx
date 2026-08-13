@@ -63,6 +63,15 @@ function MantenimientoContent() {
 
             if (errorInv) throw errorInv;
 
+            // 3.5. Eliminar cualquier inventario 'abierto' atascado de días anteriores
+            await supabase
+                .from('inventario_diario')
+                .delete()
+                .eq('estado', 'abierto')
+                .eq('negocio_id', business.id);
+
+            if (errorInv) throw errorInv;
+
             // 4. Resetear estado de todas las mesas a libre
             const { error: errorMesas } = await supabase
                 .from('mesas')
