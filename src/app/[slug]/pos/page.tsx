@@ -104,7 +104,7 @@ function POSContent() {
     const [showDeliveryRadar, setShowDeliveryRadar] = useState(false);
     const [metodoPago, setMetodoPago] = useState<'efectivo' | 'tarjeta' | 'yape' | 'plin'>('efectivo');
 
-    const { mesas, loading: loadingMesas, ocuparMesa, cambiarMesa, refetch: refetchMesas } = useMesas();
+    const { mesas, loading: loadingMesas, ocuparMesa, liberarMesa, cambiarMesa, refetch: refetchMesas } = useMesas();
     const [currentVentaId, setCurrentVentaId] = useState<string | null>(null);
     const [showCambiarMesaModal, setShowCambiarMesaModal] = useState(false);
     const [mesaOrigenParaCambio, setMesaOrigenParaCambio] = useState<Mesa | null>(null);
@@ -319,8 +319,12 @@ function POSContent() {
                     setOrderNotes(data.notes || '');
                     toast.success(`Cargando pedido actual de Mesa ${mesa.numero}`);
                 } else {
+                    // Auto-heal: Mesa fantasma (ocupada pero sin pedidos del día)
                     setCurrentVentaId(null);
                     setCarrito([]);
+                    await liberarMesa(mesa.id);
+                    await refetchMesas();
+                    toast.success(`Mesa ${mesa.numero} liberada automáticamente (sin pedidos pendientes hoy)`);
                 }
             } catch (err) {
                 console.error('Error al cargar venta de mesa ocupada:', err);
