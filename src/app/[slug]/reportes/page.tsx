@@ -256,7 +256,8 @@ export default function ReportesPage() {
                     gastosDigital,
                     efectivoEnCaja
                 },
-                stockResumen
+                stockResumen,
+                businessName: business?.nombre || 'Reykelt'
             });
             toast.success(`Excel descargado: ${fileName}`, { icon: '📊' });
         } catch (error) {

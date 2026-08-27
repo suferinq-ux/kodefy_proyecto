@@ -23,11 +23,26 @@ export type RangoTiempo = 'hoy' | 'ayer' | 'ultimos7dias' | 'mesPasado' | 'perso
  */
 export const obtenerVentasDelDia = async (negocioId: string): Promise<Venta[]> => {
     try {
-        const fechaHoy = obtenerFechaHoy();
+        let fechaConsulta = obtenerFechaHoy();
+
+        // 1. Intentar obtener la jornada abierta
+        const { data: inventario } = await supabase
+            .from('inventario_diario')
+            .select('fecha')
+            .eq('negocio_id', negocioId)
+            .eq('estado', 'abierto')
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+        if (inventario && inventario.fecha) {
+            fechaConsulta = inventario.fecha;
+        }
+
         const { data, error } = await supabase
             .from('ventas')
             .select('*, mesas(numero)')
-            .eq('fecha', fechaHoy)
+            .eq('fecha', fechaConsulta)
             .eq('estado_pago', 'pagado')
             .eq('negocio_id', negocioId)
             .order('updated_at', { ascending: false });

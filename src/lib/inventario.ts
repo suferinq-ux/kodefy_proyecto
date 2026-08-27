@@ -11,6 +11,21 @@ async function obtenerInventarioActivo(negocioId: string) {
         .limit(1)
         .maybeSingle();
 
+    if (data && data.fecha < fechaHoy) {
+        // Auto-cerrar jornada anterior
+        await supabase
+            .from('inventario_diario')
+            .update({
+                estado: 'cerrado',
+                observaciones_cierre: 'Cierre automático por el sistema al iniciar un nuevo día operativo.',
+                stock_pollos_real: 0,
+                stock_gaseosas_real: 0,
+                dinero_cierre_real: 0
+            })
+            .eq('id', data.id);
+        data = null;
+    }
+
     if (!data) {
         const { data: dataHoy } = await supabase
             .from('inventario_diario')

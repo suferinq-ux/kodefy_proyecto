@@ -105,7 +105,7 @@ export const validarStockDisponible = async (
         .from('ventas')
         .select('pollos_restados, gaseosas_restadas, bebidas_detalle')
         .eq('negocio_id', negocioId)
-        .eq('fecha', fechaHoy);
+        .eq('fecha', inventario.fecha);
 
     if (ventasError) {
         console.error('Error obteniendo ventas para validación:', ventasError);

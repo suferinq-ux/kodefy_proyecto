@@ -111,11 +111,11 @@ function CierreCajaContent() {
                 .from('gastos')
                 .select('descripcion, monto, metodo_pago')
                 .eq('negocio_id', business.id)
-                .eq('fecha', obtenerFechaHoy());
+                .eq('fecha', stock?.fecha || obtenerFechaHoy());
             setGastosDelDia(data || []);
         };
         cargarGastos();
-    }, [business?.id]);
+    }, [business?.id, stock?.fecha]);
 
     // Agrupar ventas por método de pago (con soporte para pago dividido)
     const ventasPorMetodo = ventas.reduce((acc, venta) => {
@@ -319,7 +319,8 @@ function CierreCajaContent() {
                 return;
             }
 
-            const mensaje = `🐔 *RESUMEN Rodrigo's - Brasas & Broasters - ${new Date().toLocaleDateString('es-PE')}* 🐔
+            const negocioNombre = business?.nombre || 'Reykelt';
+            const mensaje = `🐔 *RESUMEN ${negocioNombre} - ${new Date().toLocaleDateString('es-PE')}* 🐔
 
 💰 *VENTAS TOTALES: S/ ${metricas.totalIngresos.toFixed(2)}*
 --------------------------------
@@ -379,7 +380,7 @@ Gaseosas Total: ${stockGaseosasReal} (Diff: ${diffGaseosas > 0 ? '+' : ''}${diff
 
 📝 Notas: ${observaciones || 'Ninguna'}
 
-_Generado automáticamente por Rodrigo's - Brasas & Broasters POS_`;
+_Generado automáticamente por ${negocioNombre} POS_`;
 
             setResumenWhatsApp(mensaje);
             setCierreCompletado(true);
@@ -435,7 +436,8 @@ _Generado automáticamente por Rodrigo's - Brasas & Broasters POS_`;
                 diffPollos,
                 diffGaseosas,
                 ventasBebidasDesglose,
-                labelsMap
+                labelsMap,
+                businessName: business?.nombre || 'Reykelt'
             });
             toast.success(`Excel descargado: ${fileName}`, { icon: '📊' });
         } catch (error) {

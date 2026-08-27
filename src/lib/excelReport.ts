@@ -71,6 +71,7 @@ interface ReportData {
     diffGaseosas: number;
     ventasBebidasDesglose?: Record<string, Record<string, number>>;
     labelsMap?: Record<string, { brand: string; sizes: Record<string, string> }>;
+    businessName?: string;
 }
 
 function applyHeaderStyle(row: ExcelJS.Row, bgColor: string, fontColor: string = COLORS.white) {
@@ -147,8 +148,11 @@ function addTotalRow(ws: ExcelJS.Worksheet, row: number, label: string, value: s
 }
 
 export async function generarReporteExcel(data: ReportData) {
+    const negocioNombre = data.businessName || 'Reykelt';
+    const posNombre = `${negocioNombre} POS`;
+
     const wb = new ExcelJS.Workbook();
-    wb.creator = "Rodrigo's - Brasas & Broasters POS";
+    wb.creator = posNombre;
     wb.created = new Date();
 
     // ==================== HOJA 1: RESUMEN GENERAL ====================
@@ -169,7 +173,7 @@ export async function generarReporteExcel(data: ReportData) {
     // === TÍTULO PRINCIPAL ===
     ws.mergeCells(row, 1, row, 4);
     const titleCell = ws.getCell(row, 1);
-    titleCell.value = `🐔  Rodrigo's - Brasas & Broasters CHICKEN  🐔`;
+    titleCell.value = `🐔  ${negocioNombre.toUpperCase()}  🐔`;
     titleCell.font = { bold: true, size: 18, color: { argb: COLORS.white } };
     titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.red } };
     titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
@@ -390,14 +394,17 @@ export async function generarReporteExcel(data: ReportData) {
     row++;
     ws.mergeCells(row, 1, row, 4);
     const footerCell = ws.getCell(row, 1);
-    footerCell.value = `Generado automáticamente por Rodrigo's - Brasas & Broasters POS — ${new Date().toLocaleString('es-PE')}`;
+    footerCell.value = `Generado automáticamente por ${posNombre} — ${new Date().toLocaleString('es-PE')}`;
     footerCell.font = { size: 8, italic: true, color: { argb: '999999' } };
     footerCell.alignment = { vertical: 'middle', horizontal: 'center' };
 
     // === GENERAR Y DESCARGAR ===
     const buffer = await wb.xlsx.writeBuffer();
     const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-    const fileName = `Rodrigo_Reporte_${data.fecha.replace(/\//g, '-')}.xlsx`;
+    
+    // Normalizar nombre de negocio para el archivo
+    const safeName = negocioNombre.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+    const fileName = `${safeName}_Reporte_${data.fecha.replace(/\//g, '-')}.xlsx`;
     saveAs(blob, fileName);
 
     return fileName;

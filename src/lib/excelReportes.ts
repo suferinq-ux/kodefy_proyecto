@@ -49,6 +49,7 @@ interface ReportesExportData {
         gastosDigital: number;
         efectivoEnCaja: number;
     };
+    businessName?: string;
 }
 
 // =========== HELPER FUNCTIONS ===========
@@ -122,8 +123,11 @@ function totalRowBlock(ws: ExcelJS.Worksheet, row: number, colStart: number, col
 }
 
 export async function generarReporteExcelReportes(data: ReportesExportData) {
+    const negocioNombre = data.businessName || 'Reykelt';
+    const posNombre = `${negocioNombre} POS`;
+
     const wb = new ExcelJS.Workbook();
-    wb.creator = "Rodrigo's - Brasas & Broasters POS";
+    wb.creator = posNombre;
     wb.created = new Date();
 
     // ==================== HOJA 1: RESUMEN (HORIZONTAL) ====================
@@ -149,7 +153,7 @@ export async function generarReporteExcelReportes(data: ReportesExportData) {
     let row = 1;
 
     // ===== TÍTULO PRINCIPAL =====
-    styledCell(ws1, row, 1, `🐔  Rodrigo's - Brasas & Broasters CHICKEN — REPORTE  🐔`, {
+    styledCell(ws1, row, 1, `🐔  ${negocioNombre.toUpperCase()} — REPORTE  🐔`, {
         bg: C.red,
         font: { bold: true, size: 18, color: { argb: C.white } },
         align: { vertical: 'middle', horizontal: 'center' },
@@ -746,7 +750,7 @@ export async function generarReporteExcelReportes(data: ReportesExportData) {
     }
 
     // Footer
-    styledCell(ws1, row, 1, `Generado automáticamente por Rodrigo's - Brasas & Broasters POS — ${new Date().toLocaleString('es-PE')}`, {
+    styledCell(ws1, row, 1, `Generado automáticamente por ${posNombre} — ${new Date().toLocaleString('es-PE')}`, {
         font: { size: 8, italic: true, color: { argb: '999999' } },
         align: { vertical: 'middle', horizontal: 'center' },
         merge: [row, 1, row, 12],
@@ -841,7 +845,8 @@ export async function generarReporteExcelReportes(data: ReportesExportData) {
     // ==================== GENERATE ====================
     const buffer = await wb.xlsx.writeBuffer();
     const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-    const fileName = `Rodrigo_Reporte_${data.periodo.replace(/[\/\s,]/g, '_')}.xlsx`;
+    const safeName = negocioNombre.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+    const fileName = `${safeName}_Reporte_${data.periodo.replace(/[\/\s,]/g, '_')}.xlsx`;
     saveAs(blob, fileName);
 
     return fileName;

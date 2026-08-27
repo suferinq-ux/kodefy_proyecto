@@ -206,6 +206,16 @@ function AperturaContent() {
                 }, 1500);
                 return;
             }
+            
+            // Auto-cerrar cualquier jornada abierta anterior para evitar duplicados "abiertos"
+            await supabase
+                .from('inventario_diario')
+                .update({ 
+                    estado: 'cerrado',
+                    observaciones_cierre: 'Cierre automático forzado por nueva apertura.' 
+                })
+                .eq('negocio_id', business.id)
+                .eq('estado', 'abierto');
 
             // Insertar nueva apertura
             const { error } = await supabase
