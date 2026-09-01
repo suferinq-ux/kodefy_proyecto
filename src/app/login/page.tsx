@@ -182,7 +182,13 @@ export default function LoginPage() {
       });
 
       if (authError || !authData.user) {
-        setError('Credenciales incorrectas. Revisa tu correo y contraseña.');
+        console.error('[Login] Supabase auth error:', authError?.message, authError?.status, authError);
+        const msg = authError?.message === 'Invalid login credentials'
+          ? 'Credenciales incorrectas. Revisa tu correo y contraseña.'
+          : authError?.message?.includes('rate')
+            ? 'Demasiados intentos. Espera unos minutos e intenta de nuevo.'
+            : authError?.message || 'Credenciales incorrectas. Revisa tu correo y contraseña.';
+        setError(msg);
         setShakeError(true);
         return;
       }
