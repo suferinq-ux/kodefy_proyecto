@@ -70,6 +70,16 @@ export interface UsuarioNegocio {
     created_at: string;
 }
 
+export interface CorrelativoComprobante {
+    id: string;
+    negocio_id: string;
+    tipo: 'ticket' | 'boleta' | 'factura';
+    serie: string;
+    numero_actual: number;
+    created_at: string;
+    updated_at: string;
+}
+
 export interface ConfiguracionNegocio {
     id: string;
     negocio_id: string;
@@ -151,6 +161,9 @@ export interface Venta {
     longitud_envio?: number;
     geometria_envio?: [number, number][];
     usuario_nombre?: string; // Nombre de quien atendió
+    comprobante_tipo?: 'ticket' | 'boleta' | 'factura'; // Tipo de comprobante emitido
+    comprobante_serie?: string; // Serie del comprobante (ej: B001)
+    comprobante_numero?: number; // Número correlativo asignado
     created_at: string;
     updated_at?: string; // Add updated_at
     mesas?: { numero: number } | null; // Join result

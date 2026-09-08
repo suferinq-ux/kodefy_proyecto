@@ -60,9 +60,10 @@ export default function ReceiptModal({ isOpen, onClose, items, total, orderId, m
     });
 
     const [numeroBoleta, setNumeroBoleta] = useState('');
-    const [tipoComprobante, setTipoComprobante] = useState<'boleta' | 'ticket'>('ticket');
-    const [serieTicket, setSerieTicket] = useState('TK001');
+    const [tipoDoc, setTipoDoc] = useState<'ticket' | 'boleta' | 'factura'>('ticket');
+    const [numeroFactura, setNumeroFactura] = useState('');
     const [numeroTicket, setNumeroTicket] = useState('');
+    const [pendienteImprimir, setPendienteImprimir] = useState(false);
     const [documento, setDocumento] = useState('');
     const [clienteNombre, setClienteNombre] = useState('');
     const [clienteDireccion, setClienteDireccion] = useState('');
@@ -73,18 +74,19 @@ export default function ReceiptModal({ isOpen, onClose, items, total, orderId, m
 
     useEffect(() => {
         if (isOpen) {
+            const tipoInicial: 'ticket' | 'boleta' | 'factura' = initialTipo === 'FACTURA' ? 'factura' : (initialTipo === 'BOLETA' ? 'boleta' : 'ticket');
             setClienteNombre(initialNombre || '');
             setDocumento(initialDocumento || '');
             setClienteDocumentoTipo(initialDocumentoTipo);
             setClienteDireccion(initialDireccion || '');
             setErrorDocumento(null);
             setYaImpreso(false);
-            setTipoComprobante(initialTipo === 'FACTURA' ? 'boleta' : (initialTipo === 'BOLETA' ? 'boleta' : 'ticket'));
-            cargarConfiguracion(initialTipo === 'FACTURA' ? 'boleta' : (initialTipo === 'BOLETA' ? 'boleta' : 'ticket'));
+            setTipoDoc(tipoInicial);
+            cargarConfiguracion(tipoInicial);
         }
     }, [isOpen, title, initialNombre, initialDocumento, initialDocumentoTipo, initialDireccion, initialTipo]);
 
-    const cargarConfiguracion = async (tipoOverride?: 'boleta' | 'ticket') => {
+    const cargarConfiguracion = async (tipoOverride?: 'ticket' | 'boleta' | 'factura') => {
         try {
             if (!business?.id) return;
             
@@ -119,25 +121,10 @@ export default function ReceiptModal({ isOpen, onClose, items, total, orderId, m
                     }));
                 }
                 
-                const tipoFinal = tipoOverride || tipoComprobante;
-                if (tipoFinal === 'boleta') {
-                    const numero = String((data.numero_correlativo || 0) + 1).padStart(8, '0');
-                    setNumeroBoleta(`${data.serie_boleta || 'B001'}-${numero}`);
-                } else {
-                    const serieT = data.serie_ticket || 'TK001';
-                    const numT = String((data.numero_ticket || 0) + 1).padStart(6, '0');
-                    setSerieTicket(serieT);
-                    setNumeroTicket(`${serieT}-${numT}`);
-                }
+                const tipoFinal = tipoOverride || tipoDoc;
+                cargarNumeroVista(tipoFinal, data);
             } else {
-                // Si no hay configuración en la tabla, usar valores por defecto empezando desde 0
-                const tipoFinal = tipoOverride || tipoComprobante;
-                if (tipoFinal === 'boleta') {
-                    setNumeroBoleta('B001-00000001');
-                } else {
-                    setSerieTicket('TK001');
-                    setNumeroTicket('TK001-000001');
-                }
+                cargarNumeroVista(tipoOverride || tipoDoc, null);
 
                 // Fallback de datos visuales para Pocholo's (según pedido del usuario)
                 if (business.id === '880a239c-acb7-48a8-ad46-a537e2e4290f' || business.slug === 'pocholos') {
@@ -158,6 +145,32 @@ export default function ReceiptModal({ isOpen, onClose, items, total, orderId, m
             }
         } catch (error) {
             console.error('Error al cargar configuración:', error);
+        }
+    };
+
+    const cargarNumeroVista = async (tipo: 'ticket' | 'boleta' | 'factura', configData: Partial<ConfigNegocio> | null) => {
+        try {
+            const { data: corr, error: corrError } = await supabase.rpc('consultar_correlativo', { p_negocio: business?.id, p_tipo: tipo });
+            if (!corrError && corr) {
+                asignarNumeroVista(tipo, corr.serie, corr.numero);
+                return;
+            }
+        } catch (err) {
+            console.error('Error consultando correlativo:', err);
+        }
+        const serie = tipo === 'ticket' ? (configData?.serie_ticket || 'TK001') : (tipo === 'factura' ? 'F001' : (configData?.serie_boleta || 'B001'));
+        const base = tipo === 'ticket' ? (configData?.numero_ticket || 0) : (configData?.numero_correlativo || 0);
+        asignarNumeroVista(tipo, serie, base);
+    };
+
+    const asignarNumeroVista = (tipo: 'ticket' | 'boleta' | 'factura', serie: string, numeroBase: number) => {
+        const siguiente = numeroBase + 1;
+        if (tipo === 'ticket') {
+            setNumeroTicket(`${serie}-${String(siguiente).padStart(6, '0')}`);
+        } else if (tipo === 'factura') {
+            setNumeroFactura(`${serie}-${String(siguiente).padStart(8, '0')}`);
+        } else {
+            setNumeroBoleta(`${serie}-${String(siguiente).padStart(8, '0')}`);
         }
     };
     const handleDocumentSearch = async () => {
@@ -207,35 +220,39 @@ export default function ReceiptModal({ isOpen, onClose, items, total, orderId, m
 
     const handlePrint = async () => {
         const esPreCuenta = title === 'ESTADO DE CUENTA';
-        const debeIncrementar = isNewSale && !esPreCuenta && !yaImpreso;
+        const debeReservar = isNewSale && !esPreCuenta && !yaImpreso;
 
-        if (debeIncrementar) {
+        if (debeReservar) {
+            setYaImpreso(true);
             try {
-                const { data: freshConfig, error: fetchError } = await supabase
-                    .from('configuracion_negocio')
-                    .select('*')
-                    .eq('negocio_id', business?.id)
-                    .maybeSingle();
+                const { data: corr, error: corrError } = await supabase.rpc('obtener_correlativo', { p_negocio: business?.id, p_tipo: tipoDoc });
 
-                if (!fetchError && freshConfig) {
-                    const updateData: any = {};
-
-                    if (tipoComprobante === 'boleta') {
-                        updateData.numero_correlativo = (freshConfig.numero_correlativo || 0) + 1;
-                        await dbUpdate('configuracion_negocio', updateData, { id: freshConfig.id });
-                        setYaImpreso(true);
-                        await cargarConfiguracion();
-                    } else {
-                        setYaImpreso(true);
+                if (!corrError && corr) {
+                    asignarNumeroVista(tipoDoc, corr.serie, corr.numero - 1);
+                    if (orderId) {
+                        await dbUpdate('ventas', {
+                            comprobante_tipo: tipoDoc,
+                            comprobante_serie: corr.serie,
+                            comprobante_numero: corr.numero
+                        }, { id: orderId });
                     }
+                } else {
+                    console.error('Error reservando correlativo:', corrError);
                 }
             } catch (err) {
                 console.error("Error inesperado al actualizar correlativo:", err);
             }
         }
 
-        window.print();
+        setPendienteImprimir(true);
     };
+
+    useEffect(() => {
+        if (pendienteImprimir) {
+            setPendienteImprimir(false);
+            window.print();
+        }
+    }, [pendienteImprimir]);
 
     useEffect(() => {
         // No hay auto-impresión USB, usamos el Worker remoto que se activa al guardar la venta
@@ -253,12 +270,12 @@ export default function ReceiptModal({ isOpen, onClose, items, total, orderId, m
     });
 
     const printTicketContent = (
-        <div className="hidden print:block print-ticket">
+        <div className="hidden print:block print-ticket" style={{ fontFamily: "'Segoe UI', 'Helvetica Neue', Arial, sans-serif", color: '#000' }}>
             <div className="ticket-header" style={{ textAlign: 'center' }}>
                 {business?.logo_url && (
-                    <img src={business.logo_url} alt="Logo" style={{ width: '40px', height: '40px', objectFit: 'contain', marginBottom: '4px' }} />
+                    <img src={business.logo_url} alt="Logo" style={{ width: '78px', height: '78px', objectFit: 'contain', margin: '0 auto 8px', display: 'block' }} />
                 )}
-                <p className="negocio-nombre" style={{ marginBottom: '2px', fontWeight: 'bold', fontSize: '14px' }}>{config.razon_social}</p>
+                <p className="negocio-nombre" style={{ margin: '0 0 4px', fontWeight: 800, fontSize: '16px', letterSpacing: '0.5px', textTransform: 'uppercase' }}>{config.razon_social}</p>
                 {config.ruc && <p style={{ margin: 0, fontSize: '10px', fontWeight: 'bold' }}>RUC: {config.ruc}</p>}
                 <div className="negocio-info" style={{ marginTop: 0, fontSize: '10px' }}>
                     <p>{config.direccion}</p>
@@ -268,8 +285,8 @@ export default function ReceiptModal({ isOpen, onClose, items, total, orderId, m
             </div>
 
             <div className="ticket-boleta-num" style={{ textAlign: 'center', marginTop: '8px' }}>
-                <p style={{ fontWeight: 'bold', fontSize: '12px', textDecoration: 'underline' }}>{tipoComprobante === 'boleta' ? 'BOLETA DE VENTA' : 'TICKET DE CONTROL INTERNO'}</p>
-                <p style={{ fontWeight: 'bold', fontSize: '14px' }}>{tipoComprobante === 'boleta' ? numeroBoleta : numeroTicket}</p>
+                <p style={{ fontWeight: 'bold', fontSize: '12px', textDecoration: 'underline' }}>{tipoDoc === 'boleta' ? 'BOLETA DE VENTA' : (tipoDoc === 'factura' ? 'FACTURA ELECTRÓNICA' : 'TICKET DE CONTROL INTERNO')}</p>
+                <p style={{ fontWeight: 'bold', fontSize: '14px' }}>{tipoDoc === 'ticket' ? numeroTicket : (tipoDoc === 'factura' ? numeroFactura : numeroBoleta)}</p>
             </div>
 
             <div className="ticket-meta" style={{ marginTop: '8px' }}>
@@ -302,7 +319,7 @@ export default function ReceiptModal({ isOpen, onClose, items, total, orderId, m
                         <span><strong>CLIENTE:</strong> {clienteNombre?.toUpperCase() || '-'}</span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '2px' }}>
-                        <span><strong>{tipoComprobante === 'boleta' ? clienteDocumentoTipo === '6' || String(documento).length === 11 ? 'RUC' : 'DNI' : 'DOC'}:</strong> {documento}</span>
+                        <span><strong>{tipoDoc === 'factura' ? 'RUC' : (tipoDoc === 'boleta' ? (clienteDocumentoTipo === '6' || String(documento).length === 11 ? 'RUC' : 'DNI') : 'DOC')}:</strong> {documento}</span>
                     </div>
                     {clienteDireccion && (
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '2px' }}>
@@ -364,7 +381,11 @@ export default function ReceiptModal({ isOpen, onClose, items, total, orderId, m
 
             <div className="ticket-footer" style={{ marginTop: '16px', textAlign: 'center', fontSize: '10px' }}>
                 <p className="footer-mensaje">"{config.mensaje_boleta}"</p>
-                <p className="footer-sistema" style={{ marginTop: '8px', fontSize: '9px' }}>{business?.nombre?.toUpperCase()}</p>
+            </div>
+
+            <div style={{ marginTop: '10px', borderTop: '1px dashed #333', paddingTop: '8px', textAlign: 'center' }}>
+                <p style={{ margin: 0, fontSize: '13px', fontWeight: 800, letterSpacing: '2px' }}>KODEFY&nbsp;<span style={{ color: '#2563eb' }}>POS</span></p>
+                <p style={{ margin: '2px 0 0', fontSize: '8px', letterSpacing: '1px' }}>SISTEMA DE GESTIÓN PARA TU NEGOCIO</p>
             </div>
         </div>
     );
@@ -391,19 +412,19 @@ export default function ReceiptModal({ isOpen, onClose, items, total, orderId, m
                             <div className="flex bg-slate-200 p-1 rounded-none mb-4">
                                 <button
                                     onClick={() => {
-                                        setTipoComprobante('ticket');
+                                        setTipoDoc('ticket');
                                         cargarConfiguracion('ticket');
                                     }}
-                                    className={`flex-1 py-2 text-[10px] font-black rounded-none transition-all ${tipoComprobante === 'ticket' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500'}`}
+                                    className={`flex-1 py-2 text-[10px] font-black rounded-none transition-all ${tipoDoc === 'ticket' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500'}`}
                                 >
                                     TICKET INTERNO
                                 </button>
                                 <button
                                     onClick={() => {
-                                        setTipoComprobante('boleta');
+                                        setTipoDoc('boleta');
                                         cargarConfiguracion('boleta');
                                     }}
-                                    className={`flex-1 py-2 text-[10px] font-black rounded-none transition-all ${tipoComprobante === 'boleta' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500'}`}
+                                    className={`flex-1 py-2 text-[10px] font-black rounded-none transition-all ${tipoDoc === 'boleta' || tipoDoc === 'factura' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500'}`}
                                 >
                                     BOLETA ELECTRÓNICA
                                 </button>
@@ -434,25 +455,25 @@ export default function ReceiptModal({ isOpen, onClose, items, total, orderId, m
                         </div>
 
                         <div className="flex-1 overflow-y-auto p-4 bg-gray-50/50">
-                            <div className="bg-white shadow-sm border border-gray-200 p-5 rounded-none text-[13px] font-mono text-gray-700">
+                            <div className="bg-white shadow-sm border border-gray-200 p-5 rounded-none text-[13px] text-gray-700" style={{ fontFamily: "'Segoe UI', 'Helvetica Neue', Arial, sans-serif" }}>
                                 <div className="text-center pb-3 mb-3 border-b-2 border-black">
                                     <div className="flex flex-col items-center mb-2">
                                         {business?.logo_url ? (
-                                            <img src={business.logo_url} alt="Logo" className="w-12 h-12 object-contain mb-1" />
+                                            <img src={business.logo_url} alt="Logo" className="w-20 h-20 object-contain mx-auto mb-2" />
                                         ) : (
-                                            <Receipt size={24} className="text-slate-300 mb-1" />
+                                            <Receipt size={28} className="text-slate-300 mb-2" />
                                         )}
-                                        <h1 className="text-sm font-black uppercase leading-tight">{config.razon_social}</h1>
+                                        <h1 className="text-base font-black uppercase leading-tight tracking-wide">{config.razon_social}</h1>
                                         {config.ruc && <p className="text-[9px] font-bold">RUC: {config.ruc}</p>}
                                         {config.direccion && <p className="text-[8px] uppercase">{config.direccion}</p>}
                                         {config.telefono && <p className="text-[8px]">TEL: {config.telefono}</p>}
                                     </div>
 
                                     <p className="font-black text-xs text-theme-primary tracking-widest mt-2 border-t border-slate-100 pt-2 uppercase">
-                                        {initialTipo === 'FACTURA' ? 'Factura Electrónica' : (initialTipo === 'BOLETA' ? 'Boleta de Venta' : 'Ticket de Control')}
+                                        {tipoDoc === 'factura' ? 'Factura Electrónica' : (tipoDoc === 'boleta' ? 'Boleta de Venta' : 'Ticket de Control')}
                                     </p>
                                     <p className="font-black text-base text-slate-900 tracking-widest">
-                                        {tipoComprobante === 'boleta' ? numeroBoleta : numeroTicket}
+                                        {tipoDoc === 'ticket' ? numeroTicket : (tipoDoc === 'factura' ? numeroFactura : numeroBoleta)}
                                     </p>
                                     <p className="text-[11px] text-gray-400 mt-1">{fechaFormateada} - {horaFormateada}</p>
                                 </div>
@@ -507,6 +528,11 @@ export default function ReceiptModal({ isOpen, onClose, items, total, orderId, m
 
                                 <div className="text-center mt-6 pt-4 border-t-2 border-black">
                                     <p className="text-[11px] leading-tight font-bold italic mb-2">"{config.mensaje_boleta}"</p>
+                                </div>
+
+                                <div className="mt-4 pt-3 border-t border-dashed border-gray-300 text-center">
+                                    <p className="text-sm font-black tracking-[2px] text-slate-800">KODEFY <span className="text-theme-primary">POS</span></p>
+                                    <p className="text-[8px] font-semibold text-gray-400 tracking-widest uppercase">Sistema de gestión para tu negocio</p>
                                 </div>
                             </div>
                         </div>
