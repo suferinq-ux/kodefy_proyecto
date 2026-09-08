@@ -24,20 +24,17 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const apiUrl = `${API_BASE_URL}/${tipo}`;
+    const apiUrl = `${API_BASE_URL}/${tipo}/${documento}?token=${API_TOKEN}`;
 
     const response = await fetch(apiUrl, {
-      method: 'POST',
+      method: 'GET',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${API_TOKEN}`,
         'Accept': 'application/json'
-      },
-      body: JSON.stringify({ [tipo]: documento })
+      }
     });
 
     if (!response.ok) {
-      console.error(`[API Peru Proxy] ApiPeru.dev retornó status ${response.status}`);
+      console.error(`[API Peru Proxy] ApiPeru retornó status ${response.status}`);
       return NextResponse.json(
         { success: false, message: `Error al consultar el ${tipo.toUpperCase()} con el proveedor.` },
         { status: response.status }
@@ -46,20 +43,47 @@ export async function GET(request: NextRequest) {
 
     const data = await response.json();
 
+    // The new API doesn't always wrap in `data: {}` and doesn't always have a `success` flag.
+    // If we have an error message, treat as error.
+    if (data.message && data.success === false) {
+       return NextResponse.json({ success: false, message: data.message });
+    }
+
+    // Let's normalize it to match the old format expected by the frontend
+    const normalizedData: any = {
+      success: true,
+      data: {}
+    };
+
     // Normalizar razon social para RUC
-    if (tipo === 'ruc' && data.success && data.data && !data.data.nombre_completo) {
-      data.data.nombre_completo = data.data.nombre_o_razon_social || data.data.razon_social;
+    if (tipo === 'ruc' && data.ruc) {
+      normalizedData.data = {
+         numero: data.ruc,
+         nombre_o_razon_social: data.razonSocial,
+         nombre_completo: data.razonSocial,
+         estado: data.estado,
+         condicion: data.condicion,
+         direccion: data.direccion
+      };
     }
 
     // Normalizar nombre completo para DNI
-    if (tipo === 'dni' && data.success && data.data && !data.data.nombre_completo) {
-      const { nombres, apellido_paterno, apellido_materno } = data.data;
-      if (nombres || apellido_paterno) {
-        data.data.nombre_completo = `${nombres || ''} ${apellido_paterno || ''} ${apellido_materno || ''}`.trim().replace(/\s+/g, ' ');
-      }
+    if (tipo === 'dni' && data.dni) {
+      const nombres = data.nombres || '';
+      const apellido_paterno = data.apellidoPaterno || '';
+      const apellido_materno = data.apellidoMaterno || '';
+      const nombreCompleto = `${nombres} ${apellido_paterno} ${apellido_materno}`.trim().replace(/\s+/g, ' ');
+      
+      normalizedData.data = {
+         numero: data.dni,
+         nombres: nombres,
+         apellido_paterno: apellido_paterno,
+         apellido_materno: apellido_materno,
+         nombre_completo: nombreCompleto
+      };
     }
 
-    return NextResponse.json(data);
+    return NextResponse.json(normalizedData);
   } catch (error: any) {
     console.error('[API Peru Proxy] Error:', error);
     return NextResponse.json(
