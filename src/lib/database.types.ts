@@ -63,6 +63,13 @@ export interface Categoria {
     created_at: string;
 }
 
+export interface UsuarioNegocio {
+    id: string;
+    user_id: string;
+    negocio_id: string;
+    created_at: string;
+}
+
 export interface ConfiguracionNegocio {
     id: string;
     negocio_id: string;

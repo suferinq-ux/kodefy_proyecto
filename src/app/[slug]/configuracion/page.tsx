@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase';
 import type { Producto } from '@/lib/database.types';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Check, X, Package, Pencil, Users, Settings, Trash2, Plus, RefreshCw, Loader2, Info, Printer, Wifi, WifiOff } from 'lucide-react';
+import { Search, Check, X, Package, Pencil, Users, Settings, Trash2, Plus, RefreshCw, Loader2, Info, Printer, Wifi, WifiOff, KeyRound, ShieldCheck } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBusiness } from '@/contexts/BusinessContext';
@@ -36,7 +36,7 @@ function ConfiguracionContent() {
     const [filtroTipo, setFiltroTipo] = useState<TipoProducto | 'todos'>('todos');
 
     const { user } = useAuth();
-    const [activeTab, setActiveTab] = useState<'precios' | 'usuarios' | 'mesas' | 'negocio' | 'impresoras' | 'bebidas' | 'stock'>('precios');
+    const [activeTab, setActiveTab] = useState<'precios' | 'usuarios' | 'accesos' | 'mesas' | 'negocio' | 'impresoras' | 'bebidas' | 'stock'>('precios');
     const { allBrands, customBrands, deleteBeverage, loading: loadingBebidas, masterStock, updateMasterStock, mergeWithStock } = useBebidasConfig();
     const [config, setConfig] = useState<any>(null);
     
@@ -79,6 +79,13 @@ function ConfiguracionContent() {
     const [newUserEmail, setNewUserEmail] = useState('');
     const [newUserPassword, setNewUserPassword] = useState('');
     const [newUserRole, setNewUserRole] = useState('mozo');
+
+    // Accesos multi-negocio
+    const [accesos, setAccesos] = useState<any[]>([]);
+    const [accessLoading, setAccessLoading] = useState(false);
+    const [showNewAccessForm, setShowNewAccessForm] = useState(false);
+    const [accessEmail, setAccessEmail] = useState('');
+    const [accessSaving, setAccessSaving] = useState(false);
 
     // Create Product stuff
     const [isCreatingProduct, setIsCreatingProduct] = useState(false);
@@ -148,6 +155,12 @@ function ConfiguracionContent() {
             cargarImpresoras();
         }
     }, [user]);
+
+    useEffect(() => {
+        if (activeTab === 'accesos' && user?.rol === 'admin') {
+            cargarAccesos();
+        }
+    }, [activeTab, user]);
 
     const cargarImpresoras = async () => {
         try {
@@ -542,6 +555,97 @@ function ConfiguracionContent() {
         }
     };
 
+    const negocioIdActual = () => {
+        if (business?.id) return business.id;
+        if (user?.negocio_id && user.negocio_id !== 'null') return user.negocio_id;
+        return null;
+    };
+
+    const cargarAccesos = async () => {
+        const nid = negocioIdActual();
+        if (!nid) return;
+        setAccessLoading(true);
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            const res = await fetch(`/api/business-access?negocio_id=${encodeURIComponent(nid)}`, {
+                headers: {
+                    'Authorization': `Bearer ${session?.access_token}`,
+                },
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.error || 'Error cargando accesos');
+            setAccesos(data.usuarios || []);
+        } catch (error) {
+            console.error('Error cargando accesos:', error);
+            toast.error('Error al cargar los accesos');
+        } finally {
+            setAccessLoading(false);
+        }
+    };
+
+    const otorgarAcceso = async () => {
+        if (!accessEmail.trim()) {
+            toast.error('Ingresa el correo del usuario');
+            return;
+        }
+        const nid = negocioIdActual();
+        if (!nid) return;
+        setAccessSaving(true);
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            const res = await fetch('/api/business-access', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${session?.access_token}`,
+                },
+                body: JSON.stringify({ negocio_id: nid, email: accessEmail.trim() }),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.error || 'Error al otorgar acceso');
+            toast.success('Acceso otorgado');
+            setAccessEmail('');
+            setShowNewAccessForm(false);
+            cargarAccesos();
+        } catch (error: any) {
+            console.error('Error otorgando acceso:', error);
+            toast.error(error.message || 'Error al otorgar acceso');
+        } finally {
+            setAccessSaving(false);
+        }
+    };
+
+    const revocarAcceso = async (accessUser: any) => {
+        const esPropio = !accessUser.esAccesoExtra;
+        if (!confirm(
+            esPropio
+                ? `¿Quitar a "${accessUser.nombre}" el acceso a este negocio?\n\nEste usuario dejará de formar parte de este local por completo.`
+                : `¿Quitar a "${accessUser.nombre}" el acceso adicional a este negocio?`
+        )) return;
+
+        const nid = negocioIdActual();
+        if (!nid) return;
+        setAccessSaving(true);
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            const res = await fetch(`/api/business-access?negocio_id=${encodeURIComponent(nid)}&user_id=${accessUser.id}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${session?.access_token}`,
+                },
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.error || 'Error al quitar acceso');
+            toast.success('Acceso quitado');
+            cargarAccesos();
+        } catch (error: any) {
+            console.error('Error quitando acceso:', error);
+            toast.error(error.message || 'Error al quitar acceso');
+        } finally {
+            setAccessSaving(false);
+        }
+    };
+
     const iniciarEdicion = (producto: Producto) => {
         setEditingId(producto.id);
         setEditPrecio(producto.precio.toString());
@@ -854,6 +958,7 @@ function ConfiguracionContent() {
                                     { id: 'precios', icon: Settings, label: 'Precios', roles: ['admin', 'cajero', 'invitado'] },
                                     { id: 'stock', icon: RefreshCw, label: 'Stock', roles: ['admin', 'cajero', 'invitado'] },
                                     { id: 'usuarios', icon: Users, label: 'Usuarios', roles: ['admin', 'invitado'] },
+                                    { id: 'accesos', icon: KeyRound, label: 'Accesos', roles: ['admin'] },
                                     { id: 'bebidas', icon: Package, label: 'Bebidas', roles: ['admin', 'invitado'] },
                                     { id: 'impresoras', icon: Printer, label: 'Impresoras', roles: ['admin', 'invitado'] },
                                     { id: 'mesas', icon: Users, label: 'Mesas', roles: ['admin', 'invitado'] },
@@ -1358,10 +1463,169 @@ function ConfiguracionContent() {
                                             </AnimatePresence>
                                         </div>
                                     ))}
-                                </div>
-                            </div>
+</div>
+                    </div>
                     </motion.div>
                 )}
+
+                    {activeTab === 'accesos' && user?.rol === 'admin' && (
+                        <motion.div
+                            key="accesos"
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -10 }}
+                            className="space-y-6"
+                        >
+                            <div className="flex items-start gap-4 bg-slate-50 border border-slate-100 rounded-none p-6">
+                                <div className="w-12 h-12 bg-indigo-50 border border-indigo-100 rounded-none flex items-center justify-center text-indigo-600 flex-shrink-0">
+                                    <KeyRound size={24} />
+                                </div>
+                                <div>
+                                    <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">
+                                        Accesos multi-negocio
+                                    </h3>
+                                    <p className="text-xs font-bold text-slate-400 mt-1 max-w-xl">
+                                        Estos usuarios podrán ver este negocio en su lista al iniciar sesión con
+                                        "Tengo varios negocios". Su rol actual (admin, cajero, mozo...) se aplica también aquí.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="flex justify-end">
+                                <button
+                                    onClick={() => setShowNewAccessForm(!showNewAccessForm)}
+                                    className="flex items-center gap-2 px-6 py-3 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-none hover:bg-slate-800 transition-all shadow-lg"
+                                >
+                                    {showNewAccessForm ? <X size={14} strokeWidth={3} /> : <Plus size={14} strokeWidth={3} />}
+                                    {showNewAccessForm ? 'Cancelar' : 'Otorgar Acceso'}
+                                </button>
+                            </div>
+
+                            <AnimatePresence>
+                                {showNewAccessForm && (
+                                    <motion.div
+                                        key="new-access-form"
+                                        initial={{ opacity: 0, height: 0 }}
+                                        animate={{ opacity: 1, height: 'auto' }}
+                                        exit={{ opacity: 0, height: 0 }}
+                                        className="bg-white border-2 border-dashed border-slate-200 rounded-none p-8 overflow-hidden"
+                                    >
+                                        <div className="flex flex-col md:flex-row gap-4 items-end">
+                                            <div className="flex-1 space-y-2">
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Correo del usuario</label>
+                                                <input
+                                                    type="email"
+                                                    value={accessEmail}
+                                                    onChange={(e) => setAccessEmail(e.target.value)}
+                                                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); otorgarAcceso(); } }}
+                                                    placeholder="correo@empresa.com"
+                                                    className="w-full bg-slate-50 border border-slate-100 rounded-none px-4 py-3 text-sm font-bold italic outline-none focus:border-rodrigo-terracotta/30"
+                                                />
+                                            </div>
+                                            <button
+                                                onClick={otorgarAcceso}
+                                                disabled={accessSaving}
+                                                className="bg-emerald-500 text-white p-3.5 rounded-none shadow-md hover:brightness-110 disabled:opacity-50"
+                                            >
+                                                {accessSaving ? <Loader2 size={20} className="animate-spin" /> : <Check size={20} strokeWidth={3} />}
+                                            </button>
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+
+                            <div className="bg-white border border-slate-100 rounded-none shadow-sm overflow-hidden">
+                                {accessLoading ? (
+                                    <div className="flex flex-col items-center justify-center py-16 gap-4">
+                                        <Loader2 size={28} className="animate-spin text-indigo-500" />
+                                        <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.3em] italic">Cargando accesos...</p>
+                                    </div>
+                                ) : accesos.length === 0 ? (
+                                    <div className="py-16 text-center">
+                                        <ShieldCheck size={40} className="mx-auto mb-3 opacity-10" />
+                                        <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.3em] italic">Aún no hay accesos registrados</p>
+                                    </div>
+                                ) : (
+                                    <div className="hidden sm:block overflow-x-auto">
+                                        <table className="w-full border-collapse">
+                                            <thead>
+                                                <tr className="bg-slate-50/50 border-b border-slate-100">
+                                                    <th className="text-left text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] px-8 py-6 italic">Usuario</th>
+                                                    <th className="text-left text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] px-8 py-6 italic">Tipo</th>
+                                                    <th className="text-right text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] px-8 py-6 italic w-24">Acciones</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {accesos.map((a, idx) => (
+                                                    <tr key={a.id || `acc-${idx}`} className="group border-b border-slate-100 last:border-0 hover:bg-slate-50 transition-colors">
+                                                        <td className="px-8 py-6">
+                                                            <div className="flex flex-col">
+                                                                <span className="text-lg font-black text-slate-900 italic tracking-tight">{a.nombre}</span>
+                                                                <span className="text-[10px] font-bold text-slate-400 font-mono italic">{a.email}</span>
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-8 py-6">
+                                                            <div className="flex flex-wrap items-center gap-2">
+                                                                <span className={`text-[10px] font-black uppercase tracking-widest px-3 py-1.5 ${a.rol === 'admin' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                                                                    {a.rol}
+                                                                </span>
+                                                                <span className={`text-[9px] font-black uppercase tracking-widest px-3 py-1.5 border ${a.esAccesoExtra ? 'bg-indigo-50 border-indigo-100 text-indigo-600' : 'bg-emerald-50 border-emerald-100 text-emerald-600'}`}>
+                                                                    {a.esAccesoExtra ? 'Acceso extra' : 'Pertenece'}
+                                                                </span>
+                                                                {a.esSuperAdmin && (
+                                                                    <span className="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 bg-amber-50 border border-amber-100 text-amber-600">
+                                                                        Super Admin
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-8 py-6 text-right">
+                                                            <button
+                                                                onClick={() => revocarAcceso(a)}
+                                                                disabled={accessSaving}
+                                                                title="Quitar acceso"
+                                                                className="p-3 bg-slate-50 text-slate-200 hover:text-red-500 hover:bg-red-50 rounded-none transition-all disabled:opacity-50"
+                                                            >
+                                                                <Trash2 size={16} />
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
+
+                                <div className="sm:hidden divide-y divide-slate-100">
+                                    {!accessLoading && accesos.map((a, idx) => (
+                                        <div key={a.id || `accmob-${idx}`} className="p-5 space-y-3">
+                                            <div className="flex items-start justify-between">
+                                                <div className="flex flex-col">
+                                                    <span className="text-sm font-black text-slate-900 italic tracking-tight uppercase">{a.nombre}</span>
+                                                    <span className="text-[10px] font-bold text-slate-400 mt-1">{a.email}</span>
+                                                </div>
+                                                <button
+                                                    onClick={() => revocarAcceso(a)}
+                                                    disabled={accessSaving}
+                                                    className="p-3 bg-red-50 text-red-500 rounded-none active:bg-red-100 disabled:opacity-50"
+                                                >
+                                                    <Trash2 size={16} />
+                                                </button>
+                                            </div>
+                                            <div className="flex flex-wrap gap-2">
+                                                <span className={`text-[10px] font-black uppercase tracking-widest px-3 py-1.5 ${a.rol === 'admin' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                                                    {a.rol}
+                                                </span>
+                                                <span className={`text-[9px] font-black uppercase tracking-widest px-3 py-1.5 border ${a.esAccesoExtra ? 'bg-indigo-50 border-indigo-100 text-indigo-600' : 'bg-emerald-50 border-emerald-100 text-emerald-600'}`}>
+                                                    {a.esAccesoExtra ? 'Acceso extra' : 'Pertenece'}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </motion.div>
+                    )}
 
                     {(activeTab === 'stock' && (user?.rol === 'admin' || user?.rol === 'cajero')) && (
                         <motion.div

@@ -9,7 +9,7 @@ import {
   ArrowLeft, Building2, Package, Users, ShoppingBag,
   Save, Plus, Edit2, Trash2, Power, PowerOff, Search,
   RefreshCw, Globe, Palette, Upload, ImageIcon, XCircle, Loader2,
-  Copy, Eye, EyeOff, User,
+  Copy, Eye, EyeOff, User, KeyRound,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -22,7 +22,7 @@ import Link from 'next/link';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type Tab = 'general' | 'productos' | 'usuarios' | 'pedidos';
+type Tab = 'general' | 'productos' | 'usuarios' | 'pedidos' | 'accesos';
 
 interface UserProfile {
   id: string;
@@ -186,6 +186,13 @@ export default function NegocioDetailPage() {
   const [pedidoSaving, setPedidoSaving] = useState(false);
   const [deletePedido, setDeletePedido] = useState<{ id: string } | null>(null);
 
+  // ── Accesos tab state
+  const [accesos, setAccesos] = useState<any[]>([]);
+  const [accesosLoading, setAccesosLoading] = useState(false);
+  const [accesoModal, setAccesoModal] = useState(false);
+  const [accesoEmail, setAccesoEmail] = useState('');
+  const [accesoLoading, setAccesoLoading] = useState(false);
+
   // ─── Fetch Negocio ──────────────────────────────────────────────────────────
   const fetchNegocio = useCallback(async () => {
     setLoading(true);
@@ -247,12 +254,73 @@ export default function NegocioDetailPage() {
     setPedidosLoading(false);
   }, [negocioId]);
 
+  // ─── Fetch Accesos (multi-negocio) ──────────────────────────────────────────
+  const fetchAccesos = useCallback(async () => {
+    setAccesosLoading(true);
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`/api/business-access?negocio_id=${encodeURIComponent(negocioId)}`, { headers });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setAccesos(data.usuarios || []);
+    } catch (err: any) {
+      toast.error('Error al cargar accesos: ' + err.message);
+    } finally {
+      setAccesosLoading(false);
+    }
+  }, [negocioId, getAuthHeaders]);
+
+  const handleOtorgarAcceso = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!accesoEmail.trim()) { toast.error('Ingresa un correo'); return; }
+    setAccesoLoading(true);
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch('/api/business-access', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ negocio_id: negocioId, email: accesoEmail.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      toast.success('Acceso otorgado ✅');
+      setAccesoEmail('');
+      setAccesoModal(false);
+      fetchAccesos();
+    } catch (err: any) {
+      toast.error('Error: ' + err.message);
+    } finally {
+      setAccesoLoading(false);
+    }
+  };
+
+  const handleRevocarAcceso = async (a: any) => {
+    const esPropio = !a.esAccesoExtra;
+    if (!confirm(esPropio
+      ? `¿Quitar a "${a.nombre}" el acceso a este negocio?\n\nDejará de formar parte de este local por completo.`
+      : `¿Quitar a "${a.nombre}" el acceso adicional a este negocio?`)) return;
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`/api/business-access?negocio_id=${encodeURIComponent(negocioId)}&user_id=${a.id}`, {
+        method: 'DELETE',
+        headers,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      toast.success('Acceso quitado');
+      fetchAccesos();
+    } catch (err: any) {
+      toast.error('Error: ' + err.message);
+    }
+  };
+
   // Fetch data when tab changes
   useEffect(() => {
     if (activeTab === 'productos') fetchProductos();
     if (activeTab === 'usuarios') fetchUsuarios();
     if (activeTab === 'pedidos') fetchPedidos();
-  }, [activeTab, fetchProductos, fetchUsuarios, fetchPedidos]);
+    if (activeTab === 'accesos') fetchAccesos();
+  }, [activeTab, fetchProductos, fetchUsuarios, fetchPedidos, fetchAccesos]);
 
   // ─── General Save ───────────────────────────────────────────────────────────
   const handleSaveGeneral = async (e: React.FormEvent) => {
@@ -449,6 +517,7 @@ export default function NegocioDetailPage() {
     { id: 'productos', label: 'Productos', icon: Package, count: activeTab === 'productos' ? productos.length : undefined },
     { id: 'usuarios', label: 'Usuarios', icon: Users, count: activeTab === 'usuarios' ? usuarios.length : undefined },
     { id: 'pedidos', label: 'Pedidos', icon: ShoppingBag, count: activeTab === 'pedidos' ? pedidos.length : undefined },
+    { id: 'accesos', label: 'Accesos', icon: KeyRound, count: activeTab === 'accesos' ? accesos.length : undefined },
   ];
 
   return (
@@ -839,6 +908,82 @@ export default function NegocioDetailPage() {
             </div>
           )}
 
+          {/* ═══════════════ TAB: ACCESOS (multi-negocio) ═══════════════ */}
+          {activeTab === 'accesos' && (
+            <div className="space-y-4">
+              <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
+                <div className="p-4 rounded-2xl bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/20 flex items-start gap-3 flex-1">
+                  <KeyRound size={18} className="text-indigo-500 flex-shrink-0 mt-0.5" />
+                  <p className="text-sm font-semibold text-indigo-800 dark:text-indigo-300">
+                    Usuarios que ven este negocio al iniciar sesión con <span className="font-black">"Tengo varios negocios"</span>.
+                    Su rol actual se aplica también aquí.
+                  </p>
+                </div>
+                <button onClick={() => { setAccesoEmail(''); setAccesoModal(true); }}
+                  className="flex items-center gap-2 bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-slate-200 dark:text-slate-900 text-white px-4 py-2.5 rounded-xl font-bold text-sm transition-all shadow-sm">
+                  <Plus size={16} /> Otorgar Acceso
+                </button>
+              </div>
+
+              <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left">
+                    <thead>
+                      <tr className="border-b border-slate-100 dark:border-slate-700">
+                        {['Usuario', 'Email', 'Rol', 'Tipo', 'Acciones'].map((h) => (
+                          <th key={h} className="px-6 py-3.5 text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50 dark:divide-slate-700/50">
+                      {accesosLoading ? (
+                        <tr><td colSpan={5} className="px-6 py-8 text-center text-slate-400 text-sm">Cargando...</td></tr>
+                      ) : accesos.length === 0 ? (
+                        <tr><td colSpan={5} className="px-6 py-12 text-center">
+                          <KeyRound size={32} className="mx-auto text-slate-300 dark:text-slate-600 mb-2" />
+                          <p className="text-sm font-semibold text-slate-400">No hay accesos registrados</p>
+                        </td></tr>
+                      ) : accesos.map((a) => (
+                        <tr key={a.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 group">
+                          <td className="px-6 py-3.5">
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-xs font-black flex-shrink-0">
+                                {(a.nombre || '?').charAt(0).toUpperCase()}
+                              </div>
+                              <p className="font-bold text-sm text-slate-900 dark:text-white">{a.nombre}</p>
+                            </div>
+                          </td>
+                          <td className="px-6 py-3.5">
+                            <span className="text-sm font-semibold text-slate-600 dark:text-slate-300">{a.email}</span>
+                          </td>
+                          <td className="px-6 py-3.5">
+                            <span className={cn('px-2.5 py-1 rounded-lg text-[11px] font-bold capitalize', ROL_COLORS[a.rol] || ROL_COLORS.mozo)}>{ROLE_NAMES[a.rol as UserRole] || a.rol}</span>
+                          </td>
+                          <td className="px-6 py-3.5">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <span className={cn('px-2.5 py-1 rounded-lg text-[11px] font-bold', a.esAccesoExtra ? 'bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-400' : 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400')}>
+                                {a.esAccesoExtra ? 'ACCESO EXTRA' : 'PERTENECE'}
+                              </span>
+                              {a.esSuperAdmin && (
+                                <span className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400">SUPER ADMIN</span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-6 py-3.5">
+                            <button onClick={() => handleRevocarAcceso(a)}
+                              className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-all" title="Quitar acceso">
+                              <Trash2 size={15} />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
         </motion.div>
       </AnimatePresence>
 
@@ -940,6 +1085,26 @@ export default function NegocioDetailPage() {
             <button type="submit" disabled={userLoading} className="flex-[2] flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-bold text-sm text-white bg-slate-900 dark:bg-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-slate-200 transition-all shadow-lg">
               {userLoading ? <div className="w-4 h-4 border-2 border-white/30 border-t-white dark:border-slate-900/30 dark:border-t-slate-900 rounded-full animate-spin" /> : <Save size={16} />}
               {editingUser ? 'Guardar Cambios' : 'Crear Usuario'}
+            </button>
+          </div>
+        </form>
+      </Dialog>
+
+      {/* Modal: Otorgar Acceso (multi-negocio) */}
+      <Dialog open={accesoModal} onClose={() => setAccesoModal(false)} title="Otorgar Acceso" description={`Permite que un usuario vea ${negocio.nombre} en su lista de negocios al iniciar sesión`}>
+        <form onSubmit={handleOtorgarAcceso} className="space-y-4">
+          <div className="flex items-center gap-3 p-3 rounded-xl bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/20">
+            <KeyRound size={18} className="text-indigo-500 flex-shrink-0" />
+            <p className="text-xs font-semibold text-indigo-800 dark:text-indigo-300">
+              El usuario mantiene su rol actual (admin, cajero, mozo...). Puedes revocar este acceso en cualquier momento.
+            </p>
+          </div>
+          <InputField label="Correo del usuario" required type="email" value={accesoEmail} onChange={(e) => setAccesoEmail(e.target.value)} placeholder="correo@empresa.com" />
+          <div className="flex gap-3 pt-2">
+            <button type="button" onClick={() => setAccesoModal(false)} className="flex-1 px-5 py-3 rounded-xl font-bold text-sm text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 transition-all">Cancelar</button>
+            <button type="submit" disabled={accesoLoading} className="flex-[2] flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-bold text-sm text-white bg-indigo-600 hover:bg-indigo-500 transition-all shadow-lg">
+              {accesoLoading ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <KeyRound size={16} />}
+              Otorgar Acceso
             </button>
           </div>
         </form>

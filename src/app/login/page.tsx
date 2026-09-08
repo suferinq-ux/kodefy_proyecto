@@ -16,10 +16,27 @@ type FieldErrors = {
   password?: string;
 };
 
+type MisNegocio = {
+  id: string;
+  nombre: string;
+  slug: string;
+  logo_url: string | null;
+  color_primario: string | null;
+  color_secundario: string | null;
+  estado: string;
+};
+
 export default function LoginPage() {
-  const [step, setStep] = useState<1 | 2>(1);
+  const [step, setStep] = useState<1 | 2 | 3>(1);
   const [businessCode, setBusinessCode] = useState('');
   const [businessInfo, setBusinessInfo] = useState<{ id: string; nombre: string; logo_url: string | null; color_primario: string | null; slug: string } | null>(null);
+
+  // Modo "tengo varios negocios": inicia por correo+contraseña y lista mis negocios
+  const [mode, setMode] = useState<'negocio' | 'cuenta'>('negocio');
+  const [misNegocios, setMisNegocios] = useState<MisNegocio[] | null>(null);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [miRol, setMiRol] = useState<string | null>(null);
+  const [seleccionandoId, setSeleccionandoId] = useState<string | null>(null);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -116,6 +133,142 @@ export default function LoginPage() {
       slug: 'admin'
     });
     setStep(2);
+  };
+
+  const handleCuentaAccess = () => {
+    setError(null);
+    setBusinessCode('');
+    setMode('cuenta');
+    setStep(2);
+  };
+
+  const handleCambiarNegocio = () => {
+    setStep(1);
+    setMode('negocio');
+    setError(null);
+  };
+
+  const seleccionarNegocio = async (id: string) => {
+    setSeleccionandoId(id);
+    setError(null);
+    setShakeError(false);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) throw new Error('Sesión no disponible');
+
+      const res = await fetch('/api/negocios/usuario/seleccionar', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ negocio_id: id })
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.error || 'No se pudo entrar al negocio.');
+      }
+
+      const slug = data.slug;
+      // Recarga completa: refresca el perfil (negocio actual) en AuthContext y el RLS del cliente
+      if (miRol === 'repartidor') {
+        window.location.href = `/${slug}/delivery`;
+      } else {
+        window.location.href = `/${slug}/dashboard`;
+      }
+    } catch (err: any) {
+      console.error('[LoginPage] seleccionarNegocio error:', err);
+      setError(err.message || 'Error al seleccionar el negocio.');
+      setShakeError(true);
+      setSeleccionandoId(null);
+    }
+  };
+
+  const handleMultiSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setShakeError(false);
+
+    const emailErr = validateEmail(email);
+    const passErr = validatePassword(password);
+
+    if (emailErr || passErr) {
+      setFieldErrors({ email: emailErr, password: passErr });
+      setShakeError(true);
+      return;
+    }
+
+    setFieldErrors({});
+    setLoading(true);
+
+    try {
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
+
+      if (authError || !authData.session) {
+        const msg = authError?.message === 'Invalid login credentials'
+          ? 'Credenciales incorrectas. Revisa tu correo y contraseña.'
+          : authError?.message?.includes('rate')
+            ? 'Demasiados intentos. Espera unos minutos e intenta de nuevo.'
+            : authError?.message || 'Credenciales incorrectas. Revisa tu correo y contraseña.';
+        setError(msg);
+        setShakeError(true);
+        return;
+      }
+
+      if (rememberMe) {
+        localStorage.setItem('kodefy-remember-email', email.trim());
+      } else {
+        localStorage.removeItem('kodefy-remember-email');
+      }
+
+      const res = await fetch('/api/negocios/usuario', {
+        headers: {
+          'Authorization': `Bearer ${authData.session.access_token}`,
+        },
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        await supabase.auth.signOut();
+        setError(errData.error || 'Error al cargar tus negocios.');
+        setShakeError(true);
+        return;
+      }
+
+      const data = await res.json();
+      const negocios: MisNegocio[] = data.negocios || [];
+      const esSuper = !!data.isSuperAdmin;
+
+      setMisNegocios(negocios);
+      setIsSuperAdmin(esSuper);
+      setMiRol(data.rol || null);
+
+      // Super admin sin ningún negocio: solo panel administrativo
+      if (esSuper && negocios.length === 0) {
+        router.push('/super-admin');
+        return;
+      }
+
+      // Un solo negocio y no es super admin: entrar directo
+      if (!esSuper && negocios.length === 1) {
+        await seleccionarNegocio(negocios[0].id);
+        return;
+      }
+
+      // Varios negocios: mostrar selector
+      setStep(3);
+    } catch (err: any) {
+      console.error('[LoginPage] handleMultiSubmit error:', err);
+      setError(err.message || 'Error al conectar con el servidor.');
+      setShakeError(true);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handlePatternUnlockComplete = async (drawnPattern: number[]) => {
@@ -386,6 +539,30 @@ export default function LoginPage() {
                     Ingresa el PIN de tu empresa para continuar
                   </p>
                 </>
+              ) : step === 3 ? (
+                <div className="flex flex-col items-center sm:items-start">
+                  <div className="h-16 w-16 mb-6 bg-slate-900 dark:bg-white rounded-2xl flex items-center justify-center text-white dark:text-slate-900 shadow-lg">
+                    <Building2 size={26} />
+                  </div>
+                  <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+                    Elige tu negocio
+                  </h2>
+                  <p className="mt-2 text-sm font-medium text-slate-500 dark:text-slate-400">
+                    Selecciona el local donde trabajarás
+                  </p>
+                </div>
+              ) : mode === 'cuenta' ? (
+                <div className="flex flex-col items-center sm:items-start">
+                  <div className="h-16 w-16 mb-6 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg">
+                    <ShieldCheck size={26} />
+                  </div>
+                  <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+                    Hola de nuevo
+                  </h2>
+                  <p className="mt-2 text-sm font-medium text-slate-500 dark:text-slate-400">
+                    Ingresa tus credenciales para acceder a todos tus negocios
+                  </p>
+                </div>
               ) : (
                 <div className="flex flex-col items-center sm:items-start">
                   {businessInfo?.logo_url ? (
@@ -513,7 +690,15 @@ export default function LoginPage() {
                     </>
                   )}
                 </button>
-                <div className="pt-4 text-center">
+                <div className="pt-4 flex flex-col items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={handleCuentaAccess}
+                    className="w-full h-11 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-600 dark:text-slate-300 hover:border-blue-500/40 hover:text-blue-600 dark:hover:text-blue-400 transition-all flex items-center justify-center gap-2 active:scale-[0.98]"
+                  >
+                    <KeyRound size={14} />
+                    Tengo varios negocios · Ingresar con mi cuenta
+                  </button>
                   <button
                     type="button"
                     onClick={handleAdminAccess}
@@ -524,7 +709,7 @@ export default function LoginPage() {
                 </div>
               </form>
             ) : (
-              <form onSubmit={handleSubmit} className="space-y-5" noValidate>
+              <form onSubmit={mode === 'cuenta' ? handleMultiSubmit : handleSubmit} className="space-y-5" noValidate>
                 {showPatternUnlock ? (
                   <div className="space-y-4 py-4 text-center">
                     <div className="w-12 h-12 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-500 mx-auto">
@@ -718,7 +903,7 @@ export default function LoginPage() {
                       type="submit"
                       disabled={loading}
                       style={{
-                        backgroundColor: businessInfo?.color_primario || undefined,
+                        backgroundColor: businessInfo?.color_primario || '#0f172a',
                       }}
                       className={cn(
                         'group relative w-full h-12 rounded-xl font-bold text-sm text-white transition-all duration-200',
@@ -749,16 +934,80 @@ export default function LoginPage() {
                 <div className="pt-2 text-center">
                   <button
                     type="button"
-                    onClick={() => {
-                      setStep(1);
-                      setError(null);
-                    }}
+                    onClick={handleCambiarNegocio}
                     className="text-xs font-semibold text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
                   >
-                    Cambiar de negocio
+                    {mode === 'cuenta' ? 'Volver al inicio' : 'Cambiar de negocio'}
                   </button>
                 </div>
               </form>
+            )}
+
+            {step === 3 && (
+              <div className="space-y-3">
+                {isSuperAdmin && (
+                  <button
+                    type="button"
+                    onClick={() => router.push('/super-admin')}
+                    className="w-full group relative flex items-center gap-4 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 pr-6 hover:border-blue-500/40 hover:shadow-lg transition-all text-left"
+                  >
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-slate-800 to-slate-950 flex items-center justify-center text-white flex-shrink-0">
+                      <ShieldCheck size={20} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-black text-sm text-slate-900 dark:text-white tracking-tight">Panel Super Admin</p>
+                      <p className="text-xs text-slate-400 font-semibold mt-0.5">Gestionar todos los negocios</p>
+                    </div>
+                    <ArrowRight size={18} className="text-slate-300 group-hover:translate-x-0.5 group-hover:text-blue-500 transition-all flex-shrink-0" />
+                  </button>
+                )}
+
+                {(misNegocios || []).map((n) => {
+                  const loading = seleccionandoId === n.id;
+                  return (
+                    <button
+                      key={n.id}
+                      type="button"
+                      disabled={loading || !!seleccionandoId}
+                      onClick={() => seleccionarNegocio(n.id)}
+                      className="w-full group relative flex items-center gap-4 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 pr-6 hover:border-blue-500/40 hover:shadow-lg transition-all text-left disabled:opacity-60"
+                    >
+                      {n.logo_url ? (
+                        <img src={n.logo_url} alt={n.nombre} className="w-12 h-12 rounded-xl object-contain border border-slate-100 dark:border-slate-700 flex-shrink-0" />
+                      ) : (
+                        <div className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-black flex-shrink-0" style={{ backgroundColor: n.color_primario || '#0f172a' }}>
+                          {n.nombre.charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="font-black text-sm text-slate-900 dark:text-white tracking-tight truncate">{n.nombre}</p>
+                        <p className="text-xs text-slate-400 font-semibold mt-0.5">/{n.slug}</p>
+                      </div>
+                      {loading ? (
+                        <Loader2 size={18} className="text-blue-500 animate-spin flex-shrink-0" />
+                      ) : (
+                        <ArrowRight size={18} className="text-slate-300 group-hover:translate-x-0.5 group-hover:text-blue-500 transition-all flex-shrink-0" />
+                      )}
+                    </button>
+                  );
+                })}
+
+                {(misNegocios || []).length === 0 && !isSuperAdmin && (
+                  <div className="text-center py-6 text-sm font-semibold text-slate-400">
+                    No tienes negocios asignados. Contacta a tu administrador.
+                  </div>
+                )}
+
+                <div className="pt-2 text-center">
+                  <button
+                    type="button"
+                    onClick={handleCambiarNegocio}
+                    className="text-xs font-semibold text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+                  >
+                    Volver al inicio
+                  </button>
+                </div>
+              </div>
             )}
 
             {/* Social login divider */}
