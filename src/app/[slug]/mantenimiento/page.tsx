@@ -1,13 +1,14 @@
 'use client';
 
 import { useState } from 'react';
-import { supabase, obtenerFechaHoy } from '@/lib/supabase';
+import { obtenerFechaHoy } from '@/lib/supabase';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { RotateCcw, AlertTriangle, ArrowRight, ShieldAlert, CheckCircle2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { useRouter, useParams } from 'next/navigation';
 import { useBusiness } from '@/contexts/BusinessContext';
+import { dbDelete, dbUpdate } from '@/lib/supabaseApi';
 
 export default function MantenimientoPage() {
     return (
@@ -36,49 +37,20 @@ function MantenimientoContent() {
                 return;
             }
 
-            // 1. Eliminar ventas de hoy
-            const { error: errorVentas } = await supabase
-                .from('ventas')
-                .delete()
-                .eq('fecha', fechaHoy)
-                .eq('negocio_id', business.id);
-
-            if (errorVentas) throw errorVentas;
+            // 1. Eliminar ventas de hoy (vía API con service_role para saltar RLS)
+            await dbDelete('ventas', { fecha: fechaHoy, negocio_id: business.id }, { select: 'id' });
 
             // 2. Eliminar gastos de hoy
-            const { error: errorGastos } = await supabase
-                .from('gastos')
-                .delete()
-                .eq('fecha', fechaHoy)
-                .eq('negocio_id', business.id);
-
-            if (errorGastos) throw errorGastos;
+            await dbDelete('gastos', { fecha: fechaHoy, negocio_id: business.id }, { select: 'id' });
 
             // 3. Eliminar inventario de hoy
-            const { error: errorInv } = await supabase
-                .from('inventario_diario')
-                .delete()
-                .eq('fecha', fechaHoy)
-                .eq('negocio_id', business.id);
-
-            if (errorInv) throw errorInv;
+            await dbDelete('inventario_diario', { fecha: fechaHoy, negocio_id: business.id }, { select: 'id' });
 
             // 3.5. Eliminar cualquier inventario 'abierto' atascado de días anteriores
-            await supabase
-                .from('inventario_diario')
-                .delete()
-                .eq('estado', 'abierto')
-                .eq('negocio_id', business.id);
-
-            if (errorInv) throw errorInv;
+            await dbDelete('inventario_diario', { estado: 'abierto', negocio_id: business.id }, { select: 'id' });
 
             // 4. Resetear estado de todas las mesas a libre
-            const { error: errorMesas } = await supabase
-                .from('mesas')
-                .update({ estado: 'libre' })
-                .eq('negocio_id', business.id);
-
-            if (errorMesas) throw errorMesas;
+            await dbUpdate('mesas', { estado: 'libre' }, { negocio_id: business.id });
 
             setSuccess(true);
             toast.success('Sistema restablecido totalmente', { icon: '🔥' });
