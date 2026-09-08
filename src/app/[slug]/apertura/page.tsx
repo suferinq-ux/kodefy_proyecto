@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { Check, Loader2, RefreshCw, ArrowRight, Plus, X } from 'lucide-react';
 import { supabase, obtenerFechaHoy } from '@/lib/supabase';
-import { dbUpdate, dbInsert } from '@/lib/supabaseApi';
+import { dbUpdate, dbInsert, dbDelete } from '@/lib/supabaseApi';
 import toast from 'react-hot-toast';
 import type { BebidasDetalle } from '@/lib/database.types';
 import ProtectedRoute from '@/components/ProtectedRoute';
@@ -225,8 +225,8 @@ function AperturaContent() {
             // RESETEAR TODAS LAS MESAS AL INICIAR EL DÍA
             await dbUpdate('mesas', { estado: 'libre' }, { negocio_id: business.id });
 
-            // RESETEAR TODOS LOS PEDIDOS PENDIENTES DEL DÍA ANTERIOR A 'anulado'
-            await dbUpdate('ventas', { estado_pago: 'anulado' }, { negocio_id: business.id, estado_pago: 'pendiente' });
+            // ELIMINAR TODOS LOS PEDIDOS PENDIENTES DEL DÍA ANTERIOR
+            await dbDelete('ventas', { negocio_id: business.id, estado_pago: 'pendiente' });
 
             toast.success(
                 `¡Día iniciado exitosamente!\nPollos: ${pollos} | Chicha: ${chicha}L | Bebidas: ${totalBebidas}`,
