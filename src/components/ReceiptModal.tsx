@@ -259,132 +259,138 @@ export default function ReceiptModal({ isOpen, onClose, items, total, orderId, m
     }, [isOpen]);
 
     const fecha = new Date();
-    const fechaFormateada = fecha.toLocaleDateString('es-PE', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric'
-    });
-    const horaFormateada = fecha.toLocaleTimeString('es-PE', {
-        hour: '2-digit',
-        minute: '2-digit'
-    });
+    const fechaFormateada = `${String(fecha.getDate()).padStart(2, '0')}/${String(fecha.getMonth() + 1).padStart(2, '0')}/${fecha.getFullYear()}`;
+    const horaFormateada = `${String(fecha.getHours()).padStart(2, '0')}:${String(fecha.getMinutes()).padStart(2, '0')}`;
+
+    const metaFilas: { etiqueta: string; valor: string }[] = [
+        { etiqueta: 'FECHA', valor: fechaFormateada },
+        { etiqueta: 'HORA', valor: horaFormateada },
+    ];
+    if (mesaNumero) metaFilas.push({ etiqueta: 'MESA', valor: `N° ${mesaNumero}` });
+    if (usuarioNombre) metaFilas.push({ etiqueta: 'ATIENDE', valor: usuarioNombre.toUpperCase() });
 
     const printTicketContent = (
         <div className="hidden print:block print-ticket" style={{ fontFamily: "'Segoe UI', 'Helvetica Neue', Arial, sans-serif", color: '#000' }}>
-            <div className="ticket-header" style={{ textAlign: 'center' }}>
+            <div className="ticket-header" style={{ textAlign: 'center', paddingBottom: '6px', borderBottom: '2px solid #000' }}>
                 {business?.logo_url && (
-                    <img src={business.logo_url} alt="Logo" style={{ width: '78px', height: '78px', objectFit: 'contain', margin: '0 auto 8px', display: 'block' }} />
+                    <img src={business.logo_url} alt="Logo" style={{ width: '80px', height: '80px', objectFit: 'contain', margin: '0 auto 8px', display: 'block' }} />
                 )}
-                <p className="negocio-nombre" style={{ margin: '0 0 4px', fontWeight: 800, fontSize: '16px', letterSpacing: '0.5px', textTransform: 'uppercase' }}>{config.razon_social}</p>
-                {config.ruc && <p style={{ margin: 0, fontSize: '10px', fontWeight: 'bold' }}>RUC: {config.ruc}</p>}
-                <div className="negocio-info" style={{ marginTop: 0, fontSize: '10px' }}>
-                    <p>{config.direccion}</p>
-                    <p>{config.ciudad || 'PERÚ'}</p>
-                    {config.telefono && <p>TEL: {config.telefono}</p>}
-                </div>
+                <p className="negocio-nombre" style={{ margin: '0 0 2px', fontWeight: 800, fontSize: '16px', letterSpacing: '0.6px', textTransform: 'uppercase', lineHeight: 1.25 }}>{config.razon_social}</p>
+                {config.ruc && <p style={{ margin: '0 0 2px', fontSize: '10px', fontWeight: 700 }}>RUC: {config.ruc}</p>}
+                <p style={{ margin: 0, fontSize: '9.5px', lineHeight: 1.4 }}>{config.direccion}</p>
+                <p style={{ margin: 0, fontSize: '9.5px', lineHeight: 1.4 }}>
+                    {[config.ciudad || 'PERÚ', config.telefono ? `TEL: ${config.telefono}` : ''].filter(Boolean).join('  •  ')}
+                </p>
             </div>
 
-            <div className="ticket-boleta-num" style={{ textAlign: 'center', marginTop: '8px' }}>
-                <p style={{ fontWeight: 'bold', fontSize: '12px', textDecoration: 'underline' }}>{tipoDoc === 'boleta' ? 'BOLETA DE VENTA' : (tipoDoc === 'factura' ? 'FACTURA ELECTRÓNICA' : 'TICKET DE CONTROL INTERNO')}</p>
-                <p style={{ fontWeight: 'bold', fontSize: '14px' }}>{tipoDoc === 'ticket' ? numeroTicket : (tipoDoc === 'factura' ? numeroFactura : numeroBoleta)}</p>
+            <div className="ticket-doc" style={{ borderTop: '1px dashed #000', borderBottom: '1px dashed #000', textAlign: 'center', padding: '6px 0 5px', marginTop: '6px' }}>
+                <p style={{ margin: 0, fontSize: '10px', fontWeight: 800, letterSpacing: '2px' }}>
+                    {tipoDoc === 'boleta' ? 'BOLETA DE VENTA' : (tipoDoc === 'factura' ? 'FACTURA ELECTRÓNICA' : 'TICKET DE CONTROL')}
+                </p>
+                <p style={{ margin: '2px 0 0', fontSize: '15px', fontWeight: 800, letterSpacing: '0.5px' }}>
+                    {tipoDoc === 'ticket' ? numeroTicket : (tipoDoc === 'factura' ? numeroFactura : numeroBoleta)}
+                </p>
             </div>
 
-            <div className="ticket-meta" style={{ marginTop: '8px' }}>
-                <div className="ticket-meta-row" style={{ fontSize: '10px' }}>
-                    <span>FECHA: {fechaFormateada}</span>
-                    <span>HORA: {horaFormateada}</span>
-                </div>
+            <div className="ticket-meta" style={{ marginTop: '6px', padding: '6px 2px', borderBottom: '2px solid #000' }}>
+                {metaFilas.map((fila) => (
+                    <div key={fila.etiqueta} style={{ display: 'flex', alignItems: 'baseline', marginBottom: '2px' }}>
+                        <span style={{ fontSize: '10px', fontWeight: 800, letterSpacing: '1px', width: '58px', flexShrink: 0 }}>{fila.etiqueta}</span>
+                        <span style={{ fontSize: '11px', fontWeight: 600 }}>{fila.valor}</span>
+                    </div>
+                ))}
             </div>
-            {mesaNumero && (
-                <div className="ticket-mesa" style={{ fontSize: '10px', textAlign: 'center', marginTop: '4px' }}>
-                    <strong>MESA: {mesaNumero}</strong>
-                </div>
-            )}
-            {usuarioNombre && (
-                <div className="ticket-usuario" style={{ fontSize: '9px', textAlign: 'center', marginTop: '2px' }}>
-                    <span>ATENDIDO POR: {usuarioNombre.toUpperCase()}</span>
-                </div>
-            )}
+
             {deliveryInfo && (
-                <div className="ticket-delivery" style={{ fontSize: '9px', marginTop: '8px', padding: '4px', border: '1px dashed black' }}>
-                    <p><strong>DELIVERY:</strong> {deliveryInfo.address.toUpperCase()}</p>
-                    {deliveryInfo.reference && <p><strong>REF:</strong> {deliveryInfo.reference.toUpperCase()}</p>}
-                    {deliveryInfo.phone && <p><strong>TEL:</strong> {deliveryInfo.phone}</p>}
+                <div className="ticket-delivery" style={{ marginTop: '6px', padding: '6px 2px', border: '1px dashed #000' }}>
+                    <p style={{ margin: '0 0 2px', fontSize: '10px', fontWeight: 800, letterSpacing: '1px' }}>DELIVERY</p>
+                    <p style={{ margin: 0, fontSize: '10px', lineHeight: 1.4 }}>{deliveryInfo.address.toUpperCase()}</p>
+                    {deliveryInfo.reference && <p style={{ margin: 0, fontSize: '9.5px' }}>REF: {deliveryInfo.reference.toUpperCase()}</p>}
+                    {deliveryInfo.phone && <p style={{ margin: 0, fontSize: '9.5px', fontWeight: 700 }}>TEL: {deliveryInfo.phone}</p>}
                 </div>
             )}
 
             {(clienteNombre || documento) && (
-                <div className="ticket-cliente" style={{ fontSize: '10px', marginTop: '8px', padding: '4px', border: '1px dashed black' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span><strong>CLIENTE:</strong> {clienteNombre?.toUpperCase() || '-'}</span>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '2px' }}>
-                        <span><strong>{tipoDoc === 'factura' ? 'RUC' : (tipoDoc === 'boleta' ? (clienteDocumentoTipo === '6' || String(documento).length === 11 ? 'RUC' : 'DNI') : 'DOC')}:</strong> {documento}</span>
-                    </div>
+                <div className="ticket-cliente" style={{ marginTop: '6px', padding: '6px 2px', border: '1px dashed #000' }}>
+                    {clienteNombre && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px' }}>
+                            <span style={{ fontSize: '10px', fontWeight: 800, letterSpacing: '1px', whiteSpace: 'nowrap' }}>CLIENTE</span>
+                            <span style={{ fontSize: '10px', fontWeight: 600, textAlign: 'right' }}>{clienteNombre.toUpperCase()}</span>
+                        </div>
+                    )}
+                    {documento && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', marginTop: clienteNombre ? '2px' : 0 }}>
+                            <span style={{ fontSize: '10px', fontWeight: 800, letterSpacing: '1px' }}>
+                                {tipoDoc === 'factura' ? 'RUC' : (tipoDoc === 'boleta' ? (clienteDocumentoTipo === '6' || String(documento).length === 11 ? 'RUC' : 'DNI') : 'DOC')}
+                            </span>
+                            <span style={{ fontSize: '10px', fontWeight: 600 }}>{documento}</span>
+                        </div>
+                    )}
                     {clienteDireccion && (
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '2px' }}>
-                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}><strong>DIR:</strong> {clienteDireccion.toUpperCase()}</span>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', marginTop: '2px' }}>
+                            <span style={{ fontSize: '10px', fontWeight: 800, letterSpacing: '1px', whiteSpace: 'nowrap' }}>DIRECCIÓN</span>
+                            <span style={{ fontSize: '10px', textAlign: 'right' }}>{clienteDireccion.toUpperCase()}</span>
                         </div>
                     )}
                 </div>
             )}
 
-            <div className="ticket-items-header" style={{ fontSize: '10px', fontWeight: 'bold', marginTop: '8px', borderTop: '1px solid black', borderBottom: '1px solid black', padding: '4px 0' }}>
-                <span>CANT  DESCRIPCIÓN</span>
-                <span>TOTAL</span>
+            <div className="ticket-items-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontWeight: 800, fontSize: '10px', letterSpacing: '0.5px', marginTop: '8px', borderTop: '1px solid #000', borderBottom: '1px solid #000', padding: '4px 2px' }}>
+                <span className="th-cant" style={{ width: '24px', textAlign: 'left' }}>CANT</span>
+                <span className="th-nombre" style={{ flex: 1 }}>DESCRIPCIÓN</span>
+                <span className="th-importe" style={{ textAlign: 'right' }}>IMPORTE</span>
             </div>
 
-            <div style={{ fontSize: '10px' }}>
+            <div className="ticket-items" style={{ paddingTop: '2px' }}>
                 {items.map((item, idx) => {
                     const i = item as any;
                     const cantidad = Number(i.cantidad) || 0;
                     const precio = Number(i.precio) || 0;
                     const subtotal = Number(i.subtotal) || (cantidad * precio);
-                        return (
-                            <div key={idx} className="ticket-item" style={{ display: 'flex', flexDirection: 'column', padding: '2px 0', borderBottom: '1px dashed #eee' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                    <span className="item-cantidad" style={{ fontWeight: 'bold' }}>{cantidad} x </span>
-                                    <span className="item-nombre" style={{ flex: 1, marginLeft: '4px', fontWeight: 'bold' }}>{i.nombre?.toUpperCase()}</span>
-                                    <span className="item-precio" style={{ whiteSpace: 'nowrap', marginLeft: '8px', fontWeight: 'bold' }}>S/ {subtotal.toFixed(2)}</span>
-                                </div>
-                                <div style={{ marginLeft: '24px', fontSize: '9px', display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                                    {i.detalles?.parte && (
-                                        <span>PRESA: {i.detalles.parte.toUpperCase()}</span>
-                                    )}
-                                    {i.detalles?.trozado && i.detalles.trozado !== 'entero' && (
-                                        <span> / {i.detalles.trozado.toUpperCase()}</span>
-                                    )}
-                                </div>
+                    return (
+                        <div key={idx} className="ticket-item" style={{ display: 'flex', flexDirection: 'column', padding: '4px 2px', borderBottom: '1px dotted #999' }}>
+                            <div style={{ display: 'flex', alignItems: 'baseline' }}>
+                                <span className="item-cantidad" style={{ width: '24px', textAlign: 'left', fontWeight: 800, fontSize: '12px', flexShrink: 0 }}>{cantidad}×</span>
+                                <span className="item-nombre" style={{ flex: 1, fontSize: '12px', fontWeight: 700, lineHeight: 1.25 }}>{i.nombre?.toUpperCase()}</span>
+                                <span className="item-precio" style={{ textAlign: 'right', whiteSpace: 'nowrap', marginLeft: '8px', fontWeight: 800, fontSize: '12px' }}>S/ {subtotal.toFixed(2)}</span>
                             </div>
-                        );
+                            {(i.detalles?.parte || (i.detalles?.trozado && i.detalles.trozado !== 'entero') || i.notas) && (
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', fontSize: '9.5px', fontWeight: 600, paddingLeft: '24px' }}>
+                                    {i.detalles?.parte && <span>PRESA: {i.detalles.parte.toUpperCase()}</span>}
+                                    {i.detalles?.trozado && i.detalles.trozado !== 'entero' && <span>{i.detalles.trozado.toUpperCase()}</span>}
+                                    {i.notas && <span>NOTA: {i.notas}</span>}
+                                </div>
+                            )}
+                        </div>
+                    );
                 })}
             </div>
 
-            <div className="ticket-total-box" style={{ marginTop: '8px', borderTop: '2px solid black', paddingTop: '8px' }}>
+            <div className="ticket-total-box" style={{ marginTop: '2px', padding: '6px 2px 4px' }}>
                 {costoEnvio > 0 && (
-                    <div className="ticket-total-row" style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', marginBottom: '4px' }}>
-                        <span>TOTAL PRODUCTOS:</span>
-                        <span>S/ {(total - costoEnvio).toFixed(2)}</span>
+                    <div className="ticket-total-row" style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', marginBottom: '3px' }}>
+                        <span>TOTAL PRODUCTOS</span>
+                        <span style={{ fontWeight: 700 }}>S/ {(total - costoEnvio).toFixed(2)}</span>
                     </div>
                 )}
                 {costoEnvio > 0 && (
-                    <div className="ticket-total-row" style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', marginBottom: '4px' }}>
-                        <span>FLETE ENVIO:</span>
-                        <span>S/ {costoEnvio.toFixed(2)}</span>
+                    <div className="ticket-total-row" style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', marginBottom: '3px' }}>
+                        <span>FLETE ENVÍO</span>
+                        <span style={{ fontWeight: 700 }}>S/ {costoEnvio.toFixed(2)}</span>
                     </div>
                 )}
-                <div className="ticket-total-row" style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '12px' }}>
-                    <span className="ticket-total-label">TOTAL A PAGAR:</span>
-                    <span className="ticket-total-amount">S/ {total.toFixed(2)}</span>
+                <div className="ticket-total-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', borderTop: '2px solid #000', paddingTop: '5px' }}>
+                    <span className="ticket-total-label" style={{ fontSize: '14px', fontWeight: 800, letterSpacing: '0.5px' }}>TOTAL A PAGAR</span>
+                    <span className="ticket-total-amount" style={{ fontSize: '15px', fontWeight: 800 }}>S/ {total.toFixed(2)}</span>
                 </div>
             </div>
 
-            <div className="ticket-footer" style={{ marginTop: '16px', textAlign: 'center', fontSize: '10px' }}>
-                <p className="footer-mensaje">"{config.mensaje_boleta}"</p>
+            <div className="ticket-footer" style={{ marginTop: '8px', textAlign: 'center' }}>
+                <p className="footer-mensaje" style={{ margin: 0, fontSize: '10px', fontWeight: 600, fontStyle: 'italic' }}>"{config.mensaje_boleta}"</p>
             </div>
 
-            <div style={{ marginTop: '10px', borderTop: '1px dashed #333', paddingTop: '8px', textAlign: 'center' }}>
-                <p style={{ margin: 0, fontSize: '13px', fontWeight: 800, letterSpacing: '2px' }}>KODEFY&nbsp;<span style={{ color: '#2563eb' }}>POS</span></p>
+            <div style={{ marginTop: '8px', borderTop: '1px dashed #999', paddingTop: '6px', textAlign: 'center' }}>
+                <p style={{ margin: 0, fontSize: '12px', fontWeight: 800, letterSpacing: '2px' }}>KODEFY&nbsp;<span style={{ color: '#2563eb' }}>POS</span></p>
                 <p style={{ margin: '2px 0 0', fontSize: '8px', letterSpacing: '1px' }}>SISTEMA DE GESTIÓN PARA TU NEGOCIO</p>
             </div>
         </div>
