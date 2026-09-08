@@ -317,13 +317,6 @@ function CierreCajaContent() {
                 bebidasSobrantesTexto = 'Sin detalle disponible.';
             }
 
-            if (error) {
-                console.error('Error al actualizar inventario diario:', error);
-                toast.error('Error al guardar el cierre: ' + error.message);
-                setProcesando(false);
-                return;
-            }
-
             const negocioNombre = business?.nombre || 'Reykelt';
             const mensaje = `🐔 *RESUMEN ${negocioNombre} - ${new Date().toLocaleDateString('es-PE')}* 🐔
 
