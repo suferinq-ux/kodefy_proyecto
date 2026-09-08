@@ -23,6 +23,9 @@ interface ReceiptModalProps {
     metodoPago?: string;
     pagoDividido?: { efectivo?: number; yape?: number; plin?: number; tarjeta?: number };
     deliveryInfo?: { address: string; reference?: string; phone?: string; estimatedTime?: string };
+    clienteNombre?: string;
+    clienteDocumento?: string;
+    tipoComprobante?: 'TICKET' | 'BOLETA' | 'FACTURA';
 }
 
 interface ConfigNegocio {
@@ -39,7 +42,7 @@ interface ConfigNegocio {
     ciudad?: string;
 }
 
-export default function ReceiptModal({ isOpen, onClose, items, total, orderId, mesaNumero, title = 'BOLETA DE VENTA', isNewSale = false, costoEnvio = 0, usuarioNombre, metodoPago, pagoDividido, deliveryInfo }: ReceiptModalProps) {
+export default function ReceiptModal({ isOpen, onClose, items, total, orderId, mesaNumero, title = 'BOLETA DE VENTA', isNewSale = false, costoEnvio = 0, usuarioNombre, metodoPago, pagoDividido, deliveryInfo, clienteNombre: initialNombre, clienteDocumento: initialDocumento, tipoComprobante: initialTipo = 'TICKET' }: ReceiptModalProps) {
     const { business } = useBusiness();
     const [config, setConfig] = useState<ConfigNegocio>({
         ruc: '',
@@ -66,14 +69,15 @@ export default function ReceiptModal({ isOpen, onClose, items, total, orderId, m
 
     useEffect(() => {
         if (isOpen) {
-            setClienteNombre('');
+            setClienteNombre(initialNombre || '');
+            setDocumento(initialDocumento || '');
             setClienteDireccion('');
             setErrorDocumento(null);
             setYaImpreso(false);
-            setTipoComprobante('ticket');
-            cargarConfiguracion('ticket');
+            setTipoComprobante(initialTipo === 'FACTURA' ? 'boleta' : (initialTipo === 'BOLETA' ? 'boleta' : 'ticket'));
+            cargarConfiguracion(initialTipo === 'FACTURA' ? 'boleta' : (initialTipo === 'BOLETA' ? 'boleta' : 'ticket'));
         }
-    }, [isOpen, title]);
+    }, [isOpen, title, initialNombre, initialDocumento, initialTipo]);
 
     const cargarConfiguracion = async (tipoOverride?: 'boleta' | 'ticket') => {
         try {
@@ -428,13 +432,21 @@ export default function ReceiptModal({ isOpen, onClose, items, total, orderId, m
                                     </div>
 
                                     <p className="font-black text-xs text-theme-primary tracking-widest mt-2 border-t border-slate-100 pt-2 uppercase">
-                                        {tipoComprobante === 'boleta' ? 'Boleta de Venta' : 'Ticket de Control'}
+                                        {initialTipo === 'FACTURA' ? 'Factura Electrónica' : (initialTipo === 'BOLETA' ? 'Boleta de Venta' : 'Ticket de Control')}
                                     </p>
                                     <p className="font-black text-base text-slate-900 tracking-widest">
                                         {tipoComprobante === 'boleta' ? numeroBoleta : numeroTicket}
                                     </p>
                                     <p className="text-[11px] text-gray-400 mt-1">{fechaFormateada} - {horaFormateada}</p>
                                 </div>
+
+                                {(clienteNombre || documento) && (
+                                    <div className="text-left mb-3 pb-2 border-b border-dashed border-slate-300 text-[10px]">
+                                        {clienteNombre && <p className="font-bold leading-tight uppercase">CLIENTE: {clienteNombre}</p>}
+                                        {documento && <p className="leading-tight uppercase">{initialTipo === 'FACTURA' ? 'RUC' : (documento.length === 11 ? 'RUC' : 'DNI')}: {documento}</p>}
+                                        {clienteDireccion && <p className="leading-tight uppercase truncate">DIR: {clienteDireccion}</p>}
+                                    </div>
+                                )}
 
                                 {deliveryInfo && (
                                     <div className="mb-4 p-2 bg-slate-50 border-l-2 border-slate-900 text-[10px] space-y-1">

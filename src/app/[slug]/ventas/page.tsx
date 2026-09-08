@@ -170,7 +170,8 @@ function MesasActivasContent() {
 
     const marcarComoPagado = async (
         metodoPago: 'efectivo' | 'yape' | 'plin' | 'tarjeta' | 'mixto',
-        pagoDividido?: { efectivo?: number; yape?: number; plin?: number; tarjeta?: number }
+        pagoDividido?: { efectivo?: number; yape?: number; plin?: number; tarjeta?: number },
+        comprobanteData?: any
     ) => {
         if (!payModalData) return;
         const { ventaId, mesaId, mesaNumero, items, total } = payModalData;
@@ -178,7 +179,8 @@ function MesasActivasContent() {
         try {
             const updateData: any = {
                 estado_pago: 'pagado',
-                metodo_pago: metodoPago
+                metodo_pago: metodoPago,
+                ...comprobanteData
             };
             if (pagoDividido) {
                 updateData.pago_dividido = pagoDividido;
@@ -208,7 +210,10 @@ function MesasActivasContent() {
                 mesaNumero: mesaNumero,
                 isNewSale: true,
                 metodoPago,
-                pagoDividido
+                pagoDividido,
+                clienteNombre: comprobanteData?.cliente_nombre,
+                clienteDocumento: comprobanteData?.cliente_documento_numero,
+                tipoComprobante: comprobanteData?.tipo_comprobante || 'TICKET'
             });
 
             setShowReceipt(true);
