@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -64,12 +64,6 @@ export default function SplitPaymentModal({ isOpen, onClose, total, onConfirm }:
     const metodosUsados = Object.entries(montos).filter(([, v]) => v && v > 0);
     const esMetodoUnico = metodosUsados.length === 1;
 
-    const handleMontoChange = (key: keyof PagoDividido, valor: string) => {
-        const num = valor === '' ? 0 : parseFloat(valor);
-        if (isNaN(num) || num < 0) return;
-        setMontos(prev => ({ ...prev, [key]: num }));
-    };
-
     const handleBuscarDocumento = async () => {
         if (!documento) return;
         setBuscando(true);
@@ -111,6 +105,12 @@ export default function SplitPaymentModal({ isOpen, onClose, total, onConfirm }:
         };
     };
 
+    const handleMontoChange = (key: keyof PagoDividido, valor: string) => {
+        const num = valor === '' ? 0 : parseFloat(valor);
+        if (isNaN(num) || num < 0) return;
+        setMontos(prev => ({ ...prev, [key]: num }));
+    };
+
     const handleQuickPay = (metodo: 'efectivo' | 'yape' | 'plin' | 'tarjeta') => {
         if (tipoComprobante !== 'TICKET' && !nombre) {
             setDocError('Debe ingresar un documento válido');
@@ -130,6 +130,7 @@ export default function SplitPaymentModal({ isOpen, onClose, total, onConfirm }:
             const metodo = metodosUsados[0][0] as 'efectivo' | 'yape' | 'plin' | 'tarjeta';
             onConfirm(metodo, undefined, getComprobanteData());
         } else {
+            // Limpiar montos en 0
             const pagoLimpio: PagoDividido = {};
             for (const [k, v] of Object.entries(montos)) {
                 if (v && v > 0) {
@@ -140,6 +141,7 @@ export default function SplitPaymentModal({ isOpen, onClose, total, onConfirm }:
         }
     };
 
+    // Auto-completar el restante en el Ãºltimo campo tocado
     const handleAutoCompletar = (key: keyof PagoDividido) => {
         if (diferencia > 0) {
             setMontos(prev => ({
@@ -158,10 +160,10 @@ export default function SplitPaymentModal({ isOpen, onClose, total, onConfirm }:
                     initial={{ opacity: 0, scale: 0.95, y: 20 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                    className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]"
+                    className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
                 >
                     {/* Header */}
-                    <div className="bg-slate-800 px-6 py-4 flex items-center justify-between shrink-0">
+                    <div className="bg-slate-800 px-6 py-4 flex items-center justify-between">
                         <div>
                             <h2 className="text-lg font-bold text-white">Cobrar Pedido</h2>
                             <p className="text-slate-400 text-sm">Total: <span className="text-white font-bold text-lg">S/ {total.toFixed(2)}</span></p>
@@ -179,19 +181,19 @@ export default function SplitPaymentModal({ isOpen, onClose, total, onConfirm }:
                             <div className="flex gap-2 mb-3">
                                 <button 
                                     onClick={() => setTipoComprobante('TICKET')} 
-                                    className={lex-1 py-2 text-sm font-semibold rounded-lg transition-colors border }
+                                    className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-colors border ${tipoComprobante === 'TICKET' ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'}`}
                                 >
                                     Ticket
                                 </button>
                                 <button 
                                     onClick={() => setTipoComprobante('BOLETA')} 
-                                    className={lex-1 py-2 text-sm font-semibold rounded-lg transition-colors border }
+                                    className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-colors border ${tipoComprobante === 'BOLETA' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'}`}
                                 >
                                     Boleta
                                 </button>
                                 <button 
                                     onClick={() => setTipoComprobante('FACTURA')} 
-                                    className={lex-1 py-2 text-sm font-semibold rounded-lg transition-colors border }
+                                    className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-colors border ${tipoComprobante === 'FACTURA' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'}`}
                                 >
                                     Factura
                                 </button>
@@ -209,7 +211,7 @@ export default function SplitPaymentModal({ isOpen, onClose, total, onConfirm }:
                                                 value={documento}
                                                 onChange={(e) => setDocumento(e.target.value.replace(/\D/g, ''))}
                                                 maxLength={tipoComprobante === 'BOLETA' ? 8 : 11}
-                                                placeholder={Ingrese el }
+                                                placeholder={`Ingrese el ${tipoComprobante === 'BOLETA' ? 'DNI' : 'RUC'}`}
                                                 className="flex-1 py-2 px-3 text-sm outline-none w-full"
                                             />
                                             {buscando && (
@@ -253,8 +255,8 @@ export default function SplitPaymentModal({ isOpen, onClose, total, onConfirm }:
 
                         {modoRapido ? (
                             <>
-                                {/* MODO RÁPIDO */}
-                                <p className="text-xs text-slate-400 uppercase font-semibold tracking-wide mb-3">Pago con un solo método</p>
+                                {/* MODO RÃPIDO: Botones de pago Ãºnico */}
+                                <p className="text-xs text-slate-400 uppercase font-semibold tracking-wide mb-3">Pago con un solo mÃ©todo</p>
                                 <div className="grid grid-cols-2 gap-3 mb-4">
                                      {METODOS.map((m) => {
                                          const Icon = m.icon;
@@ -281,30 +283,31 @@ export default function SplitPaymentModal({ isOpen, onClose, total, onConfirm }:
                                      </div>
                                  </div>
 
-                                 {/* Botón dividir */}
+                                 {/* BotÃ³n dividir */}
                                  <button
                                      onClick={() => setModoRapido(false)}
                                      className="w-full py-4 rounded-none font-bold text-sm text-white bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 transition-all shadow-md active:scale-[0.98] flex items-center justify-center gap-2"
                                  >
+
                                      Dividir Pago (Mixto)
                                  </button>
                             </>
                         ) : (
                             <>
-                                {/* MODO DIVIDIDO */}
+                                {/* MODO DIVIDIDO: Inputs por mÃ©todo */}
                                 <button
                                     onClick={() => { setModoRapido(true); setMontos({}); }}
                                     className="text-xs text-slate-400 hover:text-slate-600 mb-4 flex items-center gap-1 transition-colors"
                                 >
-                                    ← Volver a pago simple
+                                    â† Volver a pago simple
                                 </button>
 
                                 <div className="space-y-3 mb-5">
                                     {METODOS.map(m => {
                                         const Icon = m.icon;
                                         return (
-                                            <div key={m.key} className={lex items-center gap-3 p-3 rounded-none border  transition-all}>
-                                                <div className={w-9 h-9 rounded-none  flex items-center justify-center flex-shrink-0}>
+                                            <div key={m.key} className={`flex items-center gap-3 p-3 rounded-none border ${montos[m.key] ? m.lightColor : 'border-slate-100 bg-white'} transition-all`}>
+                                                <div className={`w-9 h-9 rounded-none ${m.color} flex items-center justify-center flex-shrink-0`}>
                                                     {Icon && (
                                                         typeof Icon === 'function' && !(Icon as any).prototype?.render ? (Icon as any)() : <Icon size={18} className="text-white" />
                                                     )}
@@ -322,10 +325,11 @@ export default function SplitPaymentModal({ isOpen, onClose, total, onConfirm }:
                                                         placeholder="0.00"
                                                         className="w-24 text-right font-bold text-slate-800 bg-transparent border-b-2 border-slate-200 focus:border-slate-500 outline-none py-1 text-base transition-colors"
                                                     />
+                                                    {/* Auto-completar */}
                                                     {diferencia > 0.01 && (
                                                         <button
                                                             onClick={() => handleAutoCompletar(m.key)}
-                                                            title={Poner S/  restantes aquí}
+                                                            title={`Poner S/ ${diferencia.toFixed(2)} restantes aquÃ­`}
                                                             className="text-[10px] text-amber-600 bg-amber-50 hover:bg-amber-100 px-1.5 py-0.5 rounded-none font-bold transition-colors ml-1"
                                                         >
                                                             +{diferencia.toFixed(0)}
@@ -338,7 +342,7 @@ export default function SplitPaymentModal({ isOpen, onClose, total, onConfirm }:
                                 </div>
 
                                 {/* Resumen */}
-                                <div className={p-4 rounded-none mb-4 }>
+                                <div className={`p-4 rounded-none mb-4 ${esValido ? 'bg-green-50 border border-green-200' : diferencia > 0 ? 'bg-amber-50 border border-amber-200' : 'bg-red-50 border border-red-200'}`}>
                                     <div className="flex justify-between items-center text-sm">
                                         <span className="font-medium text-slate-600">Total pedido:</span>
                                         <span className="font-bold text-slate-800">S/ {total.toFixed(2)}</span>
@@ -348,17 +352,17 @@ export default function SplitPaymentModal({ isOpen, onClose, total, onConfirm }:
                                         <span className="font-bold text-slate-800">S/ {sumaActual.toFixed(2)}</span>
                                     </div>
                                     {!esValido && (
-                                        <div className={lex items-center gap-1.5 mt-2 pt-2 border-t }>
+                                        <div className={`flex items-center gap-1.5 mt-2 pt-2 border-t ${diferencia > 0 ? 'border-amber-200 text-amber-700' : 'border-red-200 text-red-700'}`}>
                                             <AlertCircle size={14} />
                                             <span className="text-xs font-semibold">
-                                                {diferencia > 0 ? Falta S/  : Excede S/ }
+                                                {diferencia > 0 ? `Falta S/ ${diferencia.toFixed(2)}` : `Excede S/ ${Math.abs(diferencia).toFixed(2)}`}
                                             </span>
                                         </div>
                                     )}
                                     {esValido && (
                                         <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-green-200 text-green-700">
                                             <Check size={14} />
-                                            <span className="text-xs font-semibold">¡Monto correcto!</span>
+                                            <span className="text-xs font-semibold">Â¡Monto correcto!</span>
                                         </div>
                                     )}
                                 </div>
