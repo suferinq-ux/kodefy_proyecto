@@ -1,4 +1,5 @@
 import { supabase, obtenerFechaHoy } from './supabase';
+import { dbUpdate } from './supabaseApi';
 
 async function obtenerInventarioActivo(negocioId: string) {
     const fechaHoy = obtenerFechaHoy();
@@ -13,16 +14,13 @@ async function obtenerInventarioActivo(negocioId: string) {
 
     if (data && data.fecha < fechaHoy) {
         // Auto-cerrar jornada anterior
-        await supabase
-            .from('inventario_diario')
-            .update({
-                estado: 'cerrado',
-                observaciones_cierre: 'Cierre automático por el sistema al iniciar un nuevo día operativo.',
-                stock_pollos_real: 0,
-                stock_gaseosas_real: 0,
-                dinero_cierre_real: 0
-            })
-            .eq('id', data.id);
+        await dbUpdate('inventario_diario', {
+            estado: 'cerrado',
+            observaciones_cierre: 'Cierre automático por el sistema al iniciar un nuevo día operativo.',
+            stock_pollos_real: 0,
+            stock_gaseosas_real: 0,
+            dinero_cierre_real: 0
+        }, { id: data.id });
         data = null;
     }
 
@@ -52,12 +50,7 @@ export async function ajustarStockPollos(negocioId: string, cantidad: number): P
 
         const nuevoTotal = (data.pollos_enteros || 0) + cantidad;
 
-        const { error: updateError } = await supabase
-            .from('inventario_diario')
-            .update({ pollos_enteros: nuevoTotal })
-            .eq('id', data.id);
-
-        if (updateError) throw updateError;
+        await dbUpdate('inventario_diario', { pollos_enteros: nuevoTotal }, { id: data.id });
 
         return { success: true, message: `Se añadieron ${cantidad} pollos al stock.` };
     } catch (error: any) {
@@ -78,12 +71,7 @@ export async function ajustarCajaChica(negocioId: string, monto: number): Promis
 
         const nuevoTotal = (data.dinero_inicial || 0) + monto;
 
-        const { error: updateError } = await supabase
-            .from('inventario_diario')
-            .update({ dinero_inicial: nuevoTotal })
-            .eq('id', data.id);
-
-        if (updateError) throw updateError;
+        await dbUpdate('inventario_diario', { dinero_inicial: nuevoTotal }, { id: data.id });
 
         return { success: true, message: `Se añadieron S/ ${monto.toFixed(2)} a la caja chica.` };
     } catch (error: any) {
@@ -104,12 +92,7 @@ export async function ajustarStockChicha(negocioId: string, cantidad: number): P
 
         const nuevoTotal = (data.chicha_inicial || 0) + cantidad;
 
-        const { error: updateError } = await supabase
-            .from('inventario_diario')
-            .update({ chicha_inicial: nuevoTotal })
-            .eq('id', data.id);
-
-        if (updateError) throw updateError;
+        await dbUpdate('inventario_diario', { chicha_inicial: nuevoTotal }, { id: data.id });
 
         return { success: true, message: `Se añadieron ${cantidad.toFixed(2)}L de chicha al stock.` };
     } catch (error: any) {
@@ -130,12 +113,7 @@ export async function ajustarStockPapas(negocioId: string, cantidad: number): Pr
 
         const nuevoTotal = (data.papas_iniciales || 0) + cantidad;
 
-        const { error: updateError } = await supabase
-            .from('inventario_diario')
-            .update({ papas_iniciales: nuevoTotal })
-            .eq('id', data.id);
-
-        if (updateError) throw updateError;
+        await dbUpdate('inventario_diario', { papas_iniciales: nuevoTotal }, { id: data.id });
 
         return { success: true, message: `Se añadieron ${cantidad.toFixed(1)}Kg de papas al stock.` };
     } catch (error: any) {

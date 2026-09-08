@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { Check, Loader2, RefreshCw, ArrowRight, Plus, X } from 'lucide-react';
 import { supabase, obtenerFechaHoy } from '@/lib/supabase';
+import { dbUpdate, dbInsert } from '@/lib/supabaseApi';
 import toast from 'react-hot-toast';
 import type { BebidasDetalle } from '@/lib/database.types';
 import ProtectedRoute from '@/components/ProtectedRoute';
@@ -181,20 +182,15 @@ function AperturaContent() {
             if (existente) {
                 // Permitir sobrescribir si el usuario confirma (o implícitamente al enviar de nuevo)
                 // Para simplificar UX, haremos un UPDATE si ya existe
-                const { error: updateError } = await supabase
-                    .from('inventario_diario')
-                    .update({
-                        estado: 'abierto',
-                        pollos_enteros: pollos,
-                        papas_iniciales: papas,
-                        chicha_inicial: chicha,
-                        gaseosas: totalBebidas,
-                        dinero_inicial: parseFloat(dineroInicial) || 0,
-                        bebidas_detalle: bebidasDetalle,
-                    })
-                    .eq('id', existente.id);
-
-                if (updateError) throw updateError;
+                await dbUpdate('inventario_diario', {
+                    estado: 'abierto',
+                    pollos_enteros: pollos,
+                    papas_iniciales: papas,
+                    chicha_inicial: chicha,
+                    gaseosas: totalBebidas,
+                    dinero_inicial: parseFloat(dineroInicial) || 0,
+                    bebidas_detalle: bebidasDetalle,
+                }, { id: existente.id });
 
                 toast.success(
                     `¡Apertura ACTUALIZADA!\nDatos corregidos para el día de hoy.`,
@@ -208,46 +204,29 @@ function AperturaContent() {
             }
             
             // Auto-cerrar cualquier jornada abierta anterior para evitar duplicados "abiertos"
-            await supabase
-                .from('inventario_diario')
-                .update({ 
-                    estado: 'cerrado',
-                    observaciones_cierre: 'Cierre automático forzado por nueva apertura.' 
-                })
-                .eq('negocio_id', business.id)
-                .eq('estado', 'abierto');
+            await dbUpdate('inventario_diario', { 
+                estado: 'cerrado',
+                observaciones_cierre: 'Cierre automático forzado por nueva apertura.' 
+            }, { negocio_id: business.id, estado: 'abierto' });
 
-            // Insertar nueva apertura
-            const { error } = await supabase
-                .from('inventario_diario')
-                .insert({
-                    negocio_id: business.id,
-                    fecha: fechaHoy,
-                    pollos_enteros: pollos,
-                    papas_iniciales: papas,
-                    chicha_inicial: chicha,
-                    gaseosas: totalBebidas,
-                    dinero_inicial: parseFloat(dineroInicial) || 0,
-                    bebidas_detalle: bebidasDetalle,
-                })
-                .select()
-                .single();
-
-            if (error) throw error;
+            // Insertar nueva apertura usando el API route para evitar error RLS
+            await dbInsert('inventario_diario', {
+                negocio_id: business.id,
+                fecha: fechaHoy,
+                estado: 'abierto',
+                pollos_enteros: pollos,
+                papas_iniciales: papas,
+                chicha_inicial: chicha,
+                gaseosas: totalBebidas,
+                dinero_inicial: parseFloat(dineroInicial) || 0,
+                bebidas_detalle: bebidasDetalle,
+            });
 
             // RESETEAR TODAS LAS MESAS AL INICIAR EL DÍA
-            await supabase
-                .from('mesas')
-                .update({ estado: 'libre' })
-                .eq('negocio_id', business.id);
+            await dbUpdate('mesas', { estado: 'libre' }, { negocio_id: business.id });
 
-            // ANULAR PEDIDOS PENDIENTES DE DÍAS ANTERIORES
-            // Esto evita que aparezcan pedidos "fantasmas" al empezar el día
-            await supabase
-                .from('ventas')
-                .update({ estado_pago: 'anulado' })
-                .eq('estado_pago', 'pendiente')
-                .eq('negocio_id', business.id);
+            // RESETEAR TODOS LOS PEDIDOS PENDIENTES DEL DÍA ANTERIOR A 'anulado'
+            await dbUpdate('ventas', { estado_pago: 'anulado' }, { negocio_id: business.id, estado_pago: 'pendiente' });
 
             toast.success(
                 `¡Día iniciado exitosamente!\nPollos: ${pollos} | Chicha: ${chicha}L | Bebidas: ${totalBebidas}`,

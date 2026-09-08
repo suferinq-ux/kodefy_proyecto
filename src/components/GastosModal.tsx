@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { supabase, obtenerFechaHoy } from '@/lib/supabase';
+import { dbInsert } from '@/lib/supabaseApi';
 import { X, Plus, Loader2, Banknote, Smartphone } from 'lucide-react';
 import SolIcon from '@/components/SolIcon';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -29,17 +30,13 @@ export default function GastosModal({ isOpen, onClose, onGastoRegistrado }: Gast
 
         setLoading(true);
         try {
-            const { error } = await supabase
-                .from('gastos')
-                .insert({
-                    descripcion,
-                    monto: parseFloat(monto),
-                    fecha: obtenerFechaHoy(),
-                    metodo_pago: metodoPago,
-                    negocio_id: user?.negocio_id
-                });
-
-            if (error) throw error;
+            await dbInsert('gastos', {
+                descripcion,
+                monto: parseFloat(monto),
+                fecha: obtenerFechaHoy(),
+                metodo_pago: metodoPago,
+                negocio_id: user?.negocio_id
+            });
 
             toast.success('Gasto registrado');
             setDescripcion('');

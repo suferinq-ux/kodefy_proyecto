@@ -448,7 +448,7 @@ function POSContent() {
             if (currentVentaId) {
                 resultado = await actualizarVenta(currentVentaId, carrito, user?.nombre || undefined);
             } else {
-                resultado = await registrarVenta(carrito, selectedTable?.id, orderNotes, deliveryData, user?.nombre || undefined, user?.negocio_id || undefined);
+                resultado = await registrarVenta(carrito, selectedTable?.id, orderNotes, deliveryData, user?.nombre || undefined, business?.id || user?.negocio_id || undefined);
                 if (resultado.success && selectedTable) {
                     await ocuparMesa(selectedTable.id);
                 }
@@ -464,7 +464,7 @@ function POSContent() {
 
                 if (itemsParaCocina.length > 0) {
                     try {
-                        const { data: config } = await supabase.from('configuracion_negocio').select('ip_impresora_cocina, ip_impresora_caja, modo_impresion, nombre_negocio, telefono').eq('id', 1).single();
+                        const { data: config } = await supabase.from('configuracion_negocio').select('ip_impresora_cocina, ip_impresora_caja, modo_impresion, nombre_negocio, telefono').eq('negocio_id', business?.id || '').single();
 
                         if (config?.modo_impresion === 'bridge') {
                             console.log('Modo Bridge detectado: El servidor local imprimirá automáticamente.');

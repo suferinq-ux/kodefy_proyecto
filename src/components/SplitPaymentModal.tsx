@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, DollarSign, CreditCard, Smartphone, Check, AlertCircle, FileText, Loader2, Search } from 'lucide-react';
+import { X, CreditCard, Smartphone, Check, AlertCircle, FileText, Loader2, Search, Receipt, Building2, User, CircleDollarSign } from 'lucide-react';
 
 interface PagoDividido {
     efectivo?: number;
@@ -60,6 +60,10 @@ export default function SplitPaymentModal({ isOpen, onClose, total, onConfirm }:
     const sumaActual = Object.values(montos).reduce((sum, v) => sum + (v || 0), 0);
     const diferencia = total - sumaActual;
     const esValido = Math.abs(diferencia) < 0.01;
+
+    const documentoTieneLongitudValida = tipoComprobante === 'BOLETA'
+        ? documento.length === 8
+        : documento.length === 11;
 
     const metodosUsados = Object.entries(montos).filter(([, v]) => v && v > 0);
     const esMetodoUnico = metodosUsados.length === 1;
@@ -163,12 +167,15 @@ export default function SplitPaymentModal({ isOpen, onClose, total, onConfirm }:
                     className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
                 >
                     {/* Header */}
-                    <div className="bg-slate-800 px-6 py-4 flex items-center justify-between">
+                    <div className="bg-gradient-to-r from-slate-800 to-slate-900 px-6 py-5 flex items-center justify-between">
                         <div>
-                            <h2 className="text-lg font-bold text-white">Cobrar Pedido</h2>
-                            <p className="text-slate-400 text-sm">Total: <span className="text-white font-bold text-lg">S/ {total.toFixed(2)}</span></p>
+                            <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                                <CircleDollarSign size={20} className="text-emerald-400" />
+                                Cobrar Pedido
+                            </h2>
+                            <p className="text-slate-400 text-sm mt-0.5">Total: <span className="text-white font-extrabold text-xl">S/ {total.toFixed(2)}</span></p>
                         </div>
-                        <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors p-1">
+                        <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors p-2 rounded-lg hover:bg-white/10">
                             <X size={22} />
                         </button>
                     </div>
@@ -176,87 +183,126 @@ export default function SplitPaymentModal({ isOpen, onClose, total, onConfirm }:
                     <div className="p-5 overflow-y-auto">
                         
                         {/* SELECCION DE COMPROBANTE */}
-                        <div className="mb-6 bg-slate-50 p-4 rounded-xl border border-slate-200">
-                            <p className="text-xs text-slate-500 uppercase font-bold tracking-wide mb-3">Comprobante</p>
-                            <div className="flex gap-2 mb-3">
-                                <button 
-                                    onClick={() => setTipoComprobante('TICKET')} 
-                                    className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-colors border ${tipoComprobante === 'TICKET' ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'}`}
+                        <div className="mb-6 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                            <div className="flex items-center justify-between mb-3">
+                                <p className="text-xs text-slate-600 uppercase font-bold tracking-wide">Comprobante</p>
+                                <span className="text-[10px] text-slate-400 font-medium">Obligatorio</span>
+                            </div>
+
+                            <div className="grid grid-cols-3 gap-2 mb-1">
+                                <button
+                                    onClick={() => setTipoComprobante('TICKET')}
+                                    className={`flex flex-col items-center justify-center gap-1.5 py-3 rounded-xl border-2 transition-all active:scale-95 ${tipoComprobante === 'TICKET'
+                                        ? 'border-slate-800 bg-slate-800 text-white shadow-md'
+                                        : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:bg-slate-50'}`}
                                 >
-                                    Ticket
+                                    <Receipt size={18} className={tipoComprobante === 'TICKET' ? 'text-white' : 'text-slate-400'} />
+                                    <span className="text-sm font-bold leading-none">Ticket</span>
+                                    <span className={`text-[9px] font-medium leading-none ${tipoComprobante === 'TICKET' ? 'text-slate-300' : 'text-slate-400'}`}>Sin datos</span>
                                 </button>
-                                <button 
-                                    onClick={() => setTipoComprobante('BOLETA')} 
-                                    className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-colors border ${tipoComprobante === 'BOLETA' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'}`}
+                                <button
+                                    onClick={() => setTipoComprobante('BOLETA')}
+                                    className={`flex flex-col items-center justify-center gap-1.5 py-3 rounded-xl border-2 transition-all active:scale-95 ${tipoComprobante === 'BOLETA'
+                                        ? 'border-blue-600 bg-blue-600 text-white shadow-md shadow-blue-600/20'
+                                        : 'border-slate-200 bg-white text-slate-500 hover:border-blue-300 hover:bg-blue-50'}`}
                                 >
-                                    Boleta
+                                    <FileText size={18} className={tipoComprobante === 'BOLETA' ? 'text-white' : 'text-slate-400'} />
+                                    <span className="text-sm font-bold leading-none">Boleta</span>
+                                    <span className={`text-[9px] font-medium leading-none ${tipoComprobante === 'BOLETA' ? 'text-blue-200' : 'text-slate-400'}`}>Con DNI</span>
                                 </button>
-                                <button 
-                                    onClick={() => setTipoComprobante('FACTURA')} 
-                                    className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-colors border ${tipoComprobante === 'FACTURA' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'}`}
+                                <button
+                                    onClick={() => setTipoComprobante('FACTURA')}
+                                    className={`flex flex-col items-center justify-center gap-1.5 py-3 rounded-xl border-2 transition-all active:scale-95 ${tipoComprobante === 'FACTURA'
+                                        ? 'border-indigo-600 bg-indigo-600 text-white shadow-md shadow-indigo-600/20'
+                                        : 'border-slate-200 bg-white text-slate-500 hover:border-indigo-300 hover:bg-indigo-50'}`}
                                 >
-                                    Factura
+                                    <Building2 size={18} className={tipoComprobante === 'FACTURA' ? 'text-white' : 'text-slate-400'} />
+                                    <span className="text-sm font-bold leading-none">Factura</span>
+                                    <span className={`text-[9px] font-medium leading-none ${tipoComprobante === 'FACTURA' ? 'text-indigo-200' : 'text-slate-400'}`}>Con RUC</span>
                                 </button>
                             </div>
 
                             {tipoComprobante !== 'TICKET' && (
-                                <div className="space-y-3 mt-3 animate-in fade-in slide-in-from-top-2">
-                                    <div className="relative">
-                                        <div className="flex items-center border border-slate-300 rounded-lg overflow-hidden bg-white focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500">
-                                            <div className="px-3 text-slate-500 text-sm font-medium border-r border-slate-300 bg-slate-50">
-                                                {tipoComprobante === 'BOLETA' ? 'DNI' : 'RUC'}
-                                            </div>
-                                            <input 
-                                                type="text" 
-                                                value={documento}
-                                                onChange={(e) => setDocumento(e.target.value.replace(/\D/g, ''))}
-                                                maxLength={tipoComprobante === 'BOLETA' ? 8 : 11}
-                                                placeholder={`Ingrese el ${tipoComprobante === 'BOLETA' ? 'DNI' : 'RUC'}`}
-                                                className="flex-1 py-2 px-3 text-sm outline-none w-full"
-                                            />
-                                            {buscando && (
-                                                <div className="px-3 text-blue-500">
-                                                    <Loader2 size={16} className="animate-spin" />
-                                                </div>
-                                            )}
-                                            {!buscando && documento.length >= 8 && (
-                                                <button onClick={handleBuscarDocumento} className="px-3 text-slate-400 hover:text-blue-500">
-                                                    <Search size={16} />
-                                                </button>
-                                            )}
-                                        </div>
-                                        {docError && <p className="text-red-500 text-xs mt-1 absolute -bottom-5">{docError}</p>}
-                                    </div>
-                                    
-                                    <div className="pt-2">
-                                        <input 
-                                            type="text" 
-                                            value={nombre}
-                                            onChange={(e) => setNombre(e.target.value.toUpperCase())}
-                                            placeholder={tipoComprobante === 'BOLETA' ? 'Nombre completo' : 'Razón Social'}
-                                            className="w-full py-2 px-3 text-sm border border-slate-300 rounded-lg outline-none focus:border-blue-500 bg-white"
-                                        />
-                                    </div>
-                                    
-                                    {tipoComprobante === 'FACTURA' && (
+                                <div className="mt-4 pt-4 border-t border-slate-100 animate-in fade-in slide-in-from-top-2">
+                                    <p className="text-[11px] text-slate-500 font-bold uppercase tracking-wide mb-3">
+                                        Datos del {tipoComprobante === 'BOLETA' ? 'Cliente' : 'Cliente / Empresa'}
+                                    </p>
+
+                                    <div className="space-y-3">
                                         <div>
-                                            <input 
-                                                type="text" 
-                                                value={direccion}
-                                                onChange={(e) => setDireccion(e.target.value.toUpperCase())}
-                                                placeholder="Dirección fiscal"
-                                                className="w-full py-2 px-3 text-sm border border-slate-300 rounded-lg outline-none focus:border-blue-500 bg-white"
+                                            <div className="flex items-center border border-slate-300 rounded-lg overflow-hidden bg-white focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20 transition-all">
+                                                <div className={`px-3 py-2 flex items-center gap-1.5 text-sm font-bold border-r ${tipoComprobante === 'BOLETA' ? 'bg-blue-50 text-blue-700 border-blue-100' : 'bg-indigo-50 text-indigo-700 border-indigo-100'}`}>
+                                                    {tipoComprobante === 'BOLETA' ? <User size={14} /> : <Building2 size={14} />}
+                                                    {tipoComprobante === 'BOLETA' ? 'DNI' : 'RUC'}
+                                                </div>
+                                                <input
+                                                    type="text"
+                                                    value={documento}
+                                                    onChange={(e) => setDocumento(e.target.value.replace(/\D/g, ''))}
+                                                    maxLength={tipoComprobante === 'BOLETA' ? 8 : 11}
+                                                    placeholder={tipoComprobante === 'BOLETA' ? 'Ej: 70123456' : 'Ej: 20123456789'}
+                                                    className="flex-1 py-2 px-3 text-sm outline-none w-full"
+                                                />
+                                                {buscando ? (
+                                                    <div className="px-3 text-blue-500">
+                                                        <Loader2 size={16} className="animate-spin" />
+                                                    </div>
+                                                ) : documentoTieneLongitudValida ? (
+                                                    <button
+                                                        onClick={handleBuscarDocumento}
+                                                        className="px-3 py-2 text-xs font-bold text-white bg-theme-primary/90 hover:bg-theme-primary transition-colors flex items-center gap-1"
+                                                    >
+                                                        <Search size={13} /> Buscar
+                                                    </button>
+                                                ) : null}
+                                            </div>
+                                            {docError ? (
+                                                <p className="flex items-center gap-1 text-red-500 text-xs mt-1.5 font-medium">
+                                                    <AlertCircle size={12} /> {docError}
+                                                </p>
+                                            ) : (
+                                                <p className="text-[10px] text-slate-400 mt-1.5">
+                                                    {tipoComprobante === 'BOLETA'
+                                                        ? '8 dígitos. La consulta es automática al completarse.'
+                                                        : '11 dígitos. La consulta es automática al completarse.'}
+                                                </p>
+                                            )}
+                                        </div>
+
+                                        <div>
+                                            <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wide mb-1 block">
+                                                {tipoComprobante === 'BOLETA' ? 'Nombre completo' : 'Razón Social'}
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={nombre}
+                                                onChange={(e) => setNombre(e.target.value.toUpperCase())}
+                                                placeholder={tipoComprobante === 'BOLETA' ? 'Nombre del cliente' : 'Razón social'}
+                                                className="w-full py-2 px-3 text-sm border border-slate-300 rounded-lg outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 bg-white transition-all"
                                             />
                                         </div>
-                                    )}
+
+                                        {tipoComprobante === 'FACTURA' && (
+                                            <div>
+                                                <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wide mb-1 block">Dirección fiscal</label>
+                                                <input
+                                                    type="text"
+                                                    value={direccion}
+                                                    onChange={(e) => setDireccion(e.target.value.toUpperCase())}
+                                                    placeholder="Dirección fiscal"
+                                                    className="w-full py-2 px-3 text-sm border border-slate-300 rounded-lg outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 bg-white transition-all"
+                                                />
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             )}
                         </div>
 
                         {modoRapido ? (
                             <>
-                                {/* MODO RÃPIDO: Botones de pago Ãºnico */}
-                                <p className="text-xs text-slate-400 uppercase font-semibold tracking-wide mb-3">Pago con un solo mÃ©todo</p>
+                                {/* MODO RÁPIDO: Botones de pago único */}
+                                <p className="text-xs text-slate-400 uppercase font-semibold tracking-wide mb-3">Pago con un solo método</p>
                                 <div className="grid grid-cols-2 gap-3 mb-4">
                                      {METODOS.map((m) => {
                                          const Icon = m.icon;
@@ -264,11 +310,13 @@ export default function SplitPaymentModal({ isOpen, onClose, total, onConfirm }:
                                              <button
                                                  key={m.key}
                                                  onClick={() => handleQuickPay(m.key)}
-                                                 className="py-5 rounded-none font-semibold text-sm text-slate-700 bg-slate-50 hover:bg-slate-100 border border-slate-200 transition-all flex flex-col items-center justify-center gap-2 active:scale-95"
+                                                 className="py-4 rounded-xl font-semibold text-sm text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 hover:border-slate-300 transition-all flex flex-col items-center justify-center gap-2 shadow-sm hover:shadow active:scale-95"
                                              >
-                                                 {Icon && (
-                                                     typeof Icon === 'function' && !(Icon as any).prototype?.render ? (Icon as any)() : <Icon size={20} className="text-slate-500" />
-                                                 )}
+                                                 <div className={`w-9 h-9 rounded-full ${m.color} flex items-center justify-center text-white shadow-md`}>
+                                                     {Icon && (
+                                                         typeof Icon === 'function' && !(Icon as any).prototype?.render ? <span className="text-white font-black">{m.key === 'efectivo' ? 'S/' : ''}</span> : <Icon size={18} className="text-white" />
+                                                     )}
+                                                 </div>
                                                  {m.label}
                                              </button>
                                          );
@@ -283,10 +331,10 @@ export default function SplitPaymentModal({ isOpen, onClose, total, onConfirm }:
                                      </div>
                                  </div>
 
-                                 {/* BotÃ³n dividir */}
+                                 {/* Botón dividir */}
                                  <button
                                      onClick={() => setModoRapido(false)}
-                                     className="w-full py-4 rounded-none font-bold text-sm text-white bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 transition-all shadow-md active:scale-[0.98] flex items-center justify-center gap-2"
+                                     className="w-full py-4 rounded-xl font-bold text-sm text-white bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 transition-all shadow-md active:scale-[0.98] flex items-center justify-center gap-2"
                                  >
 
                                      Dividir Pago (Mixto)
@@ -294,20 +342,20 @@ export default function SplitPaymentModal({ isOpen, onClose, total, onConfirm }:
                             </>
                         ) : (
                             <>
-                                {/* MODO DIVIDIDO: Inputs por mÃ©todo */}
+                                {/* MODO DIVIDIDO: Inputs por método */}
                                 <button
                                     onClick={() => { setModoRapido(true); setMontos({}); }}
                                     className="text-xs text-slate-400 hover:text-slate-600 mb-4 flex items-center gap-1 transition-colors"
                                 >
-                                    â† Volver a pago simple
+                                    ← Volver a pago simple
                                 </button>
 
                                 <div className="space-y-3 mb-5">
                                     {METODOS.map(m => {
                                         const Icon = m.icon;
                                         return (
-                                            <div key={m.key} className={`flex items-center gap-3 p-3 rounded-none border ${montos[m.key] ? m.lightColor : 'border-slate-100 bg-white'} transition-all`}>
-                                                <div className={`w-9 h-9 rounded-none ${m.color} flex items-center justify-center flex-shrink-0`}>
+                                            <div key={m.key} className={`flex items-center gap-3 p-3 rounded-xl border ${montos[m.key] ? m.lightColor : 'border-slate-200 bg-white shadow-sm'} transition-all`}>
+                                                <div className={`w-9 h-9 rounded-lg ${m.color} flex items-center justify-center flex-shrink-0 shadow-md`}>
                                                     {Icon && (
                                                         typeof Icon === 'function' && !(Icon as any).prototype?.render ? (Icon as any)() : <Icon size={18} className="text-white" />
                                                     )}
@@ -329,8 +377,8 @@ export default function SplitPaymentModal({ isOpen, onClose, total, onConfirm }:
                                                     {diferencia > 0.01 && (
                                                         <button
                                                             onClick={() => handleAutoCompletar(m.key)}
-                                                            title={`Poner S/ ${diferencia.toFixed(2)} restantes aquÃ­`}
-                                                            className="text-[10px] text-amber-600 bg-amber-50 hover:bg-amber-100 px-1.5 py-0.5 rounded-none font-bold transition-colors ml-1"
+                                                            title={`Poner S/ ${diferencia.toFixed(2)} restantes aquí`}
+                                                            className="text-[10px] text-amber-600 bg-amber-50 hover:bg-amber-100 px-1.5 py-0.5 rounded-md font-bold transition-colors ml-1"
                                                         >
                                                             +{diferencia.toFixed(0)}
                                                         </button>
@@ -342,7 +390,7 @@ export default function SplitPaymentModal({ isOpen, onClose, total, onConfirm }:
                                 </div>
 
                                 {/* Resumen */}
-                                <div className={`p-4 rounded-none mb-4 ${esValido ? 'bg-green-50 border border-green-200' : diferencia > 0 ? 'bg-amber-50 border border-amber-200' : 'bg-red-50 border border-red-200'}`}>
+                                <div className={`p-4 rounded-xl mb-4 ${esValido ? 'bg-green-50 border border-green-200' : diferencia > 0 ? 'bg-amber-50 border border-amber-200' : 'bg-red-50 border border-red-200'}`}>
                                     <div className="flex justify-between items-center text-sm">
                                         <span className="font-medium text-slate-600">Total pedido:</span>
                                         <span className="font-bold text-slate-800">S/ {total.toFixed(2)}</span>
@@ -362,7 +410,7 @@ export default function SplitPaymentModal({ isOpen, onClose, total, onConfirm }:
                                     {esValido && (
                                         <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-green-200 text-green-700">
                                             <Check size={14} />
-                                            <span className="text-xs font-semibold">Â¡Monto correcto!</span>
+                                            <span className="text-xs font-semibold">¡Monto correcto!</span>
                                         </div>
                                     )}
                                 </div>
@@ -371,7 +419,7 @@ export default function SplitPaymentModal({ isOpen, onClose, total, onConfirm }:
                                 <button
                                     onClick={handleConfirm}
                                     disabled={!esValido || (tipoComprobante !== 'TICKET' && !nombre)}
-                                    className="w-full py-4 rounded-none font-bold text-white bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-200 disabled:text-slate-400 transition-all shadow-md active:scale-[0.98] flex items-center justify-center gap-2"
+                                    className="w-full py-4 rounded-xl font-bold text-white bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-200 disabled:text-slate-400 transition-all shadow-md active:scale-[0.98] flex items-center justify-center gap-2"
                                 >
                                     <Check size={20} />
                                     Confirmar Pago

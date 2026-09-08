@@ -19,6 +19,8 @@ interface MesaConVenta extends Mesa {
     venta?: Venta;
 }
 
+import { dbUpdate, dbDelete } from '@/lib/supabaseApi';
+
 export default function MesasActivasPage() {
     return (
         <ProtectedRoute>
@@ -46,6 +48,11 @@ function MesasActivasContent() {
         costoEnvio?: number;
         metodoPago?: string;
         pagoDividido?: { efectivo?: number; yape?: number; plin?: number; tarjeta?: number };
+        clienteNombre?: string;
+        clienteDocumento?: string;
+        clienteDocumentoTipo?: '1' | '6';
+        clienteDireccion?: string;
+        tipoComprobante?: 'TICKET' | 'BOLETA' | 'FACTURA';
     } | null>(null);
 
     const [showCancelModal, setShowCancelModal] = useState(false);
@@ -186,18 +193,10 @@ function MesasActivasContent() {
                 updateData.pago_dividido = pagoDividido;
             }
 
-            const { error } = await supabase
-                .from('ventas')
-                .update(updateData)
-                .eq('id', ventaId);
-
-            if (error) throw error;
-
+            await dbUpdate('ventas', updateData, { id: ventaId });
+            
             if (mesaId) {
-                await supabase
-                    .from('mesas')
-                    .update({ estado: 'libre' })
-                    .eq('id', mesaId);
+                await dbUpdate('mesas', { estado: 'libre' }, { id: mesaId });
             }
 
             setShowPayModal(false);
@@ -213,6 +212,8 @@ function MesasActivasContent() {
                 pagoDividido,
                 clienteNombre: comprobanteData?.cliente_nombre,
                 clienteDocumento: comprobanteData?.cliente_documento_numero,
+                clienteDocumentoTipo: comprobanteData?.cliente_documento_tipo,
+                clienteDireccion: comprobanteData?.cliente_direccion,
                 tipoComprobante: comprobanteData?.tipo_comprobante || 'TICKET'
             });
 
@@ -243,18 +244,10 @@ function MesasActivasContent() {
     const confirmCancel = async () => {
         if (!cancelData) return;
         try {
-            const { error } = await supabase
-                .from('ventas')
-                .delete()
-                .eq('id', cancelData.ventaId);
-
-            if (error) throw error;
-
+            await dbDelete('ventas', { id: cancelData.ventaId });
+            
             if (cancelData.mesaId) {
-                await supabase
-                    .from('mesas')
-                    .update({ estado: 'libre' })
-                    .eq('id', cancelData.mesaId);
+                await dbUpdate('mesas', { estado: 'libre' }, { id: cancelData.mesaId });
             }
 
             toast.success('Pedido eliminado — stock restaurado', { icon: '🗑️' });
@@ -309,8 +302,7 @@ function MesasActivasContent() {
         try {
             const nuevoTotal = editedItems.reduce((s, i) => s + i.precio * i.cantidad, 0) + (editingVenta.costo_envio || 0);
             const pollosRestados = editedItems.reduce((s, i) => s + (i.fraccion_pollo || 0) * i.cantidad, 0);
-            const { error } = await supabaseClient.from('ventas').update({ items: editedItems, total: nuevoTotal, pollos_restados: pollosRestados }).eq('id', editingVenta.id);
-            if (error) throw error;
+            await dbUpdate('ventas', { items: editedItems, total: nuevoTotal, pollos_restados: pollosRestados }, { id: editingVenta.id });
             toast.success('Pedido actualizado');
             setShowEditModal(false);
             setEditingVenta(null);
@@ -475,6 +467,11 @@ function MesasActivasContent() {
                         costoEnvio={receiptData.costoEnvio}
                         metodoPago={receiptData.metodoPago}
                         pagoDividido={receiptData.pagoDividido}
+                        clienteNombre={receiptData.clienteNombre}
+                        clienteDocumento={receiptData.clienteDocumento}
+                        clienteDocumentoTipo={receiptData.clienteDocumentoTipo}
+                        clienteDireccion={receiptData.clienteDireccion}
+                        tipoComprobante={receiptData.tipoComprobante}
                     />
                 )}
 

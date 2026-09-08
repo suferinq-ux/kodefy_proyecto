@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { X, Save, AlertTriangle, Calculator, ShoppingBag, Trash2, Plus, Minus, CreditCard } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/lib/supabase';
+import { dbUpdate, dbDelete } from '@/lib/supabaseApi';
 import type { Venta, ItemVenta } from '@/lib/database.types';
 import { calcularStockRestado } from '@/lib/ventas';
 import toast from 'react-hot-toast';
@@ -121,12 +122,7 @@ export default function EditPaymentModal({ isOpen, onClose, venta, onUpdate }: E
                 updateData.pago_dividido = null;
             }
 
-            const { error } = await supabase
-                .from('ventas')
-                .update(updateData)
-                .eq('id', venta.id);
-
-            if (error) throw error;
+            await dbUpdate('ventas', updateData, { id: venta.id });
 
             toast.success('Venta actualizada correctamente');
             onUpdate();
@@ -148,12 +144,7 @@ export default function EditPaymentModal({ isOpen, onClose, venta, onUpdate }: E
 
         setDeleting(true);
         try {
-            const { error } = await supabase
-                .from('ventas')
-                .delete()
-                .eq('id', venta.id);
-
-            if (error) throw error;
+            await dbDelete('ventas', { id: venta.id });
 
             toast.success('Venta eliminada correctamente');
             onUpdate();

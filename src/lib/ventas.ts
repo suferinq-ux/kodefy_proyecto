@@ -1,5 +1,6 @@
 import { supabase, obtenerFechaHoy } from './supabase';
 import type { ItemCarrito, VentaResponse, ItemVenta, BebidasDetalle, Venta } from './database.types';
+import { dbInsert, dbUpdate, dbUpsert } from './supabaseApi';
 
 /**
  * Calcula el total de pollos restados y el detalle de bebidas
@@ -253,47 +254,34 @@ export const registrarVenta = async (
             }
         }
 
-        // Insertar venta
-        const { data, error } = await supabase
-            .from('ventas')
-            .insert({
-                fecha: fechaVenta,
-                items: itemsParaGuardar,
-                total: totalConEnvio,
-                pollos_restados: pollosRestados,
-                gaseosas_restadas: gaseosasRestadas,
-                chicha_restada: chichaRestada,
-                bebidas_detalle: bebidasDetalle, // Guardar detalle
-                mesa_id: mesaId,
-                estado_pedido: 'pendiente',
-                estado_pago: 'pendiente',
-                notas: notas || null,
-                tipo_pedido: deliveryData?.tipo_pedido || (mesaId ? 'mesa' : 'llevar'),
-                costo_envio: deliveryData?.costo_envio || 0,
-                direccion_envio: deliveryData?.direccion_envio || null,
-                distancia_km: deliveryData?.distancia_km || 0,
-                estado_delivery: deliveryData?.tipo_pedido === 'delivery' ? 'buscando_repartidor' : null,
-                referencia_envio: deliveryData?.referencia_envio || null,
-                telefono_envio: deliveryData?.telefono_envio || null,
-                tiempo_estimado_envio: deliveryData?.tiempo_estimado_envio || null,
-                latitud_envio: deliveryData?.latitud_envio || null,
-                longitud_envio: deliveryData?.longitud_envio || null,
-                geometria_envio: deliveryData?.geometria_envio || null,
-                metodo_pago: deliveryData?.metodo_pago || 'efectivo',
-                usuario_nombre: usuarioNombre || null,
-                negocio_id: negocioId,
-                estado_impresion: 'pendiente'   // El Worker local lo detecta y lo imprime
-            })
-            .select()
-            .single();
-
-        if (error) {
-            console.error('Error al registrar venta:', error);
-            return {
-                success: false,
-                message: `Error al registrar la venta: ${error.message}`,
-            };
-        }
+        const { data } = await dbInsert('ventas', {
+            fecha: fechaVenta,
+            items: itemsParaGuardar,
+            total: totalConEnvio,
+            pollos_restados: pollosRestados,
+            gaseosas_restadas: gaseosasRestadas,
+            chicha_restada: chichaRestada,
+            bebidas_detalle: bebidasDetalle,
+            mesa_id: mesaId,
+            estado_pedido: 'pendiente',
+            estado_pago: 'pendiente',
+            notas: notas || null,
+            tipo_pedido: deliveryData?.tipo_pedido || (mesaId ? 'mesa' : 'llevar'),
+            costo_envio: deliveryData?.costo_envio || 0,
+            direccion_envio: deliveryData?.direccion_envio || null,
+            distancia_km: deliveryData?.distancia_km || 0,
+            estado_delivery: deliveryData?.tipo_pedido === 'delivery' ? 'buscando_repartidor' : null,
+            referencia_envio: deliveryData?.referencia_envio || null,
+            telefono_envio: deliveryData?.telefono_envio || null,
+            tiempo_estimado_envio: deliveryData?.tiempo_estimado_envio || null,
+            latitud_envio: deliveryData?.latitud_envio || null,
+            longitud_envio: deliveryData?.longitud_envio || null,
+            geometria_envio: deliveryData?.geometria_envio || null,
+            metodo_pago: deliveryData?.metodo_pago || 'efectivo',
+            usuario_nombre: usuarioNombre || null,
+            negocio_id: negocioId,
+            estado_impresion: 'pendiente'
+        }, { single: true });
 
         let mensaje = `Pedido registrado. Total: S/ ${totalConEnvio.toFixed(2)}.`;
         if (validacion.advertenciaGaseosas) {
@@ -410,30 +398,27 @@ export const actualizarVenta = async (
             updatePayload.es_adicional = true;
         }
 
-        let { data, error: errorUpdate } = await supabase
-            .from('ventas')
-            .update(updatePayload)
-            .eq('id', ventaId)
-            .select()
-            .single();
-
-        // Fallback por si la columna items_adicionales no está migrada en la BD
-        if (errorUpdate && (errorUpdate.message.includes('items_adicionales') || errorUpdate.message.includes('es_adicional') || errorUpdate.code === '42703')) {
-            delete updatePayload.items_adicionales;
-            delete updatePayload.es_adicional;
-            delete updatePayload.estado_impresion; // Evitar que el worker imprima todo el pedido si no soporta adicional en BD
-            const retry = await supabase
-                .from('ventas')
-                .update(updatePayload)
-                .eq('id', ventaId)
-                .select()
-                .single();
-            data = retry.data;
-            errorUpdate = retry.error;
-        }
-
-        if (errorUpdate) {
-            return { success: false, message: `Error al actualizar: ${errorUpdate.message}` };
+        let data;
+        try {
+            const result = await dbUpdate('ventas', updatePayload, { id: ventaId }, { single: true });
+            data = result.data;
+        } catch (error: any) {
+            const errorMsg = error.message || '';
+            // Fallback por si la columna items_adicionales no está migrada
+            if (errorMsg.includes('items_adicionales') || errorMsg.includes('es_adicional') || errorMsg.includes('42703')) {
+                delete updatePayload.items_adicionales;
+                delete updatePayload.es_adicional;
+                delete updatePayload.estado_impresion;
+                
+                try {
+                    const fallbackResult = await dbUpdate('ventas', updatePayload, { id: ventaId }, { single: true });
+                    data = fallbackResult.data;
+                } catch (fallbackError: any) {
+                    return { success: false, message: `Error al actualizar: ${fallbackError.message}` };
+                }
+            } else {
+                return { success: false, message: `Error al actualizar: ${errorMsg}` };
+            }
         }
 
         if (data && itemsAdicionales.length > 0) {
@@ -500,12 +485,7 @@ export const updateDeliveryStatus = async (
             // Eliminamos updates.estado_pago = 'pagado' para que el cobro se gestione en caja
         }
 
-        const { error } = await supabase
-            .from('ventas')
-            .update(updates)
-            .eq('id', ventaId);
-
-        if (error) throw error;
+        const { error } = await dbUpdate('ventas', updates, { id: ventaId });
         return true;
     } catch (error) {
         console.error('Error actualizando estado del delivery:', error);
@@ -524,10 +504,7 @@ export const upsertRepartidorUbicacion = async (repartidorId: string, lat: numbe
         if (negocioId) {
             payload.negocio_id = negocioId;
         }
-        const { error } = await supabase
-            .from('repartidor_ubicacion')
-            .upsert(payload);
-        if (error) throw error;
+        await dbUpsert('repartidor_ubicacion', payload, { onConflict: 'id' });
     } catch (error) {
         console.error('Error enviando ubicación GPS:', error);
     }

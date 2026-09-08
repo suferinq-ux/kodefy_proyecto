@@ -12,6 +12,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import AnimatedCard from '@/components/AnimatedCard';
 import { supabase, obtenerFechaHoy } from '@/lib/supabase';
+import { dbUpdate } from '@/lib/supabaseApi';
 import confetti from 'canvas-confetti';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import type { BebidasDetalle } from '@/lib/database.types';
@@ -32,8 +33,8 @@ function CierreCajaContent() {
     const router = useRouter();
     const params = useParams();
     const { business } = useBusiness();
-    const { stock, loading, refetch } = useInventario();
-    const { ventas } = useVentas();
+    const { stock, loading, refetch } = useInventario(business?.id);
+    const { ventas } = useVentas(business?.id);
     const metricas = useMetricas(ventas);
 
     // Estado para gastos del día
@@ -231,24 +232,28 @@ function CierreCajaContent() {
         setProcesando(true);
 
         try {
-            const queryUpdate = supabase
-                .from('inventario_diario')
-                .update({
-                    estado: 'cerrado',
-                    stock_pollos_real: parseFloat(stockPollosReal || '0'),
-                    stock_gaseosas_real: parseInt(stockGaseosasReal || '0'),
-                    papas_finales: parseFloat(stockPapasFinal || '0'),
-                    dinero_cierre_real: parseFloat(dineroCajaReal || '0'),
-                    cena_personal: parseFloat(cenaPersonal || '0'),
-                    pollos_golpeados: parseFloat(pollosGolpeados || '0'),
-                    observaciones_cierre: observaciones,
-                    // para que la apertura del siguiente día las cargue correctamente
-                    bebidas_detalle: bebidasDetalle || null,
-                });
+            // Cerramos TODAS las jornadas abiertas para este negocio hoy,
+            // para evitar que queden registros "fantasma" abiertos por error.
+            const filters = business?.id ? { negocio_id: business.id, estado: 'abierto' } : { id: stock.id };
+            
+            const { data: updatedData } = await dbUpdate('inventario_diario', {
+                estado: 'cerrado',
+                stock_pollos_real: parseFloat(stockPollosReal || '0') || 0,
+                stock_gaseosas_real: parseInt(stockGaseosasReal || '0') || 0,
+                papas_finales: parseFloat(stockPapasFinal || '0') || 0,
+                dinero_cierre_real: parseFloat(dineroCajaReal || '0') || 0,
+                cena_personal: parseFloat(cenaPersonal || '0') || 0,
+                pollos_golpeados: parseFloat(pollosGolpeados || '0') || 0,
+                observaciones_cierre: observaciones,
+                bebidas_detalle: bebidasDetalle || null,
+            }, filters, { select: '*' });
 
-            const { error } = stock.id
-                ? await queryUpdate.eq('id', stock.id).eq('negocio_id', business?.id || '')
-                : await queryUpdate.eq('fecha', stock.fecha).eq('negocio_id', business?.id || '');
+            if (!updatedData || updatedData.length === 0) {
+                console.error('Ningún registro fue actualizado. stock.id:', stock.id);
+                toast.error('Error: No se encontró la jornada abierta para actualizar.');
+                setProcesando(false);
+                return;
+            }
 
             // Calcular total efectivo esperado (base + ventas efectivo - gastos efectivo)
             const totalEfectivoEsperado = (ventasPorMetodo['efectivo'] || 0) + (stock?.dinero_inicial || 0) - gastosEfectivo;

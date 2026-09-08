@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
+import { dbUpdate, dbInsert } from '@/lib/supabaseApi';
 import { useAuth } from '@/contexts/AuthContext';
 
 export interface EstadisticaProducto {
@@ -54,29 +55,23 @@ export function useEstadisticasProductos() {
 
             if (existente) {
                 // Actualizar existente
-                await supabase
-                    .from('estadisticas_productos')
-                    .update({
-                        cantidad_total: existente.cantidad_total + cantidad,
-                        veces_vendido: existente.veces_vendido + 1,
-                        ingresos_total: existente.ingresos_total + (cantidad * precio),
-                        ultima_venta: new Date().toISOString()
-                    })
-                    .eq('producto_id', productoId)
-                    .eq('negocio_id', user?.negocio_id);
+                await dbUpdate('estadisticas_productos', {
+                    cantidad_total: existente.cantidad_total + cantidad,
+                    veces_vendido: existente.veces_vendido + 1,
+                    ingresos_total: existente.ingresos_total + (cantidad * precio),
+                    ultima_venta: new Date().toISOString()
+                }, { producto_id: productoId, negocio_id: user?.negocio_id });
             } else {
                 // Crear nuevo
-                await supabase
-                    .from('estadisticas_productos')
-                    .insert({
-                        producto_id: productoId,
-                        nombre_producto: nombreProducto,
-                        cantidad_total: cantidad,
-                        veces_vendido: 1,
-                        ingresos_total: cantidad * precio,
-                        ultima_venta: new Date().toISOString(),
-                        negocio_id: user?.negocio_id
-                    });
+                await dbInsert('estadisticas_productos', {
+                    producto_id: productoId,
+                    nombre_producto: nombreProducto,
+                    cantidad_total: cantidad,
+                    veces_vendido: 1,
+                    ingresos_total: cantidad * precio,
+                    ultima_venta: new Date().toISOString(),
+                    negocio_id: user?.negocio_id
+                });
             }
 
             // Recargar estadísticas

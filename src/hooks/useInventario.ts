@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { supabase, obtenerFechaHoy } from '@/lib/supabase';
+import { dbUpdate } from '@/lib/supabaseApi';
 import type { StockActual, BebidasDetalle } from '@/lib/database.types';
 
 interface UseInventarioResult {
@@ -86,16 +87,13 @@ export const useInventario = (negocioId?: string): UseInventarioResult => {
             // Auto-cerrar jornada anterior si se olvidaron de cerrar y ya es un nuevo día operativo
             if (inventario && inventario.fecha < fechaHoy) {
                 console.log('Detectada jornada abierta de un día anterior. Procediendo a cierre automático...');
-                await supabase
-                    .from('inventario_diario')
-                    .update({
-                        estado: 'cerrado',
-                        observaciones_cierre: 'Cierre automático por el sistema al iniciar un nuevo día operativo.',
-                        stock_pollos_real: 0,
-                        stock_gaseosas_real: 0,
-                        dinero_cierre_real: 0
-                    })
-                    .eq('id', inventario.id);
+                await dbUpdate('inventario_diario', {
+                    estado: 'cerrado',
+                    observaciones_cierre: 'Cierre automático por el sistema al iniciar un nuevo día operativo.',
+                    stock_pollos_real: 0,
+                    stock_gaseosas_real: 0,
+                    dinero_cierre_real: 0
+                }, { id: inventario.id });
                 inventario = null;
             }
 

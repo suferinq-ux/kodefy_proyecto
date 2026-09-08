@@ -5,6 +5,7 @@ import { Printer, Download, X, Share2, Receipt, Search, User, RefreshCw, Trash2 
 import { useBusiness } from '@/contexts/BusinessContext';
 import type { ItemCarrito, ItemVenta } from '@/lib/database.types';
 import { supabase } from '@/lib/supabase';
+import { dbUpdate } from '@/lib/supabaseApi';
 import { consultarDNI, consultarRUC } from '@/services/apiPeruService';
 import toast from 'react-hot-toast';
 
@@ -25,6 +26,8 @@ interface ReceiptModalProps {
     deliveryInfo?: { address: string; reference?: string; phone?: string; estimatedTime?: string };
     clienteNombre?: string;
     clienteDocumento?: string;
+    clienteDocumentoTipo?: '1' | '6';
+    clienteDireccion?: string;
     tipoComprobante?: 'TICKET' | 'BOLETA' | 'FACTURA';
 }
 
@@ -42,7 +45,7 @@ interface ConfigNegocio {
     ciudad?: string;
 }
 
-export default function ReceiptModal({ isOpen, onClose, items, total, orderId, mesaNumero, title = 'BOLETA DE VENTA', isNewSale = false, costoEnvio = 0, usuarioNombre, metodoPago, pagoDividido, deliveryInfo, clienteNombre: initialNombre, clienteDocumento: initialDocumento, tipoComprobante: initialTipo = 'TICKET' }: ReceiptModalProps) {
+export default function ReceiptModal({ isOpen, onClose, items, total, orderId, mesaNumero, title = 'BOLETA DE VENTA', isNewSale = false, costoEnvio = 0, usuarioNombre, metodoPago, pagoDividido, deliveryInfo, clienteNombre: initialNombre, clienteDocumento: initialDocumento, clienteDocumentoTipo: initialDocumentoTipo, clienteDireccion: initialDireccion, tipoComprobante: initialTipo = 'TICKET' }: ReceiptModalProps) {
     const { business } = useBusiness();
     const [config, setConfig] = useState<ConfigNegocio>({
         ruc: '',
@@ -63,6 +66,7 @@ export default function ReceiptModal({ isOpen, onClose, items, total, orderId, m
     const [documento, setDocumento] = useState('');
     const [clienteNombre, setClienteNombre] = useState('');
     const [clienteDireccion, setClienteDireccion] = useState('');
+    const [clienteDocumentoTipo, setClienteDocumentoTipo] = useState<'1' | '6' | undefined>(undefined);
     const [isSearching, setIsSearching] = useState(false);
     const [errorDocumento, setErrorDocumento] = useState<string | null>(null);
     const [yaImpreso, setYaImpreso] = useState(false); // Evita sumar múltiple si le dan 2 veces a imprimir
@@ -71,13 +75,14 @@ export default function ReceiptModal({ isOpen, onClose, items, total, orderId, m
         if (isOpen) {
             setClienteNombre(initialNombre || '');
             setDocumento(initialDocumento || '');
-            setClienteDireccion('');
+            setClienteDocumentoTipo(initialDocumentoTipo);
+            setClienteDireccion(initialDireccion || '');
             setErrorDocumento(null);
             setYaImpreso(false);
             setTipoComprobante(initialTipo === 'FACTURA' ? 'boleta' : (initialTipo === 'BOLETA' ? 'boleta' : 'ticket'));
             cargarConfiguracion(initialTipo === 'FACTURA' ? 'boleta' : (initialTipo === 'BOLETA' ? 'boleta' : 'ticket'));
         }
-    }, [isOpen, title, initialNombre, initialDocumento, initialTipo]);
+    }, [isOpen, title, initialNombre, initialDocumento, initialDocumentoTipo, initialDireccion, initialTipo]);
 
     const cargarConfiguracion = async (tipoOverride?: 'boleta' | 'ticket') => {
         try {
@@ -166,6 +171,7 @@ export default function ReceiptModal({ isOpen, onClose, items, total, orderId, m
 
         try {
             const isRUC = documento.length === 11;
+            setClienteDocumentoTipo(isRUC ? '6' : '1');
             const response = isRUC ? await consultarRUC(documento) : await consultarDNI(documento);
 
             if (response.success && response.data) {
@@ -193,6 +199,7 @@ export default function ReceiptModal({ isOpen, onClose, items, total, orderId, m
         setDocumento('');
         setClienteNombre('');
         setClienteDireccion('');
+        setClienteDocumentoTipo(undefined);
         setErrorDocumento(null);
     };
 
@@ -215,15 +222,9 @@ export default function ReceiptModal({ isOpen, onClose, items, total, orderId, m
 
                     if (tipoComprobante === 'boleta') {
                         updateData.numero_correlativo = (freshConfig.numero_correlativo || 0) + 1;
-                        const { error: updateError } = await supabase
-                            .from('configuracion_negocio')
-                            .update(updateData)
-                            .eq('id', freshConfig.id);
-
-                        if (!updateError) {
-                            setYaImpreso(true);
-                            await cargarConfiguracion();
-                        }
+                        await dbUpdate('configuracion_negocio', updateData, { id: freshConfig.id });
+                        setYaImpreso(true);
+                        await cargarConfiguracion();
                     } else {
                         setYaImpreso(true);
                     }
@@ -292,6 +293,22 @@ export default function ReceiptModal({ isOpen, onClose, items, total, orderId, m
                     <p><strong>DELIVERY:</strong> {deliveryInfo.address.toUpperCase()}</p>
                     {deliveryInfo.reference && <p><strong>REF:</strong> {deliveryInfo.reference.toUpperCase()}</p>}
                     {deliveryInfo.phone && <p><strong>TEL:</strong> {deliveryInfo.phone}</p>}
+                </div>
+            )}
+
+            {(clienteNombre || documento) && (
+                <div className="ticket-cliente" style={{ fontSize: '10px', marginTop: '8px', padding: '4px', border: '1px dashed black' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span><strong>CLIENTE:</strong> {clienteNombre?.toUpperCase() || '-'}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '2px' }}>
+                        <span><strong>{tipoComprobante === 'boleta' ? clienteDocumentoTipo === '6' || String(documento).length === 11 ? 'RUC' : 'DNI' : 'DOC'}:</strong> {documento}</span>
+                    </div>
+                    {clienteDireccion && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '2px' }}>
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}><strong>DIR:</strong> {clienteDireccion.toUpperCase()}</span>
+                        </div>
+                    )}
                 </div>
             )}
 
@@ -443,7 +460,7 @@ export default function ReceiptModal({ isOpen, onClose, items, total, orderId, m
                                 {(clienteNombre || documento) && (
                                     <div className="text-left mb-3 pb-2 border-b border-dashed border-slate-300 text-[10px]">
                                         {clienteNombre && <p className="font-bold leading-tight uppercase">CLIENTE: {clienteNombre}</p>}
-                                        {documento && <p className="leading-tight uppercase">{initialTipo === 'FACTURA' ? 'RUC' : (documento.length === 11 ? 'RUC' : 'DNI')}: {documento}</p>}
+                                        {documento && <p className="leading-tight uppercase">{clienteDocumentoTipo === '6' || documento.length === 11 ? 'RUC' : 'DNI'}: {documento}</p>}
                                         {clienteDireccion && <p className="leading-tight uppercase truncate">DIR: {clienteDireccion}</p>}
                                     </div>
                                 )}

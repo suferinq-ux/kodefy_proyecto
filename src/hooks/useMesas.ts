@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
+import { dbUpdate } from '@/lib/supabaseApi';
 import type { Mesa } from '@/lib/database.types';
 import { useBusiness } from '@/contexts/BusinessContext';
 
@@ -35,12 +36,7 @@ export function useMesas() {
     // Ocupar mesa
     const ocuparMesa = async (mesaId: number): Promise<boolean> => {
         try {
-            const { error: updateError } = await supabase
-                .from('mesas')
-                .update({ estado: 'ocupada' })
-                .eq('id', mesaId);
-
-            if (updateError) throw updateError;
+            await dbUpdate('mesas', { estado: 'ocupada' }, { id: mesaId });
 
             // Actualizar estado local
             setMesas(prev => prev.map(mesa =>
@@ -57,12 +53,7 @@ export function useMesas() {
     // Liberar mesa
     const liberarMesa = async (mesaId: number): Promise<boolean> => {
         try {
-            const { error: updateError } = await supabase
-                .from('mesas')
-                .update({ estado: 'libre' })
-                .eq('id', mesaId);
-
-            if (updateError) throw updateError;
+            await dbUpdate('mesas', { estado: 'libre' }, { id: mesaId });
 
             // Actualizar estado local
             setMesas(prev => prev.map(mesa =>
@@ -80,29 +71,13 @@ export function useMesas() {
     const cambiarMesa = async (mesaOrigenId: number, mesaDestinoId: number): Promise<boolean> => {
         try {
             // 1. Actualizar la venta pendiente para que apunte a la nueva mesa
-            const { error: ventaError } = await supabase
-                .from('ventas')
-                .update({ mesa_id: mesaDestinoId })
-                .eq('mesa_id', mesaOrigenId)
-                .eq('estado_pago', 'pendiente');
-
-            if (ventaError) throw ventaError;
+            await dbUpdate('ventas', { mesa_id: mesaDestinoId }, { mesa_id: mesaOrigenId, estado_pago: 'pendiente' });
 
             // 2. Liberar la mesa de origen
-            const { error: liberarError } = await supabase
-                .from('mesas')
-                .update({ estado: 'libre' })
-                .eq('id', mesaOrigenId);
-
-            if (liberarError) throw liberarError;
+            await dbUpdate('mesas', { estado: 'libre' }, { id: mesaOrigenId });
 
             // 3. Ocupar la mesa de destino
-            const { error: ocuparError } = await supabase
-                .from('mesas')
-                .update({ estado: 'ocupada' })
-                .eq('id', mesaDestinoId);
-
-            if (ocuparError) throw ocuparError;
+            await dbUpdate('mesas', { estado: 'ocupada' }, { id: mesaDestinoId });
 
             // Actualizar estado local
             setMesas(prev => prev.map(mesa => {
