@@ -215,4 +215,34 @@ input, select, textarea {
     black 85%,
     transparent 100%
   );
+}
+
+/* ─── IMPRESIÓN TÉRMICA (boleta/ticket de caja) ───
+   Imprime SOLO el elemento .print-ticket (se inyecta vía portal),
+   tamaño 80mm, sin márgenes, nada más de la app. */
+@media print {
+  html, body {
+    background: #fff !important;
+    height: auto !important;
+  }
+  body *:not(.print-ticket):not(.print-ticket *) {
+    display: none !important;
+  }
+  .print-ticket {
+    display: block !important;
+    width: 80mm !important;
+    max-width: 80mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    color: #000 !important;
+  }
+  .print-ticket * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+  @page {
+    size: 80mm auto;
+    margin: 0;
+  }
 }
