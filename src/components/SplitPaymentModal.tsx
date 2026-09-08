@@ -164,10 +164,10 @@ export default function SplitPaymentModal({ isOpen, onClose, total, onConfirm }:
                     initial={{ opacity: 0, scale: 0.95, y: 20 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                    className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
+                    className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[92dvh] flex flex-col overflow-hidden"
                 >
                     {/* Header */}
-                    <div className="bg-gradient-to-r from-slate-800 to-slate-900 px-6 py-5 flex items-center justify-between">
+                    <div className="bg-gradient-to-r from-slate-800 to-slate-900 px-6 py-5 flex items-center justify-between shrink-0">
                         <div>
                             <h2 className="text-lg font-bold text-white flex items-center gap-2">
                                 <CircleDollarSign size={20} className="text-emerald-400" />
@@ -180,7 +180,7 @@ export default function SplitPaymentModal({ isOpen, onClose, total, onConfirm }:
                         </button>
                     </div>
 
-                    <div className="p-5 overflow-y-auto">
+                    <div className="p-5 overflow-y-auto flex-1 min-h-0 custom-scrollbar">
                         
                         {/* SELECCION DE COMPROBANTE */}
                         <div className="mb-6 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
@@ -419,7 +419,7 @@ export default function SplitPaymentModal({ isOpen, onClose, total, onConfirm }:
                                 <button
                                     onClick={handleConfirm}
                                     disabled={!esValido || (tipoComprobante !== 'TICKET' && !nombre)}
-                                    className="w-full py-4 rounded-xl font-bold text-white bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-200 disabled:text-slate-400 transition-all shadow-md active:scale-[0.98] flex items-center justify-center gap-2"
+                                    className="sticky bottom-0 w-full py-4 rounded-xl font-bold text-white bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-200 disabled:text-slate-400 transition-all shadow-md active:scale-[0.98] flex items-center justify-center gap-2"
                                 >
                                     <Check size={20} />
                                     Confirmar Pago

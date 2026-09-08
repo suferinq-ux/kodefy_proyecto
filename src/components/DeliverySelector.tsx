@@ -289,7 +289,7 @@ export default function DeliverySelector({ isOpen, onClose, onConfirm }: Deliver
                 initial={{ opacity: 0, scale: 0.95, y: 20 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                className="bg-white rounded-none shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden border border-theme-secondary/20"
+                className="bg-white rounded-none shadow-2xl w-full max-w-4xl max-h-[92dvh] flex flex-col overflow-hidden border border-theme-secondary/20"
             >
                 {/* Header */}
                 <div className="bg-gradient-to-r from-theme-primary to-red-600 p-5 flex items-center justify-between text-white shrink-0">
@@ -311,10 +311,10 @@ export default function DeliverySelector({ isOpen, onClose, onConfirm }: Deliver
                 </div>
 
                 {/* Content */}
-                <div className="p-4 lg:p-6 flex flex-col lg:flex-row gap-6 flex-1 min-h-[500px] overflow-hidden">
+                <div className="p-4 lg:p-6 flex flex-col lg:flex-row gap-6 flex-1 lg:min-h-[500px] overflow-y-auto lg:overflow-hidden">
 
                     {/* Panel Izquierdo: Mapa */}
-                    <div className="flex-1 rounded-none overflow-hidden border-2 border-slate-100 shadow-inner bg-slate-50 relative flex flex-col z-0">
+                    <div className="h-[50vh] min-h-[280px] lg:h-auto lg:flex-1 rounded-none overflow-hidden border-2 border-slate-100 shadow-inner bg-slate-50 relative flex flex-col z-0">
                         {/* Search Bar (Fuera del Canvas de Leaflet pero dentro del panel) */}
                         <div className="absolute top-4 left-4 right-4 z-[1000] drop-shadow-xl">
                             <div className="relative">

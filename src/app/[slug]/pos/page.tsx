@@ -1179,15 +1179,18 @@ function POSContent() {
                             animate={{ y: 0 }}
                             exit={{ y: '100%' }}
                             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                            className="mt-auto bg-slate-900 rounded-t-[3rem] p-8 border-t border-white/10 relative z-10 max-h-[85vh] overflow-y-auto"
+                            className="mt-auto bg-slate-900 rounded-t-[2.5rem] sm:rounded-t-[3rem] border-t border-white/10 relative z-10 max-h-[85dvh] flex flex-col overflow-hidden"
                         >
-                            <div className="w-12 h-1 bg-white/20 rounded-full mx-auto mb-6" />
-                            <div className="flex items-center justify-between mb-8">
-                                <h2 className="text-2xl font-black italic tracking-tighter uppercase text-white">Revisar Pedido</h2>
-                                <button onClick={() => setIsCartDrawerOpen(false)} className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center text-white/50"><X size={24} /></button>
+                            <div className="pt-5 px-4 sm:px-5 shrink-0">
+                                <div className="w-12 h-1 bg-white/20 rounded-full mx-auto mb-4" />
+                                <div className="flex items-center justify-between">
+                                    <h2 className="text-xl sm:text-2xl font-black italic tracking-tighter uppercase text-white">Revisar Pedido</h2>
+                                    <button onClick={() => setIsCartDrawerOpen(false)} className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center text-white/50"><X size={24} /></button>
+                                </div>
                             </div>
 
-                            <CartPanel
+                            <div className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-5 pb-5 custom-scrollbar">
+                                <CartPanel
                                 carrito={carrito}
                                 vaciarCarrito={vaciarCarrito}
                                 modificarCantidad={modificarCantidad}
@@ -1203,6 +1206,7 @@ function POSContent() {
                                 currentVentaId={currentVentaId}
                                 isMobileDrawer
                             />
+                            </div>
                         </motion.div>
                     </div>
                 )}
@@ -1304,8 +1308,8 @@ function CartPanel({
     const costoEnvio = deliveryInfo?.cost || 0;
 
     return (
-        <div className={`bg-white rounded-none border border-slate-100 shadow-xl overflow-hidden ${isMobileDrawer ? '' : ''}`}>
-            <div className="p-6 border-b border-slate-50">
+        <div className={`bg-white rounded-none border border-slate-100 shadow-xl overflow-hidden flex flex-col ${isMobileDrawer ? 'h-full' : ''}`}>
+            <div className="p-5 sm:p-6 border-b border-slate-50 shrink-0">
                 <div className="flex items-center justify-between">
                     <h2 className="text-lg font-black text-slate-900 uppercase italic tracking-tight">Tu Pedido</h2>
                     {carrito.length > 0 && (
@@ -1331,7 +1335,7 @@ function CartPanel({
                 </div>
             ) : (
                 <>
-                    <div className={`${isMobileDrawer ? '' : 'max-h-[400px] overflow-y-auto'} p-4 space-y-3 custom-scrollbar`}>
+                    <div className={`${isMobileDrawer ? 'flex-1 min-h-0 overflow-y-auto' : 'max-h-[400px] overflow-y-auto'} p-4 space-y-3 custom-scrollbar`}>
                         {carrito.map((item, index) => (
                             <div key={index} className="flex items-center gap-3 p-3 bg-slate-50 rounded-none">
                                 <div className="flex-1 min-w-0">
@@ -1375,7 +1379,7 @@ function CartPanel({
                         ))}
                     </div>
 
-                    <div className="p-6 border-t border-slate-100 space-y-3">
+                    <div className="p-5 sm:p-6 border-t border-slate-100 space-y-3 shrink-0">
                         <div className="flex justify-between text-sm">
                             <span className="text-slate-400 font-bold uppercase tracking-widest">Subtotal</span>
                             <span className="text-slate-900 font-black">S/ {subtotal.toFixed(2)}</span>

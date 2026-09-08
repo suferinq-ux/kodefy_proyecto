@@ -187,7 +187,7 @@ export default function ProductOptionsModal({ isOpen, onClose, onConfirm, produc
                         initial={{ opacity: 0, scale: 0.95 }}
                         animate={{ opacity: 1, scale: 1 }}
                         exit={{ opacity: 0, scale: 0.95 }}
-                        className="bg-white rounded-none shadow-2xl w-full max-w-md border border-slate-100 flex flex-col max-h-[85vh] sm:max-h-[90vh] overflow-hidden"
+                        className="bg-white rounded-none shadow-2xl w-full max-w-md border border-slate-100 flex flex-col max-h-[85dvh] sm:max-h-[90dvh] overflow-hidden"
                     >
                         <div className="p-4 sm:p-6 border-b border-gray-100 flex justify-between items-center bg-slate-50 shrink-0">
                             <div>
