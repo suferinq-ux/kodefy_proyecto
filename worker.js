@@ -43,6 +43,16 @@ function repetir(caracter, veces) {
     return resultado;
 }
 
+function pisoLabel(pisoNum) {
+    var n = Number(pisoNum || 1);
+    if (n === 1) return '1er PISO';
+    if (n === 2) return '2do PISO';
+    if (n === 3) return '3er PISO';
+    if (n === 4) return '4to PISO';
+    if (n === 5) return 'TERRAZA';
+    return 'PISO ' + n;
+}
+
 async function imprimirTicket(venta) {
     return new Promise(function(resolve, reject) {
         var client = new net.Socket();
@@ -85,29 +95,27 @@ async function imprimirTicket(venta) {
         p += 'Ticket: #' + String(venta.id).split('-')[0].toUpperCase() + LF;
         p += ESC + 'E' + '\x00';
 
-        // ====== TIPO DE PEDIDO ======
+        // ====== TIPO DE PEDIDO + MESA + PISO ======
         var tipoPedido = venta.tipo_pedido || 'mesa';
+        var mesaInfo = venta.mesas || {};
+        var numeroMesa = mesaInfo.numero || '';
+        var pisoTexto = pisoLabel(mesaInfo.piso || venta.piso || 1);
+
+        p += GS + '!' + '\x11';
+        p += ESC + 'E' + '\x01';
         if (tipoPedido === 'mesa') {
-            p += GS + '!' + '\x11';
-            p += ESC + 'E' + '\x01';
-            p += 'MESA: ' + (venta.mesa_numero || '---') + LF;
-            p += GS + '!' + '\x00';
-            p += ESC + 'E' + '\x00';
+            p += 'MESA N: ' + numeroMesa + LF;
+            p += 'PISO: ' + pisoTexto + LF;
         } else if (tipoPedido === 'llevar') {
-            p += GS + '!' + '\x11';
-            p += ESC + 'E' + '\x01';
             p += '>> PARA LLEVAR <<' + LF;
-            p += GS + '!' + '\x00';
-            p += ESC + 'E' + '\x00';
         } else if (tipoPedido === 'delivery') {
-            p += GS + '!' + '\x11';
-            p += ESC + 'E' + '\x01';
             p += '>> DELIVERY <<' + LF;
-            p += GS + '!' + '\x00';
-            p += ESC + 'E' + '\x00';
-            if (venta.direccion_envio) {
-                p += 'Dir: ' + venta.direccion_envio + LF;
-            }
+        }
+        p += GS + '!' + '\x00';
+        p += ESC + 'E' + '\x00';
+
+        if (tipoPedido === 'delivery' && venta.direccion_envio) {
+            p += 'Dir: ' + venta.direccion_envio + LF;
         }
 
         // ====== USUARIO ======
@@ -138,20 +146,28 @@ async function imprimirTicket(venta) {
                 p += ESC + 'E' + '\x00';
 
                 var detalles = item.detalles || {};
+
                 if (detalles.parte) {
-                    p += '    > Parte: ' + detalles.parte + LF;
+                    p += '    > PRESA: ' + detalles.parte + LF;
                 }
-                if (detalles.trozado) {
-                    p += '    > Corte: ' + detalles.trozado + LF;
+                if (detalles.trozado && String(detalles.trozado).toLowerCase() !== 'entero') {
+                    p += '    > TROZADO: ' + detalles.trozado + LF;
                 }
                 if (detalles.termino) {
-                    p += '    > Termino: ' + detalles.termino + LF;
+                    p += '    > TERMINO: ' + detalles.termino + LF;
                 }
                 if (detalles.salsa) {
-                    p += '    > Salsa: ' + detalles.salsa + LF;
+                    p += '    > SALSA: ' + detalles.salsa + LF;
                 }
                 if (detalles.guarnicion) {
-                    p += '    > Guarnicion: ' + detalles.guarnicion + LF;
+                    p += '    > GUARNICION: ' + detalles.guarnicion + LF;
+                }
+                if (item.detalle_bebida && item.detalle_bebida.marca) {
+                    var bebida = String(item.detalle_bebida.marca);
+                    if (item.detalle_bebida.tipo) {
+                        bebida += ' ' + String(item.detalle_bebida.tipo);
+                    }
+                    p += '    > BEBIDA: ' + bebida + LF;
                 }
                 if (detalles.notas || item.notas) {
                     p += ESC + 'E' + '\x01';
@@ -229,7 +245,7 @@ async function buscarPendientes() {
         var hoy = obtenerFechaHoy();
         var result = await supabase
             .from('ventas')
-            .select('*, mesas(numero, piso)')
+            .select('*, mesas:mesa_id(numero, piso)')
             .eq('negocio_id', NEGOCIO_ID)
             .eq('estado_impresion', 'pendiente')
             .eq('fecha', hoy);
@@ -246,19 +262,6 @@ async function buscarPendientes() {
             console.log('[!] ' + data.length + ' venta(s) pendiente(s) de hoy');
             for (var i = 0; i < data.length; i++) {
                 var venta = data[i];
-
-                // Formatear numero real de mesa y piso
-                if (venta.mesas && venta.mesas.numero) {
-                    var pisoNum = Number(venta.mesas.piso || 1);
-                    var pisoTexto = '';
-                    if (pisoNum === 1) pisoTexto = ' (1er PISO)';
-                    else if (pisoNum === 2) pisoTexto = ' (2do PISO)';
-                    else if (pisoNum === 3) pisoTexto = ' (3er PISO)';
-                    else if (pisoNum === 5) pisoTexto = ' (TERRAZA)';
-                    else pisoTexto = ' (PISO ' + pisoNum + ')';
-
-                    venta.mesa_numero = venta.mesas.numero + pisoTexto;
-                }
 
                 // Si es adicional y no tiene items adicionales, se marca impreso sin enviar a la impresora
                 var isAdicional = Boolean(venta.es_adicional);

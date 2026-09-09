@@ -35,6 +35,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import ReceiptModal from '@/components/ReceiptModal';
 import AdminReportModal from '@/components/AdminReportModal';
 import EditPaymentModal from '@/components/EditPaymentModal';
+import AnulacionModal from '@/components/AnulacionModal';
+import { registrarAnulacion } from '@/lib/anulaciones';
 
 type TipoRango = 'dia' | 'rango';
 
@@ -71,17 +73,37 @@ export default function ReportesPage() {
     const [showAdminReport, setShowAdminReport] = useState(false);
     const [inventarios, setInventarios] = useState<InventarioDiario[]>([]);
     const [gastos, setGastos] = useState<Gasto[]>([]);
+    
+    const [showCancelModal, setShowCancelModal] = useState(false);
+    const [cancellingVentaId, setCancellingVentaId] = useState<string | null>(null);
 
-    const handleDeleteVenta = async (ventaId: string) => {
-        if (!confirm('¿Está seguro de eliminar esta venta por completo? Esta acción no se puede deshacer.')) return;
+    const handleDeleteVentaClick = (ventaId: string) => {
+        setCancellingVentaId(ventaId);
+        setShowCancelModal(true);
+    };
+
+    const confirmDeleteVenta = async (motivo: string) => {
+        if (!cancellingVentaId || !user || !business) return;
         try {
-            const { error } = await supabase.from('ventas').delete().eq('id', ventaId);
-            if (error) throw error;
-            toast.success('Venta eliminada correctamente');
-            cargarDatos();
+            const result = await registrarAnulacion(
+                cancellingVentaId,
+                motivo,
+                user.id,
+                user.nombre,
+                business.id
+            );
+            if (result.success) {
+                toast.success('Venta eliminada correctamente');
+                cargarDatos();
+            } else {
+                toast.error(result.message);
+            }
         } catch (error: any) {
             console.error('Error al eliminar venta:', error);
             toast.error('Error al eliminar la venta');
+        } finally {
+            setShowCancelModal(false);
+            setCancellingVentaId(null);
         }
     };
 
@@ -871,7 +893,7 @@ export default function ReportesPage() {
                                                         </button>
                                                         {(user?.rol === 'admin' || user?.rol === 'cajero' || user?.es_super_admin) && (
                                                             <button
-                                                                onClick={() => handleDeleteVenta(v.id)}
+                                                                onClick={() => handleDeleteVentaClick(v.id)}
                                                                 className="p-3 bg-slate-50 rounded-none text-slate-400 hover:text-red-600 hover:bg-red-50 transition-all border border-slate-100"
                                                                 title="Eliminar esta venta por completo"
                                                             >
@@ -936,6 +958,14 @@ export default function ReportesPage() {
                 }}
                 venta={ventaToEdit}
                 onUpdate={() => cargarDatos()}
+            />
+
+            <AnulacionModal
+                isOpen={showCancelModal}
+                onClose={() => setShowCancelModal(false)}
+                onConfirm={confirmDeleteVenta}
+                titulo="Eliminar Venta"
+                subtitulo="Esta acción registrará la anulación y eliminará la venta."
             />
         </div>
     );

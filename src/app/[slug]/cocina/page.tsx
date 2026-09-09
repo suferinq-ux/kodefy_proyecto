@@ -11,6 +11,8 @@ import toast from 'react-hot-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBusiness } from '@/contexts/BusinessContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
+import AnulacionModal from '@/components/AnulacionModal';
+import { registrarAnulacion } from '@/lib/anulaciones';
 
 export default function CocinaPage() {
     return (
@@ -125,8 +127,8 @@ function CocinaContent() {
         setShowCancelModal(true);
     };
 
-    const confirmCancel = async () => {
-        if (!cancellingId) return;
+    const confirmCancel = async (motivo: string) => {
+        if (!cancellingId || !user || !business) return;
         try {
             const { data: pedido } = await supabase
                 .from('ventas')
@@ -141,23 +143,20 @@ function CocinaContent() {
                 return;
             }
 
-            const { error } = await supabase
-                .from('ventas')
-                .delete()
-                .eq('id', cancellingId);
+            const result = await registrarAnulacion(
+                cancellingId,
+                motivo,
+                user.id,
+                user.nombre,
+                business.id
+            );
 
-            if (error) throw error;
-
-            // Liberar la mesa si tenía una asignada
-            if (pedido?.mesa_id) {
-                await supabase
-                    .from('mesas')
-                    .update({ estado: 'libre' })
-                    .eq('id', pedido.mesa_id);
+            if (result.success) {
+                setPedidos(prev => prev.filter(p => p.id !== cancellingId));
+                toast.success(result.message, { icon: '🗑️' });
+            } else {
+                toast.error(result.message);
             }
-
-            setPedidos(prev => prev.filter(p => p.id !== cancellingId));
-            toast.success('Pedido cancelado — stock restaurado', { icon: '🗑️' });
         } catch (error) {
             console.error('Error:', error);
             toast.error('Error al cancelar');
@@ -379,44 +378,13 @@ function CocinaContent() {
             </div>
 
             {/* Modales de Interfaz (Edit/Cancel) */}
-            <AnimatePresence>
-                {showCancelModal && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md print:hidden">
-                        <motion.div
-                            initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                            animate={{ opacity: 1, scale: 1, y: 0 }}
-                            exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                            className="bg-white rounded-none w-full max-w-sm p-8 text-center relative overflow-hidden shadow-2xl border border-slate-100"
-                        >
-                            <div className="absolute top-0 right-0 w-32 h-32 bg-rodrigo-terracotta/5 blur-3xl -mr-16 -mt-16"></div>
-
-                            <div className="w-20 h-20 bg-red-50 rounded-none flex items-center justify-center mx-auto mb-6 border border-red-100 shadow-sm">
-                                <AlertTriangle size={32} className="text-red-600" />
-                            </div>
-
-                            <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter mb-2 italic">¿Cancelar Pedido?</h3>
-                            <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-8 leading-relaxed">
-                                Esta acción eliminará el pedido permanentemente de la lista de producción.
-                            </p>
-
-                            <div className="flex gap-4">
-                                <button
-                                    onClick={() => { setShowCancelModal(false); setCancellingId(null); }}
-                                    className="flex-1 py-4 px-4 rounded-none font-black text-[10px] text-slate-400 bg-slate-50 border border-slate-100 hover:bg-slate-100 transition-all uppercase tracking-widest"
-                                >
-                                    No, mantener
-                                </button>
-                                <button
-                                    onClick={confirmCancel}
-                                    className="flex-1 py-4 px-4 rounded-none font-black text-[10px] text-white bg-red-600 shadow-lg hover:brightness-110 transition-all uppercase tracking-widest"
-                                >
-                                    Sí, cancelar
-                                </button>
-                            </div>
-                        </motion.div>
-                    </div>
-                )}
-            </AnimatePresence>
+                <AnulacionModal
+                    isOpen={showCancelModal}
+                    onClose={() => { setShowCancelModal(false); setCancellingId(null); }}
+                    onConfirm={confirmCancel}
+                    titulo="Cancelar Pedido"
+                    subtitulo="El pedido se eliminará permanentemente."
+                />
 
             <AnimatePresence>
                 {showEditModal && editingPedido && (

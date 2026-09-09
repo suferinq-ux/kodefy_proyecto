@@ -6,6 +6,10 @@ import { dbUpdate, dbDelete } from '@/lib/supabaseApi';
 import type { Venta, ItemVenta } from '@/lib/database.types';
 import { calcularStockRestado } from '@/lib/ventas';
 import toast from 'react-hot-toast';
+import AnulacionModal from './AnulacionModal';
+import { registrarAnulacion } from '@/lib/anulaciones';
+import { useAuth } from '@/contexts/AuthContext';
+import { useBusiness } from '@/contexts/BusinessContext';
 
 interface EditPaymentModalProps {
     isOpen: boolean;
@@ -18,6 +22,8 @@ type MetodoPago = 'efectivo' | 'yape' | 'plin' | 'tarjeta' | 'mixto';
 type Tab = 'pago' | 'productos';
 
 export default function EditPaymentModal({ isOpen, onClose, venta, onUpdate }: EditPaymentModalProps) {
+    const { user } = useAuth();
+    const { business } = useBusiness();
     const [activeTab, setActiveTab] = useState<Tab>('pago');
     const [metodoPago, setMetodoPago] = useState<MetodoPago>('efectivo');
     const [splitPago, setSplitPago] = useState({
@@ -29,6 +35,7 @@ export default function EditPaymentModal({ isOpen, onClose, venta, onUpdate }: E
     const [items, setItems] = useState<ItemVenta[]>([]);
     const [loading, setLoading] = useState(false);
     const [deleting, setDeleting] = useState(false);
+    const [showCancelModal, setShowCancelModal] = useState(false);
 
     useEffect(() => {
         if (isOpen && venta) {
@@ -135,25 +142,37 @@ export default function EditPaymentModal({ isOpen, onClose, venta, onUpdate }: E
         }
     };
 
-    // Eliminar la venta completa de la base de datos
-    const handleDeleteVenta = async () => {
+    const handleDeleteVentaClick = () => {
         if (!venta) return;
-        if (!confirm(`¿Está seguro de eliminar esta venta por completo? (Monto: S/ ${venta.total.toFixed(2)}). Esta acción no se puede deshacer.`)) {
-            return;
-        }
+        setShowCancelModal(true);
+    };
 
+    const confirmDeleteVenta = async (motivo: string) => {
+        if (!venta || !user || !business) return;
+        
         setDeleting(true);
         try {
-            await dbDelete('ventas', { id: venta.id });
+            const result = await registrarAnulacion(
+                venta.id,
+                motivo,
+                user.id,
+                user.nombre,
+                business.id
+            );
 
-            toast.success('Venta eliminada correctamente');
-            onUpdate();
-            onClose();
+            if (result.success) {
+                toast.success('Venta eliminada correctamente');
+                onUpdate();
+                onClose();
+            } else {
+                toast.error(result.message);
+            }
         } catch (error: any) {
             console.error('Error deleting sale:', error);
             toast.error('Error al eliminar la venta: ' + error.message);
         } finally {
             setDeleting(false);
+            setShowCancelModal(false);
         }
     };
 
@@ -362,7 +381,7 @@ export default function EditPaymentModal({ isOpen, onClose, venta, onUpdate }: E
                             {/* Option to Delete Entire Sale */}
                             <button
                                 type="button"
-                                onClick={handleDeleteVenta}
+                                onClick={handleDeleteVentaClick}
                                 disabled={deleting || loading}
                                 className="w-full py-2 text-[10px] font-black text-red-500 hover:text-red-700 hover:bg-red-50 border border-dashed border-red-200 uppercase tracking-widest transition-all italic flex items-center justify-center gap-1.5"
                             >
@@ -372,6 +391,15 @@ export default function EditPaymentModal({ isOpen, onClose, venta, onUpdate }: E
                     </div>
                 </motion.div>
             </div>
+            
+            <AnulacionModal
+                isOpen={showCancelModal}
+                onClose={() => setShowCancelModal(false)}
+                onConfirm={confirmDeleteVenta}
+                titulo="Eliminar Venta Completa"
+                subtitulo={`Monto a anular: S/ ${venta.total.toFixed(2)}`}
+                loading={deleting}
+            />
         </AnimatePresence>
     );
 }

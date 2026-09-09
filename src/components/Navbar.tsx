@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, ShoppingCart, BarChart, Lock, ClipboardList, ChefHat, Package, Menu, X, Settings, RotateCcw, Navigation, Navigation2, LogOut, Building, MessageSquare } from 'lucide-react';
+import { Home, ShoppingCart, BarChart, Lock, ClipboardList, ChefHat, Package, Menu, X, Settings, RotateCcw, Navigation, Navigation2, LogOut, Building, MessageSquare, Trash2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBusiness } from '@/contexts/BusinessContext';
 import { hasPermission } from '@/lib/roles';
@@ -38,6 +38,7 @@ const menuSections = [
         title: 'Administración',
         items: [
             { icon: BarChart, label: 'Reportes', href: '/reportes', permission: 'reportes' },
+            { icon: Trash2, label: 'Anulaciones', href: '/anulaciones', permission: 'anulaciones' },
             { icon: RotateCcw, label: 'Restablecer', href: '/mantenimiento', permission: 'configuracion' },
             { icon: Settings, label: 'Configuración', href: '/configuracion', permission: 'configuracion' },
         ]

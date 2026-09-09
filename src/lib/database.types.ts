@@ -238,3 +238,18 @@ export interface VentaResponse {
     message: string;
     data?: Venta;
 }
+
+export interface Anulacion {
+    id: string;
+    negocio_id: string;
+    venta_id?: string;
+    usuario_id?: string;
+    usuario_nombre: string;
+    motivo: string;
+    monto_original: number;
+    items: ItemVenta[];
+    tipo_pedido?: 'mesa' | 'llevar' | 'delivery';
+    mesa_numero?: number;
+    fecha_venta?: string;
+    created_at: string;
+}
