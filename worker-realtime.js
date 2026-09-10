@@ -2,10 +2,11 @@ const { createClient } = require('@supabase/supabase-js');
 const net = require('net');
 
 const SUPABASE_URL = 'https://okzncqmhjvsrdhluwuhx.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9rem5jcW1oanZzcmRobHV3dWh4Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NzI0MDE2NCwiZXhwIjoyMDkyODE2MTY0fQ.2iI3KSEyNOZWxqUQIXOLsJjk2yuQXy2c6lZVlIglVdA';
-const NEGOCIO_ID = 'cba58c29-541f-4388-83b1-ce47c66d9328'; // Reykelt
+const SUPABASE_KEY = process.env.SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9rem5jcW1oanZzcmRobHV3dWh4Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NzI0MDE2NCwiZXhwIjoyMDkyODE2MTY0fQ.2iI3KSEyNOZWxqUQIXOLsJjk2yuQXy2c6lZVlIglVdA';
+const NEGOCIO_ID = process.env.NEGOCIO_ID || 'cba58c29-541f-4388-83b1-ce47c66d9328'; // Reykelt by default
 const PRINTER_IP = process.env.PRINTER_IP || '192.168.18.50';
 const PRINTER_PORT = parseInt(process.env.PRINTER_PORT || '9100');
+const NOMBRE_NEGOCIO = process.env.NOMBRE_NEGOCIO || "MI NEGOCIO";
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
@@ -63,10 +64,9 @@ async function imprimirTicket(venta, itemsAImprimir, esAdicional) {
         p += ESC + 'a' + '\x01';
         p += ESC + 'E' + '\x01';
         p += GS + '!' + '\x11';
-        p += 'REYKELT\n';
+        p += (NOMBRE_NEGOCIO) + '\n';
         p += GS + '!' + '\x00';
         p += ESC + 'E' + '\x00';
-        p += 'BRASAS & BROASTERS\n';
         p += LINEA + '\n';
 
         // ====== TITULO (doble) ======

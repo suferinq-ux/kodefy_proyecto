@@ -25,7 +25,7 @@ export const registrarAnulacion = async (
         const ventaData = venta as Venta;
 
         // 2. Insertar registro en tabla anulaciones
-        const { error: insertError } = await dbInsert('anulaciones', {
+        await dbInsert('anulaciones', {
             negocio_id: negocioId,
             venta_id: ventaId,
             usuario_id: usuarioId,
@@ -37,11 +37,6 @@ export const registrarAnulacion = async (
             mesa_numero: ventaData.mesa_id, 
             fecha_venta: ventaData.fecha
         });
-
-        if (insertError) {
-            console.error('Error registrando la anulación:', insertError);
-            return { success: false, message: 'No se pudo guardar la justificación de anulación.' };
-        }
 
         // 3. Eliminar la venta
         await dbDelete('ventas', { id: ventaId });

@@ -13,7 +13,8 @@ const ALLOWED_TABLES = [
     'estadisticas_productos',
     'whatsapp_config',
     'whatsapp_mensajes',
-    'bebidas_config'
+    'bebidas_config',
+    'anulaciones'
 ];
 
 async function getSupabaseAndVerify(request: Request) {
