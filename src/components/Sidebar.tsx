@@ -38,8 +38,6 @@ const menuSections: MenuSection[] = [
         items: [
             { icon: ShoppingCart, label: 'Pedidos', href: '/pos', permission: 'pos' },
             { icon: ChefHat, label: 'Cocina', href: '/cocina', permission: 'cocina' },
-            { icon: Navigation, label: 'Entregas', href: '/delivery', permission: 'delivery' },
-            { icon: Navigation2, label: 'Radar Live', href: '/radar', permission: 'pos' },
         ]
     },
     {

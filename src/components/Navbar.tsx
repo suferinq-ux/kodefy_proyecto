@@ -21,8 +21,6 @@ const menuSections = [
         items: [
             { icon: ShoppingCart, label: 'Pedidos', href: '/pos', permission: 'pos' },
             { icon: ChefHat, label: 'Cocina', href: '/cocina', permission: 'cocina' },
-            { icon: Navigation, label: 'Entregas', href: '/delivery', permission: 'delivery' },
-            { icon: Navigation2, label: 'Radar Live', href: '/radar', permission: 'pos' },
             { icon: MessageSquare, label: 'WhatsApp IA', href: '/whatsapp', permission: 'pos' },
         ]
     },
@@ -187,7 +185,6 @@ export default function Navbar() {
                         { icon: ShoppingCart, label: 'Pedidos', href: '/pos', permission: 'pos' },
                         { icon: Package, label: 'Ventas', href: '/ventas', permission: 'ventas' },
                         { icon: ChefHat, label: 'Cocina', href: '/cocina', permission: 'cocina' },
-                        { icon: Navigation, label: 'Entregas', href: '/delivery', permission: 'delivery' },
                     ].filter(item => hasPermission(user.rol, item.permission)).map((item) => {
                         const Icon = item.icon;
                         const active = isActive(item.href);
