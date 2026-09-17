@@ -660,10 +660,8 @@ export default function ReportesPage() {
                     ventas={ventasOriginales} 
                     inventarios={inventarios}
                     gastos={gastos}
-                    fechaSeleccionada={tipoRango === 'dia' ? fechaSeleccionada : fechaInicio}
-                    onUpdateData={cargarDatosBase}
-                    metricas={metricas}
-                    businessId={business?.id || ''}
+                    fechaInicio={tipoRango === 'dia' ? fechaSeleccionada : fechaInicio}
+                    fechaFin={tipoRango === 'dia' ? fechaSeleccionada : fechaFin}
                 />
             )}
 
@@ -696,7 +694,7 @@ export default function ReportesPage() {
                         setVentaToEdit(null);
                     }}
                     venta={ventaToEdit}
-                    onPaymentUpdated={cargarDatosBase}
+                    onUpdate={cargarDatosBase}
                 />
             )}
 

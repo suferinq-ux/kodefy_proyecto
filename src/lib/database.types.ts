@@ -140,7 +140,7 @@ export interface Venta {
         plin?: number;
         tarjeta?: number;
     };
-    estado_pedido: 'pendiente' | 'listo' | 'entregado';
+    estado_pedido: 'pendiente' | 'listo' | 'entregado' | 'anulado';
     estado_pago?: 'pendiente' | 'pagado';
     mesa?: string; // Deprecated: usar mesa_id
     mesa_id?: number; // ID de la mesa asignada
@@ -161,12 +161,15 @@ export interface Venta {
     longitud_envio?: number;
     geometria_envio?: [number, number][];
     usuario_nombre?: string; // Nombre de quien atendió
+    nombre_cliente?: string; // Nombre del cliente (ej: pedidos WhatsApp)
+    documento_cliente?: string; // Documento del cliente (DNI/RUC)
     comprobante_tipo?: 'ticket' | 'boleta' | 'factura'; // Tipo de comprobante emitido
     comprobante_serie?: string; // Serie del comprobante (ej: B001)
     comprobante_numero?: number; // Número correlativo asignado
     created_at: string;
     updated_at?: string; // Add updated_at
     mesas?: { numero: number } | null; // Join result
+    repartidor?: { nombre: string } | null; // Join result
 }
 
 export interface Mesa {
