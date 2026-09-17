@@ -250,8 +250,8 @@ export function useBebidasConfig() {
     const allBrands: BrandConfig[] = [...CORE_BRANDS, ...customBrands];
 
     // Generate empty stock object for all brands
-    const generateEmptyStock = (): Record<string, Record<string, number>> => {
-        const stock: Record<string, Record<string, number>> = {};
+    const generateEmptyStock = (): Record<string, any> => {
+        const stock: Record<string, any> = {};
         for (const brand of allBrands) {
             stock[brand.key] = {};
             for (const size of brand.sizes) {
@@ -262,11 +262,15 @@ export function useBebidasConfig() {
     };
 
     // Merge existing stock with potentially new brands (keeps existing values, adds new ones as 0)
-    const mergeWithStock = (existing: Record<string, any>): Record<string, Record<string, number>> => {
-        const merged = generateEmptyStock();
+    const mergeWithStock = (existing: Record<string, any>): Record<string, any> => {
+        const merged: Record<string, any> = generateEmptyStock();
         if (!existing) return merged;
 
         for (const brandKey of Object.keys(existing)) {
+            if (brandKey === '_config') {
+                merged._config = existing._config;
+                continue;
+            }
             if (merged[brandKey]) {
                 for (const sizeKey of Object.keys(existing[brandKey])) {
                     merged[brandKey][sizeKey] = existing[brandKey][sizeKey] || 0;

@@ -239,7 +239,29 @@ function DashboardContent() {
                       <div className="w-2.5 h-2.5 bg-purple-500 rounded-full shadow-[0_0_10px_purple]" />
                     </div>
                     <p className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tighter mb-2 italic">{(stock.chicha_disponible || 0).toFixed(1)}</p>
-                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Litros disponibles</p>
+                    <div className="h-2 bg-slate-200 rounded-full overflow-hidden mb-2">
+                      <motion.div initial={{ width: 0 }} animate={{ width: `${((stock.chicha_disponible || 0) / (stock.chicha_inicial || 1)) * 100}%` }} className="h-full bg-purple-500 rounded-full" />
+                    </div>
+                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">de {stock.chicha_inicial || 0}L iniciales</p>
+                    
+                    {/* Detalle de consumo */}
+                    <div className="mt-4 pt-4 border-t border-slate-200/60">
+                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-2">Consumo:</p>
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-[9px] text-slate-500">
+                          <span>Vaso (0.25L):</span>
+                          <span className="font-bold text-slate-700">{(stock.bebidas_vendidas_detalle?.chicha as Record<string, number>)?.vaso || 0}</span>
+                        </div>
+                        <div className="flex justify-between text-[9px] text-slate-500">
+                          <span>Media Jarra (0.5L):</span>
+                          <span className="font-bold text-slate-700">{(stock.bebidas_vendidas_detalle?.chicha as Record<string, number>)?.medio_litro || 0}</span>
+                        </div>
+                        <div className="flex justify-between text-[9px] text-slate-500">
+                          <span>Jarra (1L):</span>
+                          <span className="font-bold text-slate-700">{(stock.bebidas_vendidas_detalle?.chicha as Record<string, number>)?.litro || 0}</span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
 
                   {/* Gaseosas */}

@@ -29,6 +29,8 @@ interface ReceiptModalProps {
     clienteDocumentoTipo?: '1' | '6';
     clienteDireccion?: string;
     tipoComprobante?: 'TICKET' | 'BOLETA' | 'FACTURA';
+    comprobanteSerie?: string;
+    comprobanteNumero?: number;
 }
 
 interface ConfigNegocio {
@@ -45,7 +47,7 @@ interface ConfigNegocio {
     ciudad?: string;
 }
 
-export default function ReceiptModal({ isOpen, onClose, items, total, orderId, mesaNumero, title = 'BOLETA DE VENTA', isNewSale = false, costoEnvio = 0, usuarioNombre, metodoPago, pagoDividido, deliveryInfo, clienteNombre: initialNombre, clienteDocumento: initialDocumento, clienteDocumentoTipo: initialDocumentoTipo, clienteDireccion: initialDireccion, tipoComprobante: initialTipo = 'TICKET' }: ReceiptModalProps) {
+export default function ReceiptModal({ isOpen, onClose, items, total, orderId, mesaNumero, title = 'BOLETA DE VENTA', isNewSale = false, costoEnvio = 0, usuarioNombre, metodoPago, pagoDividido, deliveryInfo, clienteNombre: initialNombre, clienteDocumento: initialDocumento, clienteDocumentoTipo: initialDocumentoTipo, clienteDireccion: initialDireccion, tipoComprobante: initialTipo = 'TICKET', comprobanteSerie, comprobanteNumero }: ReceiptModalProps) {
     const { business } = useBusiness();
     const [config, setConfig] = useState<ConfigNegocio>({
         ruc: '',
@@ -149,6 +151,14 @@ export default function ReceiptModal({ isOpen, onClose, items, total, orderId, m
     };
 
     const cargarNumeroVista = async (tipo: 'ticket' | 'boleta' | 'factura', configData: Partial<ConfigNegocio> | null) => {
+        // Si no es venta nueva y ya tiene una serie/número asiganado en DB, usarlo.
+        if (!isNewSale && comprobanteSerie && comprobanteNumero !== undefined && tipo === initialTipo.toLowerCase()) {
+            if (tipo === 'ticket') setNumeroTicket(`${comprobanteSerie}-${String(comprobanteNumero).padStart(6, '0')}`);
+            else if (tipo === 'factura') setNumeroFactura(`${comprobanteSerie}-${String(comprobanteNumero).padStart(8, '0')}`);
+            else setNumeroBoleta(`${comprobanteSerie}-${String(comprobanteNumero).padStart(8, '0')}`);
+            return;
+        }
+
         try {
             const { data: corr, error: corrError } = await supabase.rpc('consultar_correlativo', { p_negocio: business?.id, p_tipo: tipo });
             if (!corrError && corr) {

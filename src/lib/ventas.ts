@@ -15,7 +15,9 @@ export const calcularStockRestado = (items: ItemCarrito[]) => {
         if (item.fraccion_pollo > 0) {
             // Es un producto de pollo
             pollosRestados += item.fraccion_pollo * item.cantidad;
-        } else if (item.detalle_bebida) {
+        }
+        
+        if (item.detalle_bebida) {
             // Es una bebida con detalle específico
             const { marca, tipo } = item.detalle_bebida;
 
@@ -43,11 +45,9 @@ export const calcularStockRestado = (items: ItemCarrito[]) => {
                 const brandObj = bebidasDetalle[marca]!;
                 brandObj[tipo] = ((brandObj[tipo] as number) || 0) + item.cantidad;
             }
-        } else {
+        } else if (item.fraccion_pollo === 0 && item.precio > 0) {
             // Retrocompatibilidad
-            if (item.fraccion_pollo === 0 && item.precio > 0) {
-                gaseosasRestadas += item.cantidad;
-            }
+            gaseosasRestadas += item.cantidad;
         }
     });
 

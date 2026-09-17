@@ -42,8 +42,8 @@ function calcularBebidasActuales(inicial: BebidasDetalle, ventasArray: BebidasDe
             if (!tiposVenta || !resultado[marca]) continue;
 
             for (const tipoKey of Object.keys(tiposVenta)) {
-                const cantidadVendida = (tiposVenta as Record<string, number>)[tipoKey] || 0;
-                const actual = ((resultado[marca] as Record<string, number>)[tipoKey]) || 0;
+                const cantidadVendida = Number((tiposVenta as Record<string, number>)[tipoKey]) || 0;
+                const actual = Number(((resultado[marca] as Record<string, number>)[tipoKey])) || 0;
                 (resultado[marca] as Record<string, number>)[tipoKey] = Math.max(0, actual - cantidadVendida);
             }
         }
@@ -159,6 +159,26 @@ export const useInventario = (negocioId?: string): UseInventarioResult => {
                 ? (inventario.bebidas_detalle as BebidasDetalle)
                 : { ...JSON.parse(JSON.stringify(DEFAULT_BEBIDAS)) };
 
+            // Calcular detalle de bebidas vendidas
+            const bebidasVendidasDetalle: BebidasDetalle = JSON.parse(JSON.stringify(DEFAULT_BEBIDAS));
+            if (ventasBebidasArray.length > 0) {
+                for (const venta of ventasBebidasArray) {
+                    if (!venta) continue;
+                    for (const marcaKey of Object.keys(venta)) {
+                        const marca = marcaKey as keyof BebidasDetalle;
+                        const tiposVenta = venta[marca];
+                        if (!tiposVenta) continue;
+                        if (!bebidasVendidasDetalle[marca]) bebidasVendidasDetalle[marca] = {};
+                        
+                        for (const tipoKey of Object.keys(tiposVenta)) {
+                            const cantidadVendida = Number((tiposVenta as Record<string, number>)[tipoKey]) || 0;
+                            const actual = Number(((bebidasVendidasDetalle[marca] as Record<string, number>)[tipoKey])) || 0;
+                            (bebidasVendidasDetalle[marca] as Record<string, number>)[tipoKey] = actual + cantidadVendida;
+                        }
+                    }
+                }
+            }
+
             const bebidasActuales = ventasBebidasArray.length > 0
                 ? calcularBebidasActuales(bebidasInicial, ventasBebidasArray)
                 : bebidasInicial;
@@ -167,7 +187,9 @@ export const useInventario = (negocioId?: string): UseInventarioResult => {
             const sumarTodo = (det: BebidasDetalle) => {
                 let s = 0;
                 Object.values(det).forEach(m => {
-                    if (m) Object.values(m).forEach(c => s += (c || 0));
+                    if (m && typeof m === 'object' && !Array.isArray(m)) {
+                        Object.values(m).forEach(c => s += (Number(c) || 0));
+                    }
                 });
                 return s;
             };
@@ -181,11 +203,11 @@ export const useInventario = (negocioId?: string): UseInventarioResult => {
                 negocio_id: inventario.negocio_id,
                 fecha: inventario.fecha,
                 pollos_enteros: inventario.pollos_enteros || 0,
-                gaseosas: totalInicialDetalle || inventario.gaseosas || 0,
+                gaseosas: totalInicialDetalle,
                 pollos_disponibles: (inventario.pollos_enteros || 0) - pollosVendidos,
-                gaseosas_disponibles: totalActualDetalle || (inventario.gaseosas || 0) - gaseosasVendidas,
+                gaseosas_disponibles: totalActualDetalle,
                 pollos_iniciales: inventario.pollos_enteros || 0,
-                gaseosas_iniciales: totalInicialDetalle || inventario.gaseosas || 0,
+                gaseosas_iniciales: totalInicialDetalle,
                 pollos_vendidos: pollosVendidos,
                 gaseosas_vendidas: gaseosasVendidas,
                 papas_iniciales: inventario.papas_iniciales || 0,
@@ -195,6 +217,7 @@ export const useInventario = (negocioId?: string): UseInventarioResult => {
                 chicha_disponible: (inventario.chicha_inicial || 0) - chichaVendida,
                 estado: inventario.estado || 'abierto',
                 bebidas_detalle: bebidasActuales,
+                bebidas_vendidas_detalle: bebidasVendidasDetalle,
             };
 
             setStock(stockCalculado);

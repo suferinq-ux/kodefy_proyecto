@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { DollarSign, ShoppingBag, TrendingUp, TrendingDown, Calendar, FileSpreadsheet, Star, Clock, CreditCard, Home, Package, ChevronLeft, ChevronRight, X, Filter, BarChart3, Printer, FileText, ChevronDown, Download, Pencil, Trash2 } from 'lucide-react';
+import { DollarSign, ShoppingBag, TrendingUp, TrendingDown, Calendar, FileSpreadsheet, Star, Clock, CreditCard, Home, Package, ChevronLeft, ChevronRight, X, Filter, BarChart3, Printer, FileText, ChevronDown, Download, Pencil, Trash2, Search, SlidersHorizontal, Eye } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
@@ -32,6 +32,7 @@ import { formatearFraccionPollo } from '@/lib/utils';
 import { generarReporteExcelReportes } from '@/lib/excelReportes';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
+
 import ReceiptModal from '@/components/ReceiptModal';
 import AdminReportModal from '@/components/AdminReportModal';
 import EditPaymentModal from '@/components/EditPaymentModal';
@@ -40,72 +41,43 @@ import { registrarAnulacion } from '@/lib/anulaciones';
 
 type TipoRango = 'dia' | 'rango';
 
-const CHART_COLORS = {
-    primary: 'var(--theme-primary)',   
-    secondary: 'var(--theme-secondary)', 
-    info: '#38bdf8',      // Sky
-    emerald: '#10b981',
-    rose: '#f43f5e'
-};
 export default function ReportesPage() {
     const { user } = useAuth();
     const { business } = useBusiness();
+    
+    // Filtros de fecha
     const [tipoRango, setTipoRango] = useState<TipoRango>('dia');
     const [fechaSeleccionada, setFechaSeleccionada] = useState(new Date());
     const [fechaInicio, setFechaInicio] = useState(new Date());
     const [fechaFin, setFechaFin] = useState(new Date());
     const [mesCalendario, setMesCalendario] = useState(new Date());
     const [mostrarCalendario, setMostrarCalendario] = useState(false);
-    const [seleccionandoRango, setSeleccionandoRango] = useState<'inicio' | 'fin'>('inicio');
 
+    // Filtros avanzados
+    const [filtroTipo, setFiltroTipo] = useState<string>('todos'); 
+    const [filtroPago, setFiltroPago] = useState<string>('todos'); 
+    const [searchTerm, setSearchTerm] = useState('');
+
+    const [ventasOriginales, setVentasOriginales] = useState<Venta[]>([]);
     const [ventas, setVentas] = useState<Venta[]>([]);
     const [ventasPorDia, setVentasPorDia] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
-    const [showReceipt, setShowReceipt] = useState(false);
-    const [selectedVenta, setSelectedVenta] = useState<Venta | null>(null);
-
-    const [showEditPayment, setShowEditPayment] = useState(false);
-    const [ventaToEdit, setVentaToEdit] = useState<Venta | null>(null);
-
-    const [limit, setLimit] = useState(20);
-
-    const [showAdminReport, setShowAdminReport] = useState(false);
     const [inventarios, setInventarios] = useState<InventarioDiario[]>([]);
     const [gastos, setGastos] = useState<Gasto[]>([]);
     
+    // Estados Modales originales
+    const [showReceipt, setShowReceipt] = useState(false);
+    const [selectedVenta, setSelectedVenta] = useState<Venta | null>(null);
+    const [showEditPayment, setShowEditPayment] = useState(false);
+    const [ventaToEdit, setVentaToEdit] = useState<Venta | null>(null);
+    const [showAdminReport, setShowAdminReport] = useState(false);
     const [showCancelModal, setShowCancelModal] = useState(false);
     const [cancellingVentaId, setCancellingVentaId] = useState<string | null>(null);
 
-    const handleDeleteVentaClick = (ventaId: string) => {
-        setCancellingVentaId(ventaId);
-        setShowCancelModal(true);
-    };
-
-    const confirmDeleteVenta = async (motivo: string) => {
-        if (!cancellingVentaId || !user || !business) return;
-        try {
-            const result = await registrarAnulacion(
-                cancellingVentaId,
-                motivo,
-                user.id,
-                user.nombre,
-                business.id
-            );
-            if (result.success) {
-                toast.success('Venta eliminada correctamente');
-                cargarDatos();
-            } else {
-                toast.error(result.message);
-            }
-        } catch (error: any) {
-            console.error('Error al eliminar venta:', error);
-            toast.error('Error al eliminar la venta');
-        } finally {
-            setShowCancelModal(false);
-            setCancellingVentaId(null);
-        }
-    };
+    // UI States
+    const [showAllProducts, setShowAllProducts] = useState(false);
+    const [limit, setLimit] = useState(20);
 
     const metricas = useMetricas(ventas);
     const [topProductos, setTopProductos] = useState<EstadisticaProducto[]>([]);
@@ -115,123 +87,116 @@ export default function ReportesPage() {
     const [comparativa, setComparativa] = useState<ComparativaSemanal | null>(null);
     const [ventasPorHora, setVentasPorHora] = useState<{ hora: string; total: number; cantidad: number }[]>([]);
 
-    // Colors aligned with premium theme
     const CHART_COLORS = {
-        primary: 'var(--theme-primary)', 
-        secondary: 'var(--theme-secondary)', 
-        tertiary: '#5A3E2B',
-        success: '#10B981',
-        warning: '#F59E0B',
-        info: '#3B82F6',
-        text: '#64748b', // Slate 500
-        grid: '#f1f5f9' // Slate 100
-    };
-
-    const METODO_COLORS: Record<string, string> = {
-        'Efectivo': '#10B981',
-        'Yape': '#7C3AED',
-        'Plin': '#06B6D4',
-        'Tarjeta': '#3B82F6'
+        primary: '#2563eb', 
+        secondary: '#0ea5e9', 
+        grid: '#f1f5f9'
     };
 
     const rangosRapidos = [
         { label: 'Hoy', action: () => { setTipoRango('dia'); setFechaSeleccionada(new Date()); } },
         { label: 'Ayer', action: () => { setTipoRango('dia'); setFechaSeleccionada(subDays(new Date(), 1)); } },
-        {
-            label: 'Esta semana', action: () => {
-                setTipoRango('rango');
-                setFechaInicio(startOfWeek(new Date(), { weekStartsOn: 1 }));
-                setFechaFin(new Date());
-            }
-        },
-        {
-            label: 'Últimos 7 días', action: () => {
-                setTipoRango('rango');
-                setFechaInicio(subDays(new Date(), 6));
-                setFechaFin(new Date());
-            }
-        },
-        {
-            label: 'Este mes', action: () => {
-                setTipoRango('rango');
-                setFechaInicio(startOfMonth(new Date()));
-                setFechaFin(new Date());
-            }
-        },
+        { label: 'Semana', action: () => { setTipoRango('rango'); setFechaInicio(startOfWeek(new Date(), { weekStartsOn: 1 })); setFechaFin(new Date()); } },
+        { label: 'Mes', action: () => { setTipoRango('rango'); setFechaInicio(startOfMonth(new Date())); setFechaFin(new Date()); } },
     ];
 
     useEffect(() => {
-        cargarDatos();
-    }, [fechaSeleccionada, fechaInicio, fechaFin, tipoRango]);
+        cargarDatosBase();
+    }, [fechaSeleccionada, fechaInicio, fechaFin, tipoRango, business?.id]);
 
-    const cargarDatos = async () => {
+    useEffect(() => {
+        aplicarFiltrosAdicionales();
+    }, [filtroTipo, filtroPago, searchTerm, ventasOriginales]);
+
+    const cargarDatosBase = async () => {
+        if(!business?.id) return;
         setLoading(true);
         try {
-            let inicio: string, fin: string;
-
-            if (tipoRango === 'dia') {
-                inicio = format(fechaSeleccionada, 'yyyy-MM-dd');
-                fin = inicio;
-            } else {
-                inicio = format(fechaInicio, 'yyyy-MM-dd');
-                fin = format(fechaFin, 'yyyy-MM-dd');
-            }
+            let inicio = tipoRango === 'dia' ? format(fechaSeleccionada, 'yyyy-MM-dd') : format(fechaInicio, 'yyyy-MM-dd');
+            let fin = tipoRango === 'dia' ? format(fechaSeleccionada, 'yyyy-MM-dd') : format(fechaFin, 'yyyy-MM-dd');
 
             const [ventasData, inventariosData, gastosData, ventasDia, comp] = await Promise.all([
-                obtenerVentasPorRango(inicio, fin, business?.id || ''),
-                obtenerInventarioPorRango(inicio, fin, business?.id || ''),
-                obtenerGastosPorRango(inicio, fin, business?.id || ''),
-                obtenerVentasPorDia(inicio, fin, business?.id || ''),
-                obtenerComparativaSemanal(business?.id || '')
+                obtenerVentasPorRango(inicio, fin, business.id),
+                obtenerInventarioPorRango(inicio, fin, business.id),
+                obtenerGastosPorRango(inicio, fin, business.id),
+                obtenerVentasPorDia(inicio, fin, business.id),
+                obtenerComparativaSemanal(business.id)
             ]);
 
-            setVentas(ventasData);
+            setVentasOriginales(ventasData);
             setInventarios(inventariosData);
             setGastos(gastosData);
             setVentasPorDia(ventasDia);
             setComparativa(comp);
-
-            setTopProductos(calcularTopProductos(ventasData));
-            setDesgloseMetodoPago(calcularDesgloseMetodoPago(ventasData));
-            setConsumoPollos(calcularConsumoPollosPorDia(ventasData));
-            setDistribucionTipo(calcularDistribucionTipoVenta(ventasData));
-            setVentasPorHora(obtenerVentasPorHora(ventasData));
-            setLoading(false);
-
+            
         } catch (error) {
             console.error('[Reportes] Error:', error);
+        } finally {
             setLoading(false);
         }
     };
 
-    const totalInicial = inventarios.reduce((sum, inv) => sum + (inv.dinero_inicial || 0), 0);
-
-    const ventasEfectivo = ventas.reduce((sum, v) => {
-        if (v.metodo_pago === 'efectivo') return sum + v.total;
-        if (v.metodo_pago === 'mixto' && v.pago_dividido?.efectivo) return sum + v.pago_dividido.efectivo;
-        return sum;
-    }, 0);
-
-    const ventasDigital = ventas.reduce((sum, v) => {
-        if (['yape', 'plin', 'tarjeta'].includes(v.metodo_pago)) return sum + v.total;
-        if (v.metodo_pago === 'mixto') {
-            const digital = (v.pago_dividido?.yape || 0) + (v.pago_dividido?.plin || 0) + (v.pago_dividido?.tarjeta || 0);
-            return sum + digital;
+    const aplicarFiltrosAdicionales = () => {
+        let filtradas = [...ventasOriginales];
+        
+        if (filtroTipo !== 'todos') {
+            filtradas = filtradas.filter(v => v.tipo_pedido === filtroTipo);
         }
-        return sum;
-    }, 0);
+        
+        if (filtroPago !== 'todos') {
+            filtradas = filtradas.filter(v => {
+                if (filtroPago === 'digital') return ['yape', 'plin', 'tarjeta'].includes(v.metodo_pago);
+                return v.metodo_pago === filtroPago;
+            });
+        }
+        
+        if (searchTerm) {
+            const searchLower = searchTerm.toLowerCase();
+            filtradas = filtradas.filter(v => 
+                v.nombre_cliente?.toLowerCase().includes(searchLower) ||
+                v.id.toLowerCase().includes(searchLower) ||
+                v.items?.some((item: any) => item.nombre.toLowerCase().includes(searchLower))
+            );
+        }
 
-    const gastosEfectivo = gastos.reduce((sum, g) => {
-        if (!g.metodo_pago || g.metodo_pago === 'efectivo') return sum + g.monto;
-        return sum;
-    }, 0);
+        setVentas(filtradas);
+        setTopProductos(calcularTopProductos(filtradas));
+        setDesgloseMetodoPago(calcularDesgloseMetodoPago(filtradas));
+        setConsumoPollos(calcularConsumoPollosPorDia(filtradas));
+        setDistribucionTipo(calcularDistribucionTipoVenta(filtradas));
+        setVentasPorHora(obtenerVentasPorHora(filtradas));
+    };
 
-    const gastosDigital = gastos.reduce((sum, g) => {
-        if (['yape', 'plin'].includes(g.metodo_pago || '')) return sum + g.monto;
-        return sum;
-    }, 0);
-
+    const totalInicial = inventarios.reduce((sum, inv) => sum + (inv.dinero_inicial || 0), 0);
+    const ventasEfectivo = ventas.reduce((sum, v) => v.metodo_pago === 'efectivo' ? sum + v.total : (v.pago_dividido?.efectivo ? sum + v.pago_dividido.efectivo : sum), 0);
+    const ventasDigital = ventas.reduce((sum, v) => ['yape', 'plin', 'tarjeta'].includes(v.metodo_pago) ? sum + v.total : (v.pago_dividido ? sum + (v.pago_dividido.yape || 0) + (v.pago_dividido.plin || 0) + (v.pago_dividido.tarjeta || 0) : sum), 0);
+    const gastosEfectivo = gastos.reduce((sum, g) => (!g.metodo_pago || g.metodo_pago === 'efectivo') ? sum + g.monto : sum, 0);
+    const gastosDigital = gastos.reduce((sum, g) => ['yape', 'plin'].includes(g.metodo_pago || '') ? sum + g.monto : sum, 0);
     const efectivoEnCaja = totalInicial + ventasEfectivo - gastosEfectivo;
+
+    // Lógica Modales Originales
+    const handleDeleteVentaClick = (ventaId: string) => {
+        setCancellingVentaId(ventaId);
+        setShowCancelModal(true);
+    };
+
+    const confirmDeleteVenta = async (motivo: string) => {
+        if (!cancellingVentaId || !user || !business) return;
+        try {
+            const result = await registrarAnulacion(cancellingVentaId, motivo, user.id, user.nombre, business.id);
+            if (result.success) {
+                toast.success('Venta eliminada correctamente');
+                cargarDatosBase();
+            } else {
+                toast.error(result.message);
+            }
+        } catch (error: any) {
+            toast.error('Error al eliminar la venta');
+        } finally {
+            setShowCancelModal(false);
+            setCancellingVentaId(null);
+        }
+    };
 
     const exportarExcel = async () => {
         if (ventas.length === 0 && inventarios.length === 0) {
@@ -257,746 +222,492 @@ export default function ReportesPage() {
             bebidasFinales: ultimoInv?.bebidas_detalle || null
         };
 
+        toast.loading('Generando Excel empresarial...', { id: 'excel' });
         try {
-            const fileName = await generarReporteExcelReportes({
+            await generarReporteExcelReportes({
                 periodo: getPeriodoTexto(),
-                metricas,
-                ventas,
-                topProductos,
-                desgloseMetodoPago,
-                consumoPollos,
-                distribucionTipo,
-                comparativa,
-                ventasPorHora,
-                inventarios,
-                gastos,
-                caja: {
-                    inicial: totalInicial,
-                    ventasEfectivo,
-                    ventasDigital,
-                    gastosEfectivo,
-                    gastosDigital,
-                    efectivoEnCaja
-                },
-                stockResumen,
-                businessName: business?.nombre || 'Reykelt'
+                metricas, ventas, topProductos, desgloseMetodoPago, consumoPollos, distribucionTipo,
+                comparativa, ventasPorHora, inventarios, gastos,
+                caja: { inicial: totalInicial, ventasEfectivo, ventasDigital, gastosEfectivo, gastosDigital, efectivoEnCaja },
+                stockResumen, businessName: business?.nombre || 'Mi Negocio'
             });
-            toast.success(`Excel descargado: ${fileName}`, { icon: '📊' });
+            toast.success('Excel descargado correctamente', { id: 'excel' });
         } catch (error) {
-            console.error('Error al generar Excel:', error);
-            toast.error('Error al generar el reporte Excel');
+            toast.error('Error al generar Excel', { id: 'excel' });
         }
-    };
-
-    const generarDiasCalendario = () => {
-        const inicio = startOfMonth(mesCalendario);
-        const fin = endOfMonth(mesCalendario);
-        const inicioSemana = startOfWeek(inicio, { weekStartsOn: 1 });
-        const finSemana = endOfWeek(fin, { weekStartsOn: 1 });
-        const dias = [];
-        let dia = inicioSemana;
-        while (dia <= finSemana) {
-            dias.push(new Date(dia));
-            dia = new Date(dia.getTime() + 24 * 60 * 60 * 1000);
-        }
-        return dias;
-    };
-
-    const handleClickDia = (dia: Date) => {
-        if (tipoRango === 'dia') {
-            setFechaSeleccionada(dia);
-            setMostrarCalendario(false);
-        } else {
-            if (seleccionandoRango === 'inicio') {
-                setFechaInicio(dia);
-                setSeleccionandoRango('fin');
-            } else {
-                if (dia >= fechaInicio) {
-                    setFechaFin(dia);
-                    setMostrarCalendario(false);
-                    setSeleccionandoRango('inicio');
-                } else {
-                    setFechaInicio(dia);
-                    setSeleccionandoRango('fin');
-                }
-            }
-        }
-    };
-
-    const esDiaSeleccionado = (dia: Date) => {
-        if (tipoRango === 'dia') return isSameDay(dia, fechaSeleccionada);
-        return isSameDay(dia, fechaInicio) || isSameDay(dia, fechaFin);
-    };
-
-    const estaEnRango = (dia: Date) => {
-        if (tipoRango === 'rango' && fechaInicio && fechaFin) {
-            return isWithinInterval(dia, { start: fechaInicio, end: fechaFin });
-        }
-        return false;
     };
 
     const getPeriodoTexto = () => {
         if (tipoRango === 'dia') return format(fechaSeleccionada, "EEEE, d 'de' MMMM yyyy", { locale: es });
-        return `${format(fechaInicio, 'd MMM', { locale: es })} - ${format(fechaFin, 'd MMM yyyy', { locale: es })}`;
+        return `${format(fechaInicio, 'd MMM')} - ${format(fechaFin, 'd MMM yyyy', { locale: es })}`;
     };
 
+    const StatCard = ({ title, value, icon: Icon, bg, color }: any) => (
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex items-center justify-between hover:shadow-md transition-shadow">
+            <div>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">{title}</p>
+                <p className="text-2xl font-black text-slate-900">{value}</p>
+            </div>
+            <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${bg}`}>
+                <Icon className={`w-6 h-6 ${color}`} />
+            </div>
+        </div>
+    );
+
     return (
-        <div className="min-h-screen bg-[#f8fafc] p-4 sm:p-8 lg:p-12 pb-32">
-            <div className="max-w-7xl mx-auto">
-                <header className="mb-12 flex flex-col md:flex-row md:items-end justify-between gap-6">
-                    <div>
-                        <motion.h1
-                            initial={{ opacity: 0, x: -20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            className="text-4xl md:text-5xl font-black text-slate-900 tracking-tighter uppercase italic"
-                        >
-                            Reportes
-                        </motion.h1>
-                        <p className="text-slate-400 font-bold uppercase tracking-[0.3em] text-[10px] mt-2 flex items-center gap-2 italic">
-                            <span className="w-2 h-2 rounded-none bg-theme-primary animate-pulse"></span>
-                            Estadísticas y Rendimiento
-                        </p>
-                    </div>
-
-                    <div className="flex flex-wrap gap-3">
-                        <button
-                            onClick={() => setShowAdminReport(true)}
-                            className="px-6 py-4 bg-white border border-slate-100 text-slate-800 font-black rounded-none hover:bg-slate-50 transition-all uppercase text-[10px] tracking-widest flex items-center gap-2 shadow-sm"
-                        >
-                            <FileText size={16} className="text-theme-primary" /> Administrativo
-                        </button>
-                        <button
-                            onClick={exportarExcel}
-                            className="px-6 py-4 bg-theme-primary text-white font-black rounded-none shadow-xl hover:brightness-110 transition-all uppercase text-[10px] tracking-widest flex items-center gap-2"
-                        >
-                            <Download size={16} /> Excel
-                        </button>
-                    </div>
-                </header>
-
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="bg-white border border-slate-100 rounded-none p-8 mb-12 shadow-sm"
-                >
-                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:items-center">
-                        <div className="lg:col-span-3">
-                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3">Modalidad</p>
-                            <div className="flex bg-slate-50 rounded-none p-1 border border-slate-100">
-                                <button
-                                    onClick={() => setTipoRango('dia')}
-                                    className={`flex-1 py-3 rounded-none text-[10px] font-black tracking-widest transition-all ${tipoRango === 'dia' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-                                >
-                                    DIARIO
-                                </button>
-                                <button
-                                    onClick={() => setTipoRango('rango')}
-                                    className={`flex-1 py-3 rounded-none text-[10px] font-black tracking-widest transition-all ${tipoRango === 'rango' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-                                >
-                                    RANGO
-                                </button>
-                            </div>
+        <div className="min-h-screen bg-slate-50 p-4 sm:p-6 lg:p-8 pb-32">
+            <div className="max-w-7xl mx-auto space-y-6">
+                
+                {/* Cabecera y Filtros Avanzados */}
+                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 sm:p-6">
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+                        <div>
+                            <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+                                <BarChart3 className="w-6 h-6 text-blue-600" /> Reportes
+                            </h1>
+                            <p className="text-sm text-slate-500 mt-1 font-medium">Analiza el rendimiento y filtra operaciones</p>
                         </div>
+                        <div className="flex gap-2 w-full md:w-auto">
+                            <button onClick={() => setShowAdminReport(true)} className="flex-1 md:flex-none bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2.5 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-colors">
+                                <FileText className="w-4 h-4" /> Admin
+                            </button>
+                            <button onClick={exportarExcel} className="flex-1 md:flex-none bg-green-600 hover:bg-green-700 text-white px-4 py-2.5 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-colors shadow-sm">
+                                <FileSpreadsheet className="w-4 h-4" /> Exportar
+                            </button>
+                        </div>
+                    </div>
 
-                        <div className="lg:col-span-4">
-                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3">Período Seleccionado</p>
-                            <button
-                                onClick={() => setMostrarCalendario(!mostrarCalendario)}
-                                className="w-full flex items-center justify-between px-6 py-4 bg-slate-50 hover:bg-slate-100 border border-slate-100 rounded-none transition-all group"
-                            >
-                                <div className="flex items-center gap-3">
-                                    <Calendar size={18} className="text-rodrigo-mustard" />
-                                    <span className="text-slate-900 font-black text-xs uppercase tracking-widest italic">
-                                        {getPeriodoTexto()}
-                                    </span>
-                                </div>
-                                <ChevronDown size={18} className={`text-slate-300 transition-transform ${mostrarCalendario ? 'rotate-180' : ''}`} />
+                    <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                        {/* Fecha */}
+                        <div className="md:col-span-5 bg-slate-50 border border-slate-200 rounded-xl p-1 flex">
+                            <button onClick={() => setTipoRango('dia')} className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${tipoRango === 'dia' ? 'bg-white shadow text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}>Diario</button>
+                            <button onClick={() => setTipoRango('rango')} className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${tipoRango === 'rango' ? 'bg-white shadow text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}>Por Rango</button>
+                            {rangosRapidos.map((r, i) => (
+                                <button key={i} onClick={r.action} className="hidden lg:block flex-1 py-2 rounded-lg text-xs font-medium text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-all">{r.label}</button>
+                            ))}
+                        </div>
+                        
+                        <div className="md:col-span-3">
+                            <button onClick={() => setMostrarCalendario(!mostrarCalendario)} className="w-full bg-white border border-slate-200 hover:border-blue-400 px-4 py-2.5 rounded-xl flex items-center justify-between text-sm font-semibold text-slate-700 transition-colors">
+                                <span className="flex items-center gap-2"><Calendar className="w-4 h-4 text-blue-500" /> {getPeriodoTexto()}</span>
+                                <ChevronDown className="w-4 h-4 text-slate-400" />
                             </button>
                         </div>
 
-                        <div className="lg:col-span-5">
-                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3">Accesos Directos</p>
-                            <div className="flex flex-wrap gap-2">
-                                {rangosRapidos.map((rango, i) => (
-                                    <button
-                                        key={i}
-                                        onClick={rango.action}
-                                        className="px-4 py-2 text-[9px] font-black text-slate-600 bg-white border border-slate-200 hover:border-rodrigo-mustard hover:text-rodrigo-mustard hover:bg-rodrigo-mustard/5 rounded-none transition-all uppercase tracking-widest shadow-sm"
-                                    >
-                                        {rango.label}
-                                    </button>
-                                ))}
-                            </div>
+                        {/* Filtros de Venta */}
+                        <div className="md:col-span-2">
+                            <select value={filtroTipo} onChange={e => setFiltroTipo(e.target.value)} className="w-full bg-white border border-slate-200 px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-700 focus:ring-2 focus:ring-blue-500 outline-none">
+                                <option value="todos">Todos los Canales</option>
+                                <option value="salon">Salón</option>
+                                <option value="llevar">Para Llevar</option>
+                                <option value="delivery">Delivery</option>
+                            </select>
+                        </div>
+                        <div className="md:col-span-2">
+                            <select value={filtroPago} onChange={e => setFiltroPago(e.target.value)} className="w-full bg-white border border-slate-200 px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-700 focus:ring-2 focus:ring-blue-500 outline-none">
+                                <option value="todos">Todos los Pagos</option>
+                                <option value="efectivo">Efectivo</option>
+                                <option value="digital">Digital (Yape/Plin/Tarj)</option>
+                            </select>
                         </div>
                     </div>
-
-                    <AnimatePresence>
-                        {mostrarCalendario && (
-                            <motion.div
-                                initial={{ opacity: 0, height: 0 }}
-                                animate={{ opacity: 1, height: 'auto' }}
-                                exit={{ opacity: 0, height: 0 }}
-                                className="overflow-hidden"
-                            >
-                                <div className="mt-8 pt-8 border-t border-slate-100">
-                                    <div className="max-w-md mx-auto bg-white border border-slate-200 rounded-none p-8 shadow-2xl relative z-50">
-                                        <div className="flex items-center justify-between mb-8">
-                                            <button onClick={() => setMesCalendario(subMonths(mesCalendario, 1))} className="p-3 hover:bg-slate-50 rounded-none transition-all"><ChevronLeft size={20} className="text-slate-400" /></button>
-                                            <h3 className="font-black text-slate-900 uppercase tracking-widest text-sm italic">{format(mesCalendario, 'MMMM yyyy', { locale: es })}</h3>
-                                            <button onClick={() => setMesCalendario(addMonths(mesCalendario, 1))} className="p-3 hover:bg-slate-50 rounded-none transition-all"><ChevronRight size={20} className="text-slate-400" /></button>
-                                        </div>
-
-                                        <div className="grid grid-cols-7 gap-1 mb-2">
-                                            {['LU', 'MA', 'MI', 'JU', 'VI', 'SA', 'DO'].map(dia => (
-                                                <div key={dia} className="text-center text-[9px] font-black text-slate-300 py-2">{dia}</div>
-                                            ))}
-                                        </div>
-
-                                        <div className="grid grid-cols-7 gap-1">
-                                            {generarDiasCalendario().map((dia, i) => {
-                                                const esDelMes = dia.getMonth() === mesCalendario.getMonth();
-                                                const esHoy = isSameDay(dia, new Date());
-                                                const seleccionado = esDiaSeleccionado(dia);
-                                                const enRango = estaEnRango(dia);
-
-                                                return (
-                                                    <button
-                                                        key={i}
-                                                        onClick={() => handleClickDia(dia)}
-                                                        disabled={!esDelMes}
-                                                        className={`h-10 text-[11px] rounded-none transition-all font-bold flex items-center justify-center
-                                                            ${!esDelMes ? 'text-slate-100 cursor-not-allowed' : 'hover:bg-slate-50 text-slate-600'}
-                                                            ${esHoy && !seleccionado ? 'border border-rodrigo-terracotta text-rodrigo-terracotta' : ''}
-                                                            ${seleccionado ? 'bg-rodrigo-mustard text-rodrigo-brown shadow-lg' : ''}
-                                                            ${enRango && !seleccionado ? 'bg-rodrigo-mustard/10 text-rodrigo-mustard' : ''}`}
-                                                    >
-                                                        {dia.getDate()}
-                                                    </button>
-                                                );
-                                            })}
-                                        </div>
-                                    </div>
-                                </div>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
-                </motion.div>
+                    
+                    {mostrarCalendario && (
+                         <div className="mt-4 p-4 border border-slate-200 bg-slate-50 rounded-xl max-w-sm">
+                             <p className="text-xs font-bold text-slate-500 uppercase mb-2">Seleccionar Fechas Manualmente</p>
+                             <div className="flex gap-2 mt-2">
+                                <input type="date" value={tipoRango === 'dia' ? format(fechaSeleccionada, 'yyyy-MM-dd') : format(fechaInicio, 'yyyy-MM-dd')} onChange={e => {
+                                    if(tipoRango === 'dia') setFechaSeleccionada(new Date(e.target.value + 'T12:00:00'));
+                                    else setFechaInicio(new Date(e.target.value + 'T12:00:00'));
+                                }} className="w-full border border-slate-300 p-2 rounded-lg text-sm text-slate-700 focus:ring-blue-500 outline-none" />
+                                
+                                {tipoRango === 'rango' && (
+                                    <input type="date" value={format(fechaFin, 'yyyy-MM-dd')} onChange={e => setFechaFin(new Date(e.target.value + 'T12:00:00'))} className="w-full border border-slate-300 p-2 rounded-lg text-sm text-slate-700 focus:ring-blue-500 outline-none" />
+                                )}
+                             </div>
+                         </div>
+                    )}
+                </div>
 
                 {loading ? (
-                    <div className="flex flex-col items-center justify-center py-32 space-y-4">
-                        <div className="relative">
-                            <div className="w-16 h-16 border-4 border-white/5 border-t-rodrigo-mustard rounded-none animate-spin"></div>
-                            <div className="absolute inset-0 flex items-center justify-center">
-                                <span className="text-rodrigo-mustard font-black text-xl animate-pulse">S/</span>
-                            </div>
-                        </div>
-                        <p className="text-white/30 font-black uppercase tracking-widest text-xs">Calculando métricas...</p>
-                    </div>
+                    <div className="flex justify-center py-20"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div></div>
                 ) : (
-                    <div className="space-y-12">
-                        {/* Métricas Principales */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                            <StatCard
-                                label="Ingresos Totales"
-                                value={`S/ ${metricas.totalIngresos.toFixed(2)}`}
-                                sublabel={getPeriodoTexto()}
-                                icon={<span className="text-2xl font-black text-white">S/</span>}
-                                color="bg-green-500"
-                            />
-                            <StatCard
-                                label="Total Pedidos"
-                                value={metricas.cantidadPedidos.toString()}
-                                sublabel="Pedidos procesados"
-                                icon={<ShoppingBag size={24} className="text-white" />}
-                                color="bg-blue-500"
-                            />
-                            <StatCard
-                                label="Ticket Promedio"
-                                value={`S/ ${metricas.promedioPorPedido.toFixed(2)}`}
-                                sublabel="Por pedido"
-                                icon={<span className="text-2xl font-black text-white">S/</span>}
-                                color="bg-rodrigo-mustard"
-                            />
-                            <StatCard
-                                label="Pollos Vendidos"
-                                value={formatearFraccionPollo(metricas.pollosVendidos)}
-                                sublabel="Consumo total"
-                                icon={<Package size={24} className="text-white" />}
-                                color="bg-rodrigo-terracotta"
-                            />
+                    <div className="space-y-6">
+                        {/* KPIs Principales */}
+                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                            <StatCard title="Ingresos Brutos" value={`S/ ${metricas.totalIngresos.toFixed(2)}`} icon={DollarSign} bg="bg-green-100" color="text-green-600" />
+                            <StatCard title="Total Pedidos" value={metricas.cantidadPedidos.toString()} icon={ShoppingBag} bg="bg-blue-100" color="text-blue-600" />
+                            <StatCard title="Ticket Promedio" value={`S/ ${metricas.promedioPorPedido.toFixed(2)}`} icon={CreditCard} bg="bg-purple-100" color="text-purple-600" />
+                            <StatCard title="Pollos Vendidos" value={formatearFraccionPollo(metricas.pollosVendidos)} icon={Package} bg="bg-orange-100" color="text-orange-600" />
                         </div>
 
-                        {/* Cuadre de Caja */}
-                        <motion.div
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="bg-white border border-slate-100 rounded-none p-10 group overflow-hidden relative shadow-sm"
-                        >
-                            <div className="absolute top-0 right-0 p-10 opacity-5 group-hover:opacity-10 transition-opacity duration-1000">
-                                <span className="text-[120px] font-black text-slate-900/5 select-none" style={{ lineHeight: 1 }}>S/</span>
-                            </div>
-
-                            <div className="flex items-center justify-between mb-12">
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                            {/* Flujo de Caja Profesional */}
+                            <div className="lg:col-span-1 bg-white border border-slate-200 rounded-2xl p-6 shadow-sm flex flex-col justify-between">
                                 <div>
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2 italic">Conciliación de Efectivo</p>
-                                    <h2 className="text-4xl font-black text-slate-900 tracking-tighter uppercase italic">Cuadre de Caja</h2>
+                                    <h3 className="font-bold text-slate-800 flex items-center gap-2 mb-6"><DollarSign className="w-5 h-5 text-emerald-500"/> Flujo de Caja (Efectivo)</h3>
+                                    <div className="space-y-4">
+                                        <div className="flex justify-between items-center py-2 border-b border-slate-100">
+                                            <span className="text-sm font-medium text-slate-500">Base Inicial (Apertura)</span>
+                                            <span className="font-bold text-slate-800">S/ {totalInicial.toFixed(2)}</span>
+                                        </div>
+                                        <div className="flex justify-between items-center py-2 border-b border-slate-100">
+                                            <span className="text-sm font-medium text-slate-500">Ventas en Efectivo</span>
+                                            <span className="font-bold text-emerald-600">+ S/ {ventasEfectivo.toFixed(2)}</span>
+                                        </div>
+                                        <div className="flex justify-between items-center py-2 border-b border-slate-100">
+                                            <span className="text-sm font-medium text-slate-500">Gastos en Efectivo</span>
+                                            <span className="font-bold text-rose-500">- S/ {gastosEfectivo.toFixed(2)}</span>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div className="w-16 h-16 bg-slate-50 rounded-none flex items-center justify-center border border-slate-100 group-hover:border-rodrigo-mustard/30 transition-all duration-500">
-                                    <span className="text-2xl font-black text-rodrigo-mustard">S/</span>
+                                <div className="mt-6 pt-4 border-t-2 border-slate-100 flex justify-between items-center bg-slate-50 p-4 rounded-xl">
+                                    <span className="text-sm font-bold text-slate-800">Efectivo Físico Esperado</span>
+                                    <span className="text-2xl font-black text-slate-900">S/ {efectivoEnCaja.toFixed(2)}</span>
                                 </div>
                             </div>
 
-                            <div className="grid lg:grid-cols-2 gap-12 relative z-10">
-                                {/* Columna Efectivo */}
-                                <div className="space-y-6">
-                                    <div className="flex items-center gap-3 mb-2">
-                                        <div className="w-2 h-6 bg-green-500 rounded-none"></div>
-                                        <h3 className="font-black text-slate-800 uppercase tracking-widest text-sm italic">Efectivo Físico</h3>
-                                    </div>
-                                    <div className="space-y-4">
-                                        <div className="flex justify-between items-center bg-slate-50 p-4 rounded-none border border-slate-100 group-hover:border-slate-200 transition-all">
-                                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Base Inicial</span>
-                                            <span className="font-black text-slate-900">S/ {totalInicial.toFixed(2)}</span>
-                                        </div>
-                                        <div className="flex justify-between items-center bg-slate-50 p-4 rounded-none border border-slate-100 group-hover:border-slate-200 transition-all">
-                                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Ventas Efectivo</span>
-                                            <span className="font-black text-green-600">S/ {ventasEfectivo.toFixed(2)}</span>
-                                        </div>
-                                        <div className="flex justify-between items-center bg-slate-50 p-4 rounded-none border border-slate-100 group-hover:border-slate-200 transition-all">
-                                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Gastos Efectivo</span>
-                                            <span className="font-black text-rodrigo-terracotta">- S/ {gastosEfectivo.toFixed(2)}</span>
-                                        </div>
-                                        <div className="pt-6 border-t border-slate-100 mt-6">
-                                            <div className="flex justify-between items-center px-2">
-                                                <span className="font-black text-slate-400 uppercase tracking-[0.2em] text-[10px]">Efectivo Esperado</span>
-                                                <span className="text-4xl font-black text-slate-900 tracking-tighter">S/ {efectivoEnCaja.toFixed(2)}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Columna Digital */}
-                                <div className="space-y-6">
-                                    <div className="flex items-center gap-3 mb-2">
-                                        <div className="w-2 h-6 bg-blue-500 rounded-none"></div>
-                                        <h3 className="font-black text-slate-800 uppercase tracking-widest text-sm italic">Pagos Digitales</h3>
-                                    </div>
-                                    <div className="space-y-4">
-                                        <div className="flex justify-between items-center bg-slate-50 p-4 rounded-none border border-slate-100 group-hover:border-slate-200 transition-all">
-                                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Ingresos Digitales</span>
-                                            <span className="font-black text-blue-600">S/ {ventasDigital.toFixed(2)}</span>
-                                        </div>
-                                        <div className="flex justify-between items-center bg-slate-50 p-4 rounded-none border border-slate-100 group-hover:border-slate-200 transition-all">
-                                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Gastos Digitales</span>
-                                            <span className="font-black text-rodrigo-terracotta">- S/ {gastosDigital.toFixed(2)}</span>
-                                        </div>
-                                        <div className="pt-6 border-t border-slate-100 mt-6">
-                                            <div className="flex justify-between items-center px-2">
-                                                <span className="font-black text-slate-400 uppercase tracking-[0.2em] text-[10px]">Total en Banco</span>
-                                                <span className="text-4xl font-black text-blue-600 tracking-tighter">S/ {(ventasDigital - gastosDigital).toFixed(2)}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </motion.div>
-
-                        <div className="grid lg:grid-cols-2 gap-8">
-                            {/* Rendimiento Semanal / Tendencia */}
-                            <motion.div
-                                initial={{ opacity: 0, x: -20 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                className="bg-white border border-slate-100 rounded-none p-8 overflow-hidden relative shadow-sm h-[400px]"
-                            >
-                                <div className="flex items-center justify-between mb-8">
-                                    <div>
-                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1 italic">Ventas por Hora</p>
-                                        <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">Peak Times</h3>
-                                    </div>
-                                    <Clock size={20} className="text-slate-400" />
-                                </div>
-                                <div className="h-[280px] w-full mt-4">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <BarChart data={ventasPorHora}>
-                                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                                            <XAxis
-                                                dataKey="hora"
-                                                axisLine={false}
-                                                tickLine={false}
-                                                tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 700 }}
-                                            />
-                                            <YAxis
-                                                axisLine={false}
-                                                tickLine={false}
-                                                tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 700 }}
-                                            />
-                                            <Tooltip
-                                                contentStyle={{ backgroundColor: '#fff', borderRadius: '1rem', border: '1px solid #f1f5f9', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                                                labelStyle={{ fontWeight: 800, color: '#0f172a', marginBottom: '4px' }}
-                                            />
-                                            <Bar dataKey="total" fill={CHART_COLORS.primary} radius={[4, 4, 0, 0]} />
-                                        </BarChart>
-                                    </ResponsiveContainer>
-                                </div>
-                            </motion.div>
-
-                            {/* Canal de Venta - Pie Chart */}
-                            <motion.div
-                                initial={{ opacity: 0, x: 20 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                className="bg-white border border-slate-100 rounded-none p-8 shadow-sm h-[400px]"
-                            >
-                                <div className="flex items-center justify-between mb-8">
-                                    <div>
-                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1 italic">Distribución</p>
-                                        <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">Canal de Venta</h3>
-                                    </div>
-                                    <Home size={20} className="text-slate-400" />
-                                </div>
-                                <div className="grid grid-cols-2 h-full items-center">
-                                    <div className="h-[250px]">
+                            {/* Tendencia / Peak Times */}
+                            {tipoRango === 'rango' ? (
+                                <div className="lg:col-span-2 bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+                                    <h3 className="font-bold text-slate-800 flex items-center gap-2 mb-6"><TrendingUp className="w-5 h-5 text-blue-500"/> Tendencia de Facturación</h3>
+                                    <div className="h-[250px] w-full">
                                         <ResponsiveContainer width="100%" height="100%">
-                                            <PieChart>
-                                                <Pie
-                                                    data={distribucionTipo as any[]}
-                                                    cx="50%"
-                                                    cy="50%"
-                                                    innerRadius={60}
-                                                    outerRadius={80}
-                                                    paddingAngle={5}
-                                                    dataKey="cantidad"
-                                                >
-                                                    {distribucionTipo.map((entry: any, index: number) => (
-                                                        <Cell key={`cell-${index}`} fill={[CHART_COLORS.primary, CHART_COLORS.secondary, CHART_COLORS.info][index % 3]} />
-                                                    ))}
-                                                </Pie>
-                                                <Tooltip
-                                                    contentStyle={{ backgroundColor: '#fff', borderRadius: '1rem', border: '1px solid #f1f5f9' }}
-                                                />
-                                            </PieChart>
+                                            <AreaChart data={ventasPorDia} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                                <defs>
+                                                    <linearGradient id="colorVentas" x1="0" y1="0" x2="0" y2="1">
+                                                        <stop offset="5%" stopColor={CHART_COLORS.primary} stopOpacity={0.3} />
+                                                        <stop offset="95%" stopColor={CHART_COLORS.primary} stopOpacity={0} />
+                                                    </linearGradient>
+                                                </defs>
+                                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                                <XAxis dataKey="fecha" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11 }} />
+                                                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11 }} />
+                                                <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                                                <Area type="monotone" dataKey="total" stroke={CHART_COLORS.primary} fillOpacity={1} fill="url(#colorVentas)" strokeWidth={3} />
+                                            </AreaChart>
                                         </ResponsiveContainer>
                                     </div>
-                                    <div className="space-y-4 pr-4">
-                                        {distribucionTipo.map((d, index) => (
-                                            <div key={index} className="flex items-center justify-between">
-                                                <div className="flex items-center gap-2">
-                                                    <div className="w-2 h-2 rounded-none" style={{ backgroundColor: [CHART_COLORS.primary, CHART_COLORS.secondary, CHART_COLORS.info][index % 3] }}></div>
-                                                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{d.tipo}</span>
+                                </div>
+                            ) : (
+                                <div className="lg:col-span-2 bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+                                    <h3 className="font-bold text-slate-800 flex items-center gap-2 mb-6"><Clock className="w-5 h-5 text-blue-500"/> Ventas por Hora (Peak Times)</h3>
+                                    <div className="h-[250px] w-full">
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <BarChart data={ventasPorHora} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                                <XAxis dataKey="hora" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11 }} />
+                                                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11 }} />
+                                                <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} cursor={{fill: '#f8fafc'}} />
+                                                <Bar dataKey="total" fill={CHART_COLORS.primary} radius={[4, 4, 0, 0]} maxBarSize={40} />
+                                            </BarChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            {/* Top Productos Optimizados */}
+                            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+                                <div className="flex justify-between items-center mb-6">
+                                    <h3 className="font-bold text-slate-800 flex items-center gap-2"><Star className="w-5 h-5 text-yellow-500"/> Productos Más Vendidos</h3>
+                                    <button onClick={() => setShowAllProducts(true)} className="text-sm font-semibold text-blue-600 hover:text-blue-800 transition-colors">Ver detalle completo</button>
+                                </div>
+                                <div className="space-y-3">
+                                    {topProductos.slice(0, 5).map((p, i) => (
+                                        <div key={i} className="flex items-center justify-between p-3 bg-slate-50 border border-slate-100 rounded-xl hover:border-blue-200 transition-colors">
+                                            <div className="flex items-center gap-4">
+                                                <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${i === 0 ? 'bg-yellow-100 text-yellow-600' : i === 1 ? 'bg-slate-200 text-slate-600' : i === 2 ? 'bg-orange-100 text-orange-600' : 'bg-white text-slate-400 border border-slate-200'}`}>
+                                                    {i + 1}
                                                 </div>
-                                                <div className="text-right">
-                                                    <p className="text-sm font-black text-slate-900">{d.porcentaje.toFixed(0)}%</p>
-                                                    <p className="text-[9px] font-bold text-slate-400">{d.cantidad} ped.</p>
+                                                <div>
+                                                    <p className="font-bold text-slate-800 text-sm">{p.nombre_producto}</p>
+                                                    <p className="text-xs font-medium text-slate-500">{p.cantidad_total} unidades</p>
+                                                </div>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="font-black text-slate-900 text-sm">S/ {p.ingresos_total.toFixed(2)}</p>
+                                            </div>
+                                        </div>
+                                    ))}
+                                    {topProductos.length === 0 && <p className="text-slate-500 text-sm text-center py-4">No hay datos de productos.</p>}
+                                </div>
+                            </div>
+
+                            {/* Distribución de Pago y Canal */}
+                            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm flex flex-col justify-between">
+                                <div>
+                                    <h3 className="font-bold text-slate-800 flex items-center gap-2 mb-6"><CreditCard className="w-5 h-5 text-purple-500"/> Medios de Pago</h3>
+                                    <div className="grid grid-cols-2 gap-3 mb-8">
+                                        {desgloseMetodoPago.map((m, i) => (
+                                            <div key={i} className="p-4 border border-slate-100 rounded-xl bg-slate-50 flex flex-col justify-center">
+                                                <div className="flex justify-between items-center mb-1">
+                                                    <p className="text-xs font-bold text-slate-500 uppercase">{m.metodo}</p>
+                                                    <span className="text-[10px] font-bold text-purple-600 bg-purple-100 px-2 py-0.5 rounded-full">{m.porcentaje.toFixed(1)}%</span>
+                                                </div>
+                                                <p className="font-black text-lg text-slate-900">S/ {m.total.toFixed(2)}</p>
+                                                <p className="text-[10px] text-slate-400 font-medium mt-1">{m.cantidad} transacciones</p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                                
+                                <div className="border-t border-slate-100 pt-6">
+                                    <h3 className="font-bold text-slate-800 flex items-center gap-2 mb-4"><Home className="w-5 h-5 text-indigo-500"/> Canales de Venta</h3>
+                                    <div className="space-y-4">
+                                        {distribucionTipo.map((d, i) => (
+                                            <div key={i} className="flex items-center justify-between text-sm">
+                                                <div className="flex items-center gap-2 w-28">
+                                                    <div className="w-2 h-2 rounded-full bg-indigo-500"></div>
+                                                    <span className="font-semibold text-slate-700">{d.tipo}</span>
+                                                </div>
+                                                <div className="flex-1 mx-4 bg-slate-100 rounded-full h-2 overflow-hidden">
+                                                    <div className="bg-indigo-500 h-full rounded-full" style={{ width: `${d.porcentaje}%` }}></div>
+                                                </div>
+                                                <div className="w-24 text-right">
+                                                    <span className="font-bold text-slate-900">{d.porcentaje.toFixed(0)}%</span>
+                                                    <span className="text-[10px] text-slate-400 block">S/ {d.total.toFixed(0)}</span>
                                                 </div>
                                             </div>
                                         ))}
                                     </div>
                                 </div>
-                            </motion.div>
+                            </div>
                         </div>
-
-                        {/* Tendencia de Facturación (Si hay rango) */}
-                        {tipoRango === 'rango' && ventasPorDia.length > 0 && (
-                            <motion.div
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                className="bg-white border border-slate-100 rounded-none p-8 shadow-sm h-[400px] mt-8 overflow-hidden"
-                            >
-                                <div className="flex items-center justify-between mb-8">
-                                    <div>
-                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1 italic">Análisis Temporal</p>
-                                        <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">Tendencia de Facturación</h3>
-                                    </div>
-                                    <TrendingUp size={20} className="text-emerald-500" />
+                        
+                        {/* TABLA DE TRANSACCIONES RESTAURADA */}
+                        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mt-8">
+                            <div className="p-6 border-b border-slate-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                                <div>
+                                    <h3 className="font-bold text-slate-800 text-lg">Registro de Transacciones</h3>
+                                    <p className="text-sm text-slate-500">{ventas.length} resultados encontrados</p>
                                 </div>
-                                <div className="h-[280px] w-full">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <AreaChart data={ventasPorDia}>
-                                            <defs>
-                                                <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
-                                                    <stop offset="5%" stopColor={CHART_COLORS.primary} stopOpacity={0.3} />
-                                                    <stop offset="95%" stopColor={CHART_COLORS.primary} stopOpacity={0} />
-                                                </linearGradient>
-                                            </defs>
-                                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                                            <XAxis
-                                                dataKey="fecha"
-                                                axisLine={false}
-                                                tickLine={false}
-                                                tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 700 }}
-                                            />
-                                            <YAxis
-                                                axisLine={false}
-                                                tickLine={false}
-                                                tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 700 }}
-                                            />
-                                            <Tooltip
-                                                contentStyle={{ backgroundColor: '#fff', borderRadius: '1rem', border: '1px solid #f1f5f9', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                                            />
-                                            <Area type="monotone" dataKey="total" stroke={CHART_COLORS.primary} fillOpacity={1} fill="url(#colorTotal)" strokeWidth={4} />
-                                        </AreaChart>
-                                    </ResponsiveContainer>
-                                </div>
-                            </motion.div>
-                        )}
-
-
-                        {/* Ranking de Productos Más Vendidos */}
-                        <motion.div
-                            initial={{ opacity: 0, y: 30 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="bg-white border border-slate-100 rounded-none shadow-sm overflow-hidden mt-8"
-                        >
-                            <div className="p-8 border-b border-slate-50 flex items-center justify-between bg-white">
-                                <div className="flex items-center gap-4">
-                                    <div className="w-1.5 h-8 bg-rodrigo-terracotta rounded-none shadow-sm"></div>
-                                    <div>
-                                        <h2 className="text-xl font-black text-slate-900 italic tracking-tighter uppercase">Ranking de Productos</h2>
-                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Los más vendidos del periodo</p>
-                                    </div>
-                                </div>
-                                <div className="p-3 bg-slate-50 rounded-none text-slate-400">
-                                    <Star size={20} />
+                                <div className="relative w-full md:w-64">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                                    <input 
+                                        type="text" 
+                                        placeholder="Buscar cliente o código..." 
+                                        value={searchTerm}
+                                        onChange={e => setSearchTerm(e.target.value)}
+                                        className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    />
                                 </div>
                             </div>
-
+                            
                             <div className="overflow-x-auto">
-                                <table className="w-full">
-                                    <thead>
-                                        <tr className="bg-slate-50/50">
-                                            <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] italic">#</th>
-                                            <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] italic">Producto</th>
-                                            <th className="px-8 py-5 text-center text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] italic">Cantidad</th>
-                                            <th className="px-8 py-5 text-center text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] italic">Veces Vendido</th>
-                                            <th className="px-8 py-5 text-right text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] italic">Total Ingresos</th>
+                                <table className="w-full text-left text-sm text-slate-600">
+                                    <thead className="bg-slate-50 text-slate-700 font-semibold border-b border-slate-200">
+                                        <tr>
+                                            <th className="px-6 py-4">Fecha / Hora</th>
+                                            <th className="px-6 py-4">Canal / ID</th>
+                                            <th className="px-6 py-4">Cliente</th>
+                                            <th className="px-6 py-4">Método Pago</th>
+                                            <th className="px-6 py-4 text-right">Total</th>
+                                            <th className="px-6 py-4 text-center">Estado</th>
+                                            <th className="px-6 py-4 text-right">Acciones</th>
                                         </tr>
                                     </thead>
-                                    <tbody className="divide-y divide-slate-50">
-                                        {topProductos.map((p, i) => (
-                                            <tr key={i} className="hover:bg-slate-50/80 transition-colors group">
-                                                <td className="px-8 py-6">
-                                                    <span className="w-8 h-8 rounded-none bg-slate-900 text-white flex items-center justify-center text-[10px] font-black">
-                                                        {i + 1}
+                                    <tbody className="divide-y divide-slate-100">
+                                        {ventas.slice(0, limit).map((venta) => (
+                                            <tr key={venta.id} className={`hover:bg-slate-50 transition-colors ${venta.estado_pedido === 'anulado' ? 'opacity-60' : ''}`}>
+                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                    <div className="font-medium text-slate-900">{format(new Date(venta.created_at), 'dd/MM/yyyy')}</div>
+                                                    <div className="text-xs text-slate-500">{format(new Date(venta.created_at), 'HH:mm')}</div>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <div className="font-medium capitalize text-slate-900">{venta.tipo_pedido}</div>
+                                                    <div className="text-[10px] text-slate-400 font-mono">...{venta.id.slice(-6)}</div>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <div className="font-medium text-slate-900 line-clamp-1 max-w-[150px]">{venta.nombre_cliente || 'Cliente'}</div>
+                                                    <div className="text-xs text-slate-500 mt-1 line-clamp-2 max-w-xs" title={venta.items?.map((i: any) => `${i.cantidad}x ${i.nombre}`).join(', ')}>
+                                                        {venta.items?.map((i: any) => `${i.cantidad}x ${i.nombre}`).join(', ')}
+                                                    </div>
+                                                    {venta.tipo_pedido === 'delivery' && venta.repartidor?.nombre && (
+                                                        <div className="text-[10px] text-blue-600 mt-1 flex items-center gap-1 font-semibold uppercase tracking-wider">
+                                                            🏍️ Repartidor: {venta.repartidor.nombre}
+                                                        </div>
+                                                    )}
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <span className={`px-2.5 py-1 rounded-full text-xs font-semibold capitalize
+                                                        ${venta.metodo_pago === 'efectivo' ? 'bg-emerald-100 text-emerald-700' :
+                                                        venta.metodo_pago === 'yape' ? 'bg-purple-100 text-purple-700' :
+                                                        venta.metodo_pago === 'plin' ? 'bg-cyan-100 text-cyan-700' :
+                                                        venta.metodo_pago === 'tarjeta' ? 'bg-blue-100 text-blue-700' :
+                                                        'bg-slate-100 text-slate-700'}`}>
+                                                        {venta.metodo_pago}
                                                     </span>
                                                 </td>
-                                                <td className="px-8 py-6">
-                                                    <span className="text-sm font-black text-slate-900 uppercase italic">{p.nombre_producto}</span>
+                                                <td className="px-6 py-4 text-right font-black text-slate-900">
+                                                    S/ {venta.total.toFixed(2)}
                                                 </td>
-                                                <td className="px-8 py-6 text-center">
-                                                    <span className="text-sm font-black text-rodrigo-terracotta underline decoration-rodrigo-terracotta/30 underline-offset-4">{p.cantidad_total}</span>
+                                                <td className="px-6 py-4 text-center">
+                                                    <span className={`px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider
+                                                        ${venta.estado_pedido === 'anulado' ? 'bg-red-100 text-red-700' :
+                                                        venta.estado_pedido === 'entregado' ? 'bg-green-100 text-green-700' :
+                                                        venta.estado_pago === 'pagado' ? 'bg-emerald-100 text-emerald-700' :
+                                                        'bg-yellow-100 text-yellow-700'}`}>
+                                                        {venta.estado_pedido === 'anulado' ? 'ANULADO' : 
+                                                         venta.estado_pedido === 'entregado' ? 'ENTREGADO' : 
+                                                         venta.estado_pago === 'pagado' ? 'PAGADO' : 
+                                                         (venta.estado_pedido || 'PENDIENTE')}
+                                                    </span>
                                                 </td>
-                                                <td className="px-8 py-6 text-center">
-                                                    <span className="text-[11px] font-bold text-slate-400 uppercase">{p.veces_vendido} pedidos</span>
-                                                </td>
-                                                <td className="px-8 py-6 text-right">
-                                                    <span className="text-lg font-black text-slate-900 tracking-tighter">S/ {p.ingresos_total.toFixed(2)}</span>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </motion.div>
-
-                        {/* Transacciones Recientes */}
-                        <motion.div
-                            initial={{ opacity: 0, y: 30 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="bg-white border border-slate-100 rounded-none shadow-sm overflow-hidden mt-8"
-                        >
-                            <div className="p-8 border-b border-slate-50 flex items-center justify-between bg-white">
-                                <div className="flex items-center gap-4">
-                                    <div className="w-1.5 h-8 bg-rodrigo-mustard rounded-none shadow-sm"></div>
-                                    <div>
-                                        <h2 className="text-xl font-black text-slate-900 italic tracking-tighter uppercase">Detalle de Ventas</h2>
-                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Listado cronológico de operaciones</p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="overflow-x-auto">
-                                <table className="w-full">
-                                    <thead>
-                                        <tr className="bg-slate-50/50">
-                                            <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] italic">Fecha/Hora</th>
-                                            <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] italic">Referencia</th>
-                                            <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] italic">Productos</th>
-                                            <th className="px-8 py-5 text-right text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] italic">Total</th>
-                                            <th className="px-8 py-5 text-center text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] italic">Acciones</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-slate-50">
-                                        {ventas.slice(0, limit).map((v, i) => (
-                                            <tr key={i} className="hover:bg-slate-50/80 transition-colors group">
-                                                <td className="px-8 py-6">
-                                                    <div className="flex flex-col">
-                                                        <span className="text-[11px] font-black text-slate-700 italic">{format(new Date(v.updated_at || v.created_at), 'HH:mm')}</span>
-                                                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">{format(new Date(v.updated_at || v.created_at), 'dd MMM yyyy')}</span>
-                                                    </div>
-                                                </td>
-                                                <td className="px-8 py-6">
-                                                    <div className="flex flex-col">
-                                                        <span className="text-xs font-black text-slate-900 uppercase tracking-wider">
-                                                            {v.mesas?.numero ? `Mesa ${v.mesas.numero}` : (v.tipo_pedido === 'delivery' ? 'DELIVERY' : 'PARA LLEVAR')}
-                                                        </span>
-                                                        {v.metodo_pago === 'mixto' && v.pago_dividido ? (
-                                                            <div className="flex flex-wrap gap-1 mt-2">
-                                                                {Object.entries(v.pago_dividido).map(([metodo, monto]) => monto ? (
-                                                                    <span key={metodo} className="text-[8px] font-black uppercase bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-none border border-slate-200 tracking-widest">
-                                                                        {metodo} S/{monto.toFixed(2)}
-                                                                    </span>
-                                                                ) : null)}
-                                                            </div>
-                                                        ) : (
-                                                            <span className={`text-[9px] font-black uppercase mt-1 tracking-widest ${
-                                                                v.metodo_pago === 'efectivo' ? 'text-emerald-500' :
-                                                                v.metodo_pago === 'yape' ? 'text-purple-500' :
-                                                                v.metodo_pago === 'plin' ? 'text-cyan-500' :
-                                                                'text-blue-500'
-                                                            }`}>
-                                                                {v.metodo_pago || 'EFECTIVO'}
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                </td>
-                                                <td className="px-8 py-6">
-                                                    <div className="flex flex-wrap gap-1 max-w-xs">
-                                                        {v.items.map((item, idx) => (
-                                                            <span key={idx} className="bg-slate-50 px-2 py-1 rounded-none text-[10px] text-slate-500 font-bold border border-slate-100 grow-0 shrink-0">
-                                                                {item.cantidad}x {item.nombre}
-                                                            </span>
-                                                        ))}
-                                                        {v.tipo_pedido === 'delivery' && (v.costo_envio || 0) > 0 && (
-                                                            <span className="bg-indigo-50 px-2 py-1 rounded-none text-[10px] text-indigo-500 font-bold border border-indigo-100 grow-0 shrink-0">
-                                                                Envío: S/ {(v.costo_envio || 0).toFixed(2)}
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                </td>
-                                                <td className="px-8 py-6 text-right">
-                                                    <span className="text-lg font-black text-slate-900 tracking-tighter">S/ {v.total.toFixed(2)}</span>
-                                                </td>
-                                                <td className="px-8 py-6">
-                                                    <div className="flex items-center justify-center gap-3">
-                                                        <button
-                                                            onClick={() => { setVentaToEdit(v); setShowEditPayment(true); }}
-                                                            className="p-3 bg-slate-50 rounded-none text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-all border border-slate-100"
-                                                            title="Editar productos o pago"
+                                                <td className="px-6 py-4 text-right">
+                                                    <div className="flex items-center justify-end gap-1">
+                                                        <button 
+                                                            onClick={() => { setSelectedVenta(venta); setShowReceipt(true); }}
+                                                            className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                                            title="Ver recibo / Imprimir"
                                                         >
-                                                            <Pencil size={18} />
+                                                            <Printer className="w-4 h-4" />
                                                         </button>
-                                                        <button
-                                                            onClick={() => { setSelectedVenta(v); setShowReceipt(true); }}
-                                                            className="p-3 bg-slate-50 rounded-none text-slate-400 hover:text-rodrigo-mustard hover:bg-rodrigo-mustard/10 transition-all border border-slate-100"
-                                                            title="Imprimir comprobante"
-                                                        >
-                                                            <Printer size={18} />
-                                                        </button>
-                                                        {(user?.rol === 'admin' || user?.rol === 'cajero' || user?.es_super_admin) && (
-                                                            <button
-                                                                onClick={() => handleDeleteVentaClick(v.id)}
-                                                                className="p-3 bg-slate-50 rounded-none text-slate-400 hover:text-red-600 hover:bg-red-50 transition-all border border-slate-100"
-                                                                title="Eliminar esta venta por completo"
-                                                            >
-                                                                <Trash2 size={18} />
-                                                            </button>
+                                                        {user?.rol === 'admin' && venta.estado_pedido !== 'anulado' && (
+                                                            <>
+                                                                <button 
+                                                                    onClick={() => { setVentaToEdit(venta); setShowEditPayment(true); }}
+                                                                    className="p-2 text-slate-400 hover:text-yellow-600 hover:bg-yellow-50 rounded-lg transition-colors"
+                                                                    title="Editar método de pago"
+                                                                >
+                                                                    <Pencil className="w-4 h-4" />
+                                                                </button>
+                                                                <button 
+                                                                    onClick={() => handleDeleteVentaClick(venta.id)}
+                                                                    className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                                    title="Anular venta"
+                                                                >
+                                                                    <Trash2 className="w-4 h-4" />
+                                                                </button>
+                                                            </>
                                                         )}
                                                     </div>
                                                 </td>
                                             </tr>
                                         ))}
+                                        {ventas.length === 0 && (
+                                            <tr>
+                                                <td colSpan={7} className="px-6 py-12 text-center text-slate-500">
+                                                    No se encontraron transacciones que coincidan con los filtros.
+                                                </td>
+                                            </tr>
+                                        )}
                                     </tbody>
                                 </table>
                             </div>
-
+                            
                             {ventas.length > limit && (
-                                <div className="p-8 bg-slate-50/50 text-center border-t border-slate-100">
-                                    <button
+                                <div className="p-4 border-t border-slate-100 text-center bg-slate-50">
+                                    <button 
                                         onClick={() => setLimit(prev => prev + 20)}
-                                        className="px-8 py-4 text-[10px] font-black text-slate-400 bg-white border border-slate-200 rounded-none hover:bg-slate-50 hover:text-slate-900 transition-all uppercase tracking-widest"
+                                        className="text-sm font-bold text-blue-600 hover:text-blue-800 transition-colors"
                                     >
-                                        Cargar más transacciones ({ventas.length - limit} restantes)
+                                        Cargar más resultados ({limit} de {ventas.length})
                                     </button>
                                 </div>
                             )}
-                        </motion.div>
+                        </div>
+
                     </div>
                 )}
             </div>
 
-            {/* Modales */}
-            <AnimatePresence>
-                {selectedVenta && showReceipt && (
-                    <ReceiptModal
-                        isOpen={showReceipt}
-                        onClose={() => {
-                            setShowReceipt(false);
-                            setSelectedVenta(null);
-                        }}
-                        items={selectedVenta.items}
-                        total={selectedVenta.total}
-                        orderId={selectedVenta.id}
-                        mesaNumero={selectedVenta.mesas?.numero}
-                    />
-                )}
-            </AnimatePresence>
+            {/* Modal de Lista Completa de Productos */}
+            {showAllProducts && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[85vh]">
+                        <div className="flex items-center justify-between p-6 border-b border-slate-100 bg-slate-50">
+                            <div>
+                                <h2 className="text-xl font-black text-slate-900 flex items-center gap-2"><Star className="w-5 h-5 text-yellow-500"/> Todos los Productos Vendidos</h2>
+                                <p className="text-sm text-slate-500 mt-1">Ranking completo del período seleccionado</p>
+                            </div>
+                            <button onClick={() => setShowAllProducts(false)} className="text-slate-400 hover:text-slate-600 bg-white hover:bg-slate-100 p-2 rounded-xl transition-colors border border-slate-200">
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+                        <div className="overflow-y-auto p-6">
+                            <table className="w-full text-left text-sm text-slate-600">
+                                <thead className="bg-slate-50 text-slate-700 font-semibold border-b border-slate-200">
+                                    <tr>
+                                        <th className="px-4 py-3 w-16 text-center">#</th>
+                                        <th className="px-4 py-3">Producto</th>
+                                        <th className="px-4 py-3 text-center">Cantidad</th>
+                                        <th className="px-4 py-3 text-right">Ingresos Generados</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                    {topProductos.map((p, i) => (
+                                        <tr key={i} className="hover:bg-slate-50 transition-colors">
+                                            <td className="px-4 py-3 text-center font-bold text-slate-400">{i + 1}</td>
+                                            <td className="px-4 py-3 font-bold text-slate-800">{p.nombre_producto}</td>
+                                            <td className="px-4 py-3 text-center font-medium text-slate-600">{p.cantidad_total} ud.</td>
+                                            <td className="px-4 py-3 text-right font-black text-slate-900">S/ {p.ingresos_total.toFixed(2)}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            )}
 
-            <AdminReportModal
-                isOpen={showAdminReport}
-                onClose={() => setShowAdminReport(false)}
-                ventas={ventas}
-                inventarios={inventarios}
-                gastos={gastos}
-                fechaInicio={tipoRango === 'dia' ? fechaSeleccionada : fechaInicio}
-                fechaFin={tipoRango === 'dia' ? fechaSeleccionada : fechaFin}
-            />
+            {/* Modales Originales Restaurados */}
+            {showAdminReport && (
+                <AdminReportModal
+                    isOpen={showAdminReport}
+                    onClose={() => setShowAdminReport(false)}
+                    ventas={ventasOriginales} 
+                    inventarios={inventarios}
+                    gastos={gastos}
+                    fechaSeleccionada={tipoRango === 'dia' ? fechaSeleccionada : fechaInicio}
+                    onUpdateData={cargarDatosBase}
+                    metricas={metricas}
+                    businessId={business?.id || ''}
+                />
+            )}
 
-            <EditPaymentModal
-                isOpen={showEditPayment}
-                onClose={() => {
-                    setShowEditPayment(false);
-                    setVentaToEdit(null);
-                }}
-                venta={ventaToEdit}
-                onUpdate={() => cargarDatos()}
-            />
+            {showReceipt && selectedVenta && (
+                <ReceiptModal
+                    isOpen={showReceipt}
+                    onClose={() => {
+                        setShowReceipt(false);
+                        setSelectedVenta(null);
+                    }}
+                    items={selectedVenta.items || []}
+                    total={selectedVenta.total || 0}
+                    orderId={selectedVenta.id}
+                    title="COMPROBANTE DE VENTA"
+                    clienteNombre={selectedVenta.nombre_cliente}
+                    clienteDocumento={selectedVenta.documento_cliente}
+                    metodoPago={selectedVenta.metodo_pago}
+                    pagoDividido={selectedVenta.pago_dividido}
+                    tipoComprobante={(selectedVenta.comprobante_tipo?.toUpperCase() as any) || 'TICKET'}
+                    comprobanteSerie={selectedVenta.comprobante_serie || undefined}
+                    comprobanteNumero={selectedVenta.comprobante_numero || undefined}
+                />
+            )}
+
+            {showEditPayment && ventaToEdit && (
+                <EditPaymentModal
+                    isOpen={showEditPayment}
+                    onClose={() => {
+                        setShowEditPayment(false);
+                        setVentaToEdit(null);
+                    }}
+                    venta={ventaToEdit}
+                    onPaymentUpdated={cargarDatosBase}
+                />
+            )}
 
             <AnulacionModal
                 isOpen={showCancelModal}
-                onClose={() => setShowCancelModal(false)}
+                onClose={() => {
+                    setShowCancelModal(false);
+                    setCancellingVentaId(null);
+                }}
                 onConfirm={confirmDeleteVenta}
-                titulo="Eliminar Venta"
-                subtitulo="Esta acción registrará la anulación y eliminará la venta."
             />
         </div>
-    );
-}
-
-function StatCard({ label, value, icon, color, trend, sublabel }: any) {
-    return (
-        <motion.div
-            whileHover={{ y: -5 }}
-            className="bg-white border border-slate-100 rounded-none p-8 shadow-sm group hover:shadow-xl transition-all duration-500 relative overflow-hidden"
-        >
-            <div className={`absolute top-0 right-0 w-32 h-32 ${color} opacity-[0.03] transition-all group-hover:opacity-[0.08]`}></div>
-
-            <div className="flex justify-between items-start mb-6 relative">
-                <div className={`p-4 rounded-none ${color} text-white shadow-lg shadow-${color.replace('bg-', '')}/30 group-hover:scale-110 transition-transform`}>
-                    {icon}
-                </div>
-                {trend && (
-                    <span className="px-3 py-1 bg-emerald-50 text-emerald-600 text-[9px] font-black rounded-none italic border border-emerald-100 uppercase tracking-widest">
-                        {trend}
-                    </span>
-                )}
-            </div>
-
-            <div className="relative">
-                <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] mb-2 italic">{label}</p>
-                <p className="text-3xl font-black text-slate-900 italic tracking-tighter">{value}</p>
-                {sublabel && (
-                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-2">{sublabel}</p>
-                )}
-            </div>
-        </motion.div>
     );
 }

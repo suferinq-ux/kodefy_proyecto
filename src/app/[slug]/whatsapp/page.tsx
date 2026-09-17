@@ -263,27 +263,19 @@ export default function WhatsAppPage() {
                 nombre_titular_yape_plin: config.nombre_titular_yape_plin,
                 qr_yape_plin_url: config.qr_yape_plin_url,
                 datos_cuenta_bancaria: config.datos_cuenta_bancaria,
-                updated_at: new Date().toISOString(),
             };
 
-            let { error } = await supabase
-                .from('whatsapp_config')
-                .upsert(payloadCompleto, { onConflict: 'negocio_id' });
+            const resApi = await fetch('/api/whatsapp/config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payloadCompleto),
+            });
 
-            if (error && (error.message.includes('column') || error.message.includes('schema cache'))) {
-                // Fallback si la base de datos no tiene las nuevas columnas de pago aún
-                const { numero_yape_plin, nombre_titular_yape_plin, qr_yape_plin_url, datos_cuenta_bancaria, ...payloadBasico } = payloadCompleto;
-                const resFallback = await supabase
-                    .from('whatsapp_config')
-                    .upsert(payloadBasico, { onConflict: 'negocio_id' });
+            const resData = await resApi.json();
 
-                if (!resFallback.error) {
-                    toast.success('Configuración básica guardada 🚀 (Ejecuta el script SQL en Supabase para habilitar Yape/Plin)');
-                    return;
-                }
+            if (!resApi.ok || resData.error) {
+                throw new Error(resData.error || 'Error al guardar la configuración');
             }
-
-            if (error) throw error;
 
             toast.success('Configuración de WhatsApp guardada con éxito 🚀');
         } catch (err: any) {
@@ -441,9 +433,6 @@ export default function WhatsAppPage() {
         }
     };
 
-    // Control de vista: Activar para mostrar únicamente la pantalla limpia "En Desarrollo" al cliente final
-    const MODO_EN_DESARROLLO_OCULTO = true;
-
     if (loading) {
         return (
             <div className="flex flex-col items-center justify-center min-h-[60vh]">
@@ -453,67 +442,8 @@ export default function WhatsAppPage() {
         );
     }
 
-    if (MODO_EN_DESARROLLO_OCULTO) {
-        return (
-            <div className="min-h-[70vh] flex items-center justify-center p-6">
-                <div className="bg-white max-w-xl w-full p-8 sm:p-10 rounded-3xl border border-slate-100 shadow-xl text-center space-y-6">
-                    <div className="w-20 h-20 bg-amber-50 rounded-3xl text-amber-600 flex items-center justify-center mx-auto shadow-inner border border-amber-100">
-                        <Bot size={44} />
-                    </div>
-                    <div className="space-y-2">
-                        <span className="inline-flex items-center gap-1.5 text-xs font-black text-amber-900 bg-amber-100 border border-amber-300 px-3.5 py-1 rounded-full uppercase tracking-widest">
-                            🚧 MÓDULO EN DESARROLLO
-                        </span>
-                        <h1 className="text-2xl font-black text-slate-900 pt-2">Agente IA de Ventas por WhatsApp</h1>
-                        <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
-                            Estamos preparando una increíble integración de Inteligencia Artificial para la toma de pedidos, catálogo interactivo y validación de pagos en tiempo real.
-                        </p>
-                    </div>
-                    <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 text-xs text-slate-600 font-medium">
-                        ✨ Próximamente disponible en tu panel de Kodefy.
-                    </div>
-                </div>
-            </div>
-        );
-    }
-
     return (
         <div className="space-y-6 max-w-7xl mx-auto pb-12">
-            {/* Banner En Desarrollo */}
-            <div className="bg-amber-500 text-slate-950 px-5 py-3 rounded-2xl font-bold text-xs flex items-center justify-between gap-3 shadow-sm border border-amber-400">
-                <div className="flex items-center gap-2">
-                    <span className="text-lg">🚧</span>
-                    <span>MÓDULO EN DESARROLLO (MODO BETA LOCAL)</span>
-                </div>
-                <span className="bg-slate-950 text-amber-400 px-3 py-1 rounded-lg text-[10px] uppercase tracking-widest font-mono font-black">
-                    En Desarrollo
-                </span>
-            </div>
-
-            {/* Banner Informativo Explicativo */}
-            <div className="bg-blue-900 text-white p-5 rounded-2xl shadow-md border border-blue-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div className="flex items-start gap-3">
-                    <div className="p-2.5 bg-blue-800/80 rounded-xl text-blue-200 shrink-0">
-                        <KeyRound size={24} />
-                    </div>
-                    <div>
-                        <h2 className="text-sm font-bold flex items-center gap-2">
-                            💡 ¿Qué debes poner en esta pantalla?
-                        </h2>
-                        <p className="text-xs text-blue-100 mt-1 leading-relaxed">
-                            <strong>1. La clave de IA (Gemini) es CENTRAL:</strong> Tus clientes <u>NO</u> tienen que poner ninguna API key de Gemini. Kodefy la administra automáticamente.<br />
-                            <strong>2. Credenciales de WhatsApp Business:</strong> Son los códigos que Meta te otorga cuando registras el número telefónico del negocio en Meta Developers. Para probar en tu computadora hoy mismo, usa el tab <strong>"Probador de IA Local"</strong> sin necesidad de credenciales.
-                        </p>
-                    </div>
-                </div>
-                <button
-                    onClick={() => setActiveTab('simulator')}
-                    className="shrink-0 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs px-4 py-2.5 rounded-xl shadow-xs transition-all flex items-center gap-2"
-                >
-                    <TestTube size={16} /> Probar IA Ahora Mismo
-                </button>
-            </div>
-
             {/* Header Principal */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-100 shadow-xs">
                 <div className="flex items-center gap-4">
@@ -523,11 +453,8 @@ export default function WhatsAppPage() {
                     <div>
                         <div className="flex items-center gap-2 flex-wrap">
                             <h1 className="text-xl font-bold text-slate-900">Agente IA de Ventas por WhatsApp</h1>
-                            <span className="inline-flex items-center gap-1 text-[11px] font-extrabold text-amber-900 bg-amber-200 border border-amber-300 px-2.5 py-0.5 rounded-full">
-                                🚧 EN DESARROLLO
-                            </span>
-                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-100/70 px-2.5 py-0.5 rounded-full">
-                                <Sparkles size={12} /> Powered by Gemini
+                            <span className="inline-flex items-center gap-1 text-[11px] font-extrabold text-emerald-800 bg-emerald-100 border border-emerald-300 px-2.5 py-0.5 rounded-full">
+                                <Sparkles size={12} className="text-emerald-600" /> WhatsApp Cloud API Activo
                             </span>
                         </div>
                         <p className="text-xs text-slate-500 mt-1">

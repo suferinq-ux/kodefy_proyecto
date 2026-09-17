@@ -208,6 +208,7 @@ export interface StockActual {
     estado: 'abierto' | 'cerrado';
     bebidas_detalle?: BebidasDetalle; // Initial stock
     bebidas_ventas?: BebidasDetalle[]; // Array of sales to subtract
+    bebidas_vendidas_detalle?: BebidasDetalle; // Acumulado de ventas
 }
 
 // Detailed beverage inventory structure (tamaños reales Perú)

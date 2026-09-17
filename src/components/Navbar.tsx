@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, ShoppingCart, BarChart, Lock, ClipboardList, ChefHat, Package, Menu, X, Settings, RotateCcw, Navigation, Navigation2, LogOut, Building, MessageSquare, Trash2 } from 'lucide-react';
+import { Home, ShoppingCart, BarChart, Lock, ClipboardList, ChefHat, Package, Menu, X, Settings, RotateCcw, Navigation, Navigation2, LogOut, Building, MessageSquare, Trash2, Archive } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBusiness } from '@/contexts/BusinessContext';
 import { hasPermission } from '@/lib/roles';
@@ -35,6 +35,7 @@ const menuSections = [
     {
         title: 'Administración',
         items: [
+            { icon: Archive, label: 'Inventario', href: '/inventario', permission: 'reportes' },
             { icon: BarChart, label: 'Reportes', href: '/reportes', permission: 'reportes' },
             { icon: Trash2, label: 'Anulaciones', href: '/anulaciones', permission: 'anulaciones' },
             { icon: RotateCcw, label: 'Restablecer', href: '/mantenimiento', permission: 'configuracion' },
@@ -121,11 +122,6 @@ export default function Navbar() {
                                             >
                                                 <item.icon size={18} className={active ? 'text-white' : 'text-slate-400 group-hover:text-slate-600 transition-colors'} />
                                                 <span className="flex-1 truncate">{item.label}</span>
-                                                {item.href === '/whatsapp' && (
-                                                    <span className={`text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider shrink-0 ${active ? 'bg-amber-400 text-slate-950' : 'bg-amber-100 text-amber-900 border border-amber-300'}`}>
-                                                        BETA
-                                                    </span>
-                                                )}
                                             </div>
                                         </Link>
                                     );

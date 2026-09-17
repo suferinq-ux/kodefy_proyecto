@@ -2524,9 +2524,26 @@ function StockAjustePanel({ allBrands, masterStock, updateMasterStock, saving, s
 
             // 2. Si el día está abierto, también actualizamos el inventario diario
             if (stockHoy) {
+                let totalBebidas = 0;
+                allBrands.forEach(marca => {
+                    const isHidden = (editDetalle?._config?.hidden as any)?.includes?.(marca.key);
+                    if (!isHidden) {
+                        const brandData = editDetalle[marca.key];
+                        if (brandData) {
+                            marca.sizes.forEach((size: any) => {
+                                const qty = brandData[size.key];
+                                totalBebidas += (typeof qty === 'number' ? qty : parseInt(qty as any) || 0);
+                            });
+                        }
+                    }
+                });
+
                 const { error } = await supabase
                     .from('inventario_diario')
-                    .update({ bebidas_detalle: editDetalle })
+                    .update({ 
+                        bebidas_detalle: editDetalle,
+                        gaseosas: totalBebidas
+                    })
                     .eq('id', stockHoy.id);
 
                 if (error) throw error;
@@ -2565,11 +2582,39 @@ function StockAjustePanel({ allBrands, masterStock, updateMasterStock, saving, s
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                    {allBrands.map((marca, mIdx) => (
-                        <div key={marca.key || `marca-${mIdx}`} className="bg-slate-50 p-4 sm:p-6 rounded-none border border-slate-100 group hover:bg-white hover:border-slate-300 transition-all">
-                            <div className="flex items-center gap-3 mb-4 pb-2 border-b border-slate-200">
-                                <div className={`w-3 h-3 rounded-none ${marca.dot} shadow-sm`} />
-                                <span className="text-[11px] font-black uppercase text-slate-900 tracking-tight italic">{marca.name}</span>
+                    {allBrands.map((marca, mIdx) => {
+                        const isHidden = editDetalle?._config?.hidden?.includes(marca.key);
+                        
+                        const toggleVisibility = () => {
+                            setEditDetalle((prev: any) => {
+                                const hidden = prev?._config?.hidden || [];
+                                const newHidden = isHidden 
+                                    ? hidden.filter((k: string) => k !== marca.key)
+                                    : [...hidden, marca.key];
+                                return {
+                                    ...prev,
+                                    _config: {
+                                        ...(prev?._config || {}),
+                                        hidden: newHidden
+                                    }
+                                };
+                            });
+                        };
+
+                        return (
+                        <div key={marca.key || `marca-${mIdx}`} className={`p-4 sm:p-6 rounded-none border group hover:border-slate-300 transition-all ${isHidden ? 'bg-slate-100/50 border-slate-200 opacity-60' : 'bg-slate-50 border-slate-100 hover:bg-white'}`}>
+                            <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-200">
+                                <div className="flex items-center gap-3">
+                                    <div className={`w-3 h-3 rounded-none ${marca.dot} shadow-sm ${isHidden ? 'grayscale' : ''}`} />
+                                    <span className="text-[11px] font-black uppercase text-slate-900 tracking-tight italic">{marca.name}</span>
+                                </div>
+                                <button
+                                    onClick={toggleVisibility}
+                                    title={isHidden ? "Mostrar en Apertura" : "Ocultar en Apertura"}
+                                    className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-none border transition-colors ${isHidden ? 'bg-slate-200 text-slate-500 border-slate-300 hover:bg-slate-300' : 'bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100'}`}
+                                >
+                                    {isHidden ? 'Oculto' : 'Visible'}
+                                </button>
                             </div>
                             <div className="space-y-4">
                                 {marca.sizes.map((size: any, sIdx: number) => (
@@ -2588,7 +2633,8 @@ function StockAjustePanel({ allBrands, masterStock, updateMasterStock, saving, s
                                 ))}
                             </div>
                         </div>
-                    ))}
+                        );
+                    })}
                 </div>
 
                 <div className="mt-8 sm:mt-12 flex flex-col md:flex-row items-center justify-between gap-6 p-4 sm:p-6 bg-slate-50 border border-slate-100 mb-6 lg:mb-0">

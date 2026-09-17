@@ -99,11 +99,16 @@ function AperturaContent() {
 
     const calculateTotalBeverages = (): number => {
         let total = 0;
-        Object.values(bebidasDetalle).forEach(brand => {
-            if (brand) {
-                Object.values(brand).forEach(qty => {
-                    total += (qty as number) || 0;
-                });
+        allBrands.forEach(marca => {
+            const isHidden = (bebidasDetalle?._config?.hidden as any)?.includes?.(marca.key);
+            if (!isHidden) {
+                const brandData = bebidasDetalle[marca.key];
+                if (brandData) {
+                    marca.sizes.forEach(size => {
+                        const qty = brandData[size.key];
+                        total += (typeof qty === 'number' ? qty : parseInt(qty as any) || 0);
+                    });
+                }
             }
         });
         return total;
@@ -172,16 +177,16 @@ function AperturaContent() {
             }
 
             // Verificar si ya existe apertura para hoy
-            const { data: existente } = await supabase
+            const { data: existentes } = await supabase
                 .from('inventario_diario')
                 .select('*')
                 .eq('fecha', fechaHoy)
                 .eq('negocio_id', business.id)
-                .single();
+                .order('created_at', { ascending: false });
 
-            if (existente) {
-                // Permitir sobrescribir si el usuario confirma (o implícitamente al enviar de nuevo)
-                // Para simplificar UX, haremos un UPDATE si ya existe
+            if (existentes && existentes.length > 0) {
+                // Actualizar la más reciente
+                const existente = existentes[0];
                 await dbUpdate('inventario_diario', {
                     estado: 'abierto',
                     pollos_enteros: pollos,
@@ -191,6 +196,17 @@ function AperturaContent() {
                     dinero_inicial: parseFloat(dineroInicial) || 0,
                     bebidas_detalle: bebidasDetalle,
                 }, { id: existente.id });
+
+                // Cerrar cualquier otra jornada duplicada del mismo día
+                if (existentes.length > 1) {
+                    for (let i = 1; i < existentes.length; i++) {
+                        await dbUpdate('inventario_diario', {
+                            estado: 'cerrado',
+                            observaciones_cierre: 'Cierre automático - jornada duplicada limpiada.'
+                        }, { id: existentes[i].id });
+                    }
+                    console.log(`[Apertura] Limpiadas ${existentes.length - 1} jornadas duplicadas`);
+                }
 
                 toast.success(
                     `¡Apertura ACTUALIZADA!\nDatos corregidos para el día de hoy.`,
@@ -209,7 +225,7 @@ function AperturaContent() {
                 observaciones_cierre: 'Cierre automático forzado por nueva apertura.' 
             }, { negocio_id: business.id, estado: 'abierto' });
 
-            // Insertar nueva apertura usando el API route para evitar error RLS
+            // Insertar nueva apertura
             await dbInsert('inventario_diario', {
                 negocio_id: business.id,
                 fecha: fechaHoy,
@@ -412,7 +428,7 @@ function AperturaContent() {
                             ) : (
                                 <>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        {allBrands.map((marca) => {
+                                        {allBrands.filter(marca => !(bebidasDetalle?._config?.hidden as any)?.includes?.(marca.key)).map((marca) => {
                                             const brandData = bebidasDetalle[marca.key] as Record<string, number> | undefined;
                                             const brandTotal = marca.sizes.reduce((sum, s) => sum + ((brandData?.[s.key]) || 0), 0);
                                             const isOpen = expandedBrands.has(marca.key);
