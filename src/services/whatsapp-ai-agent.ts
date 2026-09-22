@@ -186,7 +186,7 @@ REGLAS STRICTAS DE VALIDACIÓN ANTIFRAUDE Y FORENSE:
 5. SI EL MONTO Y TITULAR SON CORRECTOS: Confirma con entusiasmo, muestra el resumen de verificación (App, Monto, N° Operación) y confirma que el pedido fue enviado a cocina.
 `.trim();
 
-                    const candidateModels = ['gemini-flash-latest', 'gemini-2.0-flash', 'gemini-2.5-flash'];
+                    const candidateModels = ['gemini-2.0-flash', 'gemini-flash-latest', 'gemini-2.5-flash'];
                     for (const modelName of candidateModels) {
                         try {
                             const resVision = await fetch(
@@ -283,41 +283,43 @@ REGLAS STRICTAS DE VALIDACIÓN ANTIFRAUDE Y FORENSE:
             }
         }
 
-        // 5. Motor de IA Generativa de Texto (Gemini REST API con System Instruction y Roles Alternados)
+        // 5. Motor de IA Generativa de Texto (Gemini REST API con System Instruction Inteligente)
         if (!respuestaBotText) {
             const systemPrompt = `
-Eres ${config.nombre_asistente || 'el asistente virtual de ventas'}, una persona amable, atenta y súper empática trabajando en la atención por WhatsApp de "${nombreNegocio}".
+Eres ${config.nombre_asistente || 'el asistente virtual de ventas'}, una persona real, súper carismática, alegre, atenta, inteligente y experta en atención de ventas por WhatsApp para "${nombreNegocio}".
 
-INFORMACIÓN Y CONFIGURACIÓN DEL NEGOCIO:
-- Nombre de la empresa: "${nombreNegocio}"
-- Mensaje de bienvenida: "${config.mensaje_bienvenida}"
-- Instrucciones de la marca: "${config.prompt_personalizado}"
-- Costo de Delivery: S/ ${Number(config.costo_delivery_fijo || 0).toFixed(2)}
-- Servicio de Delivery: ${config.modo_delivery ? 'Disponible' : 'No disponible'}
-- Recojo en local / Takeout: ${config.modo_recojo ? 'Disponible' : 'No disponible'}
-- Consumo en local / Mesas: ${config.modo_mesa ? 'Disponible (¡Pueden visitarnos en el local!)' : 'Solo para llevar'}
+PERSONALIDAD Y ESTILO DE COMUNICACIÓN (HUMANO, FLUIDO Y CONVERSACIONAL):
+- Habla como una persona real por WhatsApp: cálida, entusiasta, cercana y servicial.
+- JAMÁS uses frases cuadradas de plantilla robótica. Cada respuesta debe sonar única, humana y súper natural.
+- Usa emojis simpáticos (🍗, 🛵, 😋, ✨, 📱) pero sin exagerar.
 
-DATOS OFICIALES DE PAGO DEL NEGOCIO (¡COMPARTIR CUANDO EL CLIENTE ELIJA EL MEDIO DE PAGO!):
-- Número Yape / Plin: ${config.numero_yape_plin || 'No configurado aún (indicar al cliente)'}
-- Titular de Yape / Plin: ${config.nombre_titular_yape_plin || 'El Negocio'}
-- Cuentas Bancarias / Transferencia: ${config.datos_cuenta_bancaria || 'Consultar en caja'}
-- URL del Código QR de Yape/Plin: ${config.qr_yape_plin_url || ''}
+INFORMACIÓN DEL NEGOCIO:
+- Empresa: "${nombreNegocio}"
+- Bienvenida: "${config.mensaje_bienvenida}"
+- Instrucciones especiales: "${config.prompt_personalizado}"
+- Delivery: ${config.modo_delivery ? `Disponible (Costo: S/ ${Number(config.costo_delivery_fijo || 0).toFixed(2)})` : 'No disponible'}
+- Recojo en local: ${config.modo_recojo ? 'Disponible' : 'No disponible'}
+- Consumo en salón: ${config.modo_mesa ? 'Disponible' : 'Solo para llevar'}
+
+DATOS DE PAGO DEL NEGOCIO:
+- Yape / Plin: ${config.numero_yape_plin || 'No configurado'} (${config.nombre_titular_yape_plin || 'El Negocio'})
+${config.datos_cuenta_bancaria ? `- Cuentas: ${config.datos_cuenta_bancaria}` : ''}
 
 CARTA Y MENÚ REAL DE PRODUCTOS DISPONIBLES Y PRECIOS:
 ${productosLimpioTexto || 'No hay productos disponibles actualmente.'}
 
-REGLAS DE ATENCIÓN Y TOMA DE PEDIDOS POR WHATSAPP:
-1. Responde de forma DIRECTA, lógica, cálida y natural a la solicitud o pregunta del cliente.
-2. Si el cliente solicita un producto del menú (ej. "un cuarto de pollo", "un chifa", "una gaseosa"), confirma el pedido de inmediato, calcula el total con el delivery y ofrece los datos de Yape/Plin para concretar la compra.
-3. Si el cliente elige pagar por Yape, Plin o Transferencia:
-   - Proporciona INMEDIATAMENTE el número de Yape/Plin (${config.numero_yape_plin || 'registrado en el negocio'}) y el nombre del titular (${config.nombre_titular_yape_plin || 'registrado'}).
-   - Solicítale amablemente que envíe la captura de su pago por WhatsApp para confirmarlo e ingresar la orden a cocina.
-4. Jamás incluyas códigos técnicos, corchetes con IDs raros ni símbolos raros. Muestra precios siempre en soles ("S/ XX.XX").
-5. Usa un tono conversacional amable y entusiasmado con emojis apropiados.
+REGLAS DE ATENCIÓN Y TOMA DE PEDIDOS:
+1. Si el cliente pide un producto (ej. "quiero pedir 1 pollo con papas para llevar" o "un cuarto de pollo"):
+   - Confirma el pedido de forma entusiasta y humana (ej. "¡Buenísimo! Te anotamos 1 Pollo entero bien doradito con sus papas fritas crujientes para llevar 🍗🍟").
+   - Calcula el precio exacto según el menú (S/ XX.XX). Si aplica delivery, súmalo e indícalo.
+   - Ofrécele amablemente alguna bebida, crema o complemento si lo desea.
+   - Da los datos de Yape/Plin (${config.numero_yape_plin || '992 490 959'} a nombre de ${config.nombre_titular_yape_plin || 'Lady'}) e invítalo amablemente a enviar el yapeo o captura por aquí para pasarlo inmediatamente a cocina.
+2. Si el cliente consulta presupuesto o qué le alcanza, dale sugerencias deliciosas de acuerdo a sus soles.
+3. Responde de forma directa, ágil y jamás muestres códigos técnicos ni corchetes rars.
 `.trim();
 
             if (geminiApiKey && geminiApiKey.trim() !== '') {
-                const candidateModels = ['gemini-flash-latest', 'gemini-2.0-flash', 'gemini-2.5-flash', 'gemini-3.6-flash'];
+                const candidateModels = ['gemini-2.0-flash', 'gemini-flash-latest', 'gemini-2.5-flash', 'gemini-1.5-flash'];
 
                 const contentsPayload = [
                     ...historialChatClean,
@@ -354,7 +356,7 @@ REGLAS DE ATENCIÓN Y TOMA DE PEDIDOS POR WHATSAPP:
             }
         }
 
-        // 6. Motor de Entrenamiento Fallback Inteligente (Fuzzy Matching para Pedidos)
+        // 6. Motor de Entrenamiento Fallback Inteligente (Súper Conversacional y Humano)
         if (!respuestaBotText) {
             respuestaBotText = generarRespuestaEntrenadaFallback({
                 mensajeTexto,
@@ -399,7 +401,7 @@ REGLAS DE ATENCIÓN Y TOMA DE PEDIDOS POR WHATSAPP:
 }
 
 /**
- * Motor de Respuestas Entrenado Inteligente (Fallback con Búsqueda Difusa de Productos)
+ * Motor de Respuestas Entrenado Inteligente (Fallback Altamente Conversacional)
  */
 function generarRespuestaEntrenadaFallback({
     mensajeTexto,
@@ -411,21 +413,20 @@ function generarRespuestaEntrenadaFallback({
     config: any;
 }): string {
     const msgLower = mensajeTexto.toLowerCase();
+    const numYape = config.numero_yape_plin || '992 490 959';
+    const titular = config.nombre_titular_yape_plin || 'Lady';
 
     // Detección de imágenes de comprobante en fallback
     if (mensajeTexto.includes('data:image/')) {
-        const numYape = config.numero_yape_plin || '987 654 321';
-        return `¡Imagen de comprobante recibida! 📸 La IA de visión está analizando los montos y el titular (*${config.nombre_titular_yape_plin || 'nuestro negocio'}*). Si el monto coincide con el total de tu orden, ingresará automáticamente a cocina. 🍳🚀`;
+        return `¡Imagen de comprobante recibida! 📸 Nuestra IA de visión está analizando los datos y la transferencia enviada a *${titular}*. Si el monto coincide con tu orden, pasará inmediatamente a cocina. 🍳🚀`;
     }
 
     // 1. Métodos y datos de pago
     if (msgLower.includes('yape') || msgLower.includes('plin') || msgLower.includes('pago') || msgLower.includes('transferencia')) {
-        const numYape = config.numero_yape_plin || '987 654 321';
-        const titular = config.nombre_titular_yape_plin || 'Nuestro Negocio';
-        return `¡Excelente! 📲 Puedes realizar tu pago por *Yape* o *Plin* al número:\n\n📱 *${numYape}*\n👤 Titular: *${titular}*\n\n${config.datos_cuenta_bancaria ? `💳 Transferencia: ${config.datos_cuenta_bancaria}\n\n` : ''}Por favor, adjunta la foto o captura de tu pago por aquí para verificarlo con la IA e ingresar tu pedido a cocina. 📸✨`;
+        return `¡Buenísimo! 📲 Puedes realizar tu pago por *Yape* o *Plin* a los datos del negocio:\n\n📱 *${numYape}*\n👤 Titular: *${titular}*\n\n${config.datos_cuenta_bancaria ? `💳 Cuentas: ${config.datos_cuenta_bancaria}\n\n` : ''}Una vez realizado, envíanos la foto o captura de tu pago por aquí para confirmarlo con la IA y mandar tu orden a cocina de inmediato. 📸✨`;
     }
 
-    // 2. Pedidos directos (ej. "quiero ordenar...", "un cuarto de pollo", "un pollo", "chifa")
+    // 2. Pedidos directos (ej. "quiero pedir 1 pollo con papas para llevar", "un cuarto de pollo")
     const esSolicitudPedido =
         msgLower.includes('ordenar') ||
         msgLower.includes('pedir') ||
@@ -449,11 +450,10 @@ function generarRespuestaEntrenadaFallback({
 
     if (esSolicitudPedido && coincidencias.length > 0) {
         const prodSeleccionado = coincidencias[0];
-        const numYape = config.numero_yape_plin || '987 654 321';
-        const titular = config.nombre_titular_yape_plin || 'Nuestro Negocio';
         const precioUnitario = Number(prodSeleccionado.precio).toFixed(2);
+        const tipoEntrega = msgLower.includes('llevar') ? 'para llevar' : msgLower.includes('delivery') ? 'para delivery' : '';
 
-        return `¡Anotado! 📝 Con gusto tomamos tu pedido de *${prodSeleccionado.nombre}* a S/ ${precioUnitario}.\n\n📲 Para confirmarlo e ingresarlo a cocina, puedes realizar el pago por *Yape* o *Plin* al número:\n📱 *${numYape}* (${titular})\n\nEnvíanos la captura por aquí para verificarla inmediatamente con nuestra IA. 🚀`;
+        return `¡Buenísimo! 🍗 Te tomamos la orden de *${prodSeleccionado.nombre}* ${tipoEntrega} por un total de S/ ${precioUnitario}.\n\n📲 Para confirmarlo e ingresarlo a cocina inmediatamente, puedes yapear o plinar al número:\n📱 *${numYape}* (Titular: *${titular}*)\n\n¡Envíanos la foto del pago por aquí para verificarla de una! 🚀✨`;
     }
 
     // 3. Preguntas sobre venir al local / recojo / consumo en salón
@@ -491,7 +491,7 @@ function generarRespuestaEntrenadaFallback({
                     .map((p) => `• *${p.nombre}*: S/ ${Number(p.precio).toFixed(2)}`)
                     .join('\n');
 
-                return `¡Hola! Con S/ ${presupuesto.toFixed(2)} te alcanza perfectamente para estas opciones: 😋\n\n${listaAccesibles}\n\n¿Te gustaría hacer el pedido de alguno de estos platos? 🛵`;
+                return `¡Hola! Con S/ ${presupuesto.toFixed(2)} te alcanza perfectamente para estas delicias: 😋\n\n${listaAccesibles}\n\n¿Te gustaría ordenar alguna de estas opciones? 🛵`;
             } else {
                 const masBarato = [...productos].sort((a, b) => Number(a.precio) - Number(b.precio))[0];
                 return `Con S/ ${presupuesto.toFixed(2)} en este momento nuestra opción más económica es *${masBarato.nombre}* a S/ ${Number(masBarato.precio).toFixed(2)}. ¿Te gustaría pedir ese? 😊`;
@@ -509,12 +509,12 @@ function generarRespuestaEntrenadaFallback({
         const menuLimpio = productos
             .map((p) => `• *${p.nombre}*: S/ ${Number(p.precio).toFixed(2)}`)
             .join('\n');
-        return `📋 *Nuestra Carta:* \n\n${menuLimpio}\n\n¿Qué te provoca pedir hoy? 😋`;
+        return `📋 *Nuestra Carta Deliciosa:* \n\n${menuLimpio}\n\n¿Qué te provoca pedir hoy? 😋`;
     }
 
-    // Fallback general inteligente cuando no se especificó un plato del menú
+    // Fallback general conversacional
     const listaTop = productos.slice(0, 3).map((p) => `• *${p.nombre}*: S/ ${Number(p.precio).toFixed(2)}`).join('\n');
-    return `¡Con gusto te tomamos el pedido! 😋 \n\nNuestras opciones principales de hoy son:\n${listaTop || '• Platos a la carta'}\n\n¿Cuál de estas opciones te gustaría ordenar para delivery o recojo? 🛵`;
+    return `¡Con gusto te atendemos! 😋 \n\nAquí tienes nuestras opciones más pedidas de hoy:\n${listaTop || '• Platos a la carta'}\n\n¿Cuál te gustaría ordenar para delivery o recojo en tienda? 🛵`;
 }
 
 /**

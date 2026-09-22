@@ -167,7 +167,7 @@ function ConfiguracionContent() {
             const { data, error } = await supabase
                 .from('configuracion_impresoras')
                 .select('*')
-                .eq('negocio_id', user?.negocio_id)
+                .eq('negocio_id', negocioIdActual())
                 .order('created_at', { ascending: true });
             
             if (error) throw error;
@@ -229,7 +229,7 @@ function ConfiguracionContent() {
             const { data: ticketData } = await supabase
                 .from('configuracion_negocio')
                 .select('*')
-                .eq('negocio_id', user?.negocio_id)
+                .eq('negocio_id', negocioIdActual())
                 .maybeSingle();
 
             if (ticketData) {
@@ -281,7 +281,7 @@ function ConfiguracionContent() {
             const { data: ticketExists } = await supabase
                 .from('configuracion_negocio')
                 .select('id')
-                .eq('negocio_id', user?.negocio_id)
+                .eq('negocio_id', negocioIdActual())
                 .maybeSingle();
 
             if (ticketExists) {
@@ -291,12 +291,12 @@ function ConfiguracionContent() {
                         nombre_negocio: jsonFiscal,
                         telefono: fiscalConfig.telefono
                     })
-                    .eq('negocio_id', user?.negocio_id);
+                    .eq('negocio_id', negocioIdActual());
             } else {
                 await supabase
                     .from('configuracion_negocio')
                     .insert({
-                        negocio_id: user?.negocio_id,
+                        negocio_id: negocioIdActual(),
                         nombre_negocio: jsonFiscal,
                         telefono: fiscalConfig.telefono,
                         modo_impresion: 'pos'
@@ -363,7 +363,7 @@ function ConfiguracionContent() {
             const { error } = await supabase.from('productos').insert([{
                 ...nuevoProducto,
                 precio: parseFloat(nuevoProducto.precio as string),
-                negocio_id: user?.negocio_id,
+                negocio_id: negocioIdActual(),
                 activo: true
             }]);
 
@@ -843,7 +843,7 @@ function ConfiguracionContent() {
                 .from('configuracion_impresoras')
                 .insert([{
                     ...newPrinter,
-                    negocio_id: user?.negocio_id
+                    negocio_id: negocioIdActual()
                 }]);
 
             if (error) throw error;
@@ -892,7 +892,7 @@ function ConfiguracionContent() {
             const { error } = await supabase
                 .from('ventas')
                 .insert([{
-                    negocio_id: user?.negocio_id,
+                    negocio_id: negocioIdActual(),
                     total: 0,
                     items: [{ nombre: 'TICKET DE PRUEBA KODEFY', cantidad: 1, precio: 0 }],
                     metodo_pago: 'efectivo',

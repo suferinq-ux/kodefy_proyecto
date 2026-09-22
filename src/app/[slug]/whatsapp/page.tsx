@@ -52,6 +52,7 @@ interface WhatsAppConfigData {
     nombre_titular_yape_plin: string;
     qr_yape_plin_url: string;
     datos_cuenta_bancaria: string;
+    telefono_negocio_wa?: string;
 }
 
 interface ConversacionItem {
@@ -99,6 +100,7 @@ export default function WhatsAppPage() {
         nombre_titular_yape_plin: '',
         qr_yape_plin_url: '',
         datos_cuenta_bancaria: '',
+        telefono_negocio_wa: '',
     });
 
     // Estado de Chats en Vivo
@@ -150,6 +152,7 @@ export default function WhatsAppPage() {
                     nombre_titular_yape_plin: data.nombre_titular_yape_plin || '',
                     qr_yape_plin_url: data.qr_yape_plin_url || '',
                     datos_cuenta_bancaria: data.datos_cuenta_bancaria || '',
+                    telefono_negocio_wa: data.telefono_negocio_wa || '',
                 });
             }
             setLoading(false);
@@ -263,6 +266,7 @@ export default function WhatsAppPage() {
                 nombre_titular_yape_plin: config.nombre_titular_yape_plin,
                 qr_yape_plin_url: config.qr_yape_plin_url,
                 datos_cuenta_bancaria: config.datos_cuenta_bancaria,
+                telefono_negocio_wa: config.telefono_negocio_wa,
             };
 
             const resApi = await fetch('/api/whatsapp/config', {
@@ -433,11 +437,38 @@ export default function WhatsAppPage() {
         }
     };
 
+    // Control de vista: Activar para mostrar únicamente la pantalla limpia "En Desarrollo (BETA)" al cliente final
+    const MODO_EN_DESARROLLO_OCULTO = true;
+
     if (loading) {
         return (
             <div className="flex flex-col items-center justify-center min-h-[60vh]">
                 <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-slate-900"></div>
                 <p className="mt-4 text-sm text-slate-500 font-medium">Cargando Agente IA WhatsApp...</p>
+            </div>
+        );
+    }
+
+    if (MODO_EN_DESARROLLO_OCULTO) {
+        return (
+            <div className="min-h-[70vh] flex items-center justify-center p-6">
+                <div className="bg-white max-w-xl w-full p-8 sm:p-10 rounded-3xl border border-slate-100 shadow-xl text-center space-y-6">
+                    <div className="w-20 h-20 bg-amber-50 rounded-3xl text-amber-600 flex items-center justify-center mx-auto shadow-inner border border-amber-100">
+                        <Bot size={44} />
+                    </div>
+                    <div className="space-y-2">
+                        <span className="inline-flex items-center gap-1.5 text-xs font-black text-amber-900 bg-amber-100 border border-amber-300 px-3.5 py-1 rounded-full uppercase tracking-widest">
+                            🚧 MÓDULO EN DESARROLLO (MODO BETA)
+                        </span>
+                        <h1 className="text-2xl font-black text-slate-900 pt-2">Agente IA de Ventas por WhatsApp</h1>
+                        <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
+                            Estamos preparando una increíble integración de Inteligencia Artificial para la toma de pedidos, catálogo interactivo y validación de pagos en tiempo real.
+                        </p>
+                    </div>
+                    <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 text-xs text-slate-600 font-medium">
+                        ✨ Próximamente disponible en tu panel de Kodefy.
+                    </div>
+                </div>
             </div>
         );
     }
@@ -609,6 +640,21 @@ export default function WhatsAppPage() {
                                 <Smartphone size={18} className="text-blue-600" /> Credenciales WhatsApp Business (Meta API)
                             </h2>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div className="sm:col-span-2 bg-emerald-50/70 p-3.5 rounded-xl border border-emerald-200">
+                                    <label className="block text-xs font-bold text-slate-800 mb-1 flex items-center gap-1.5">
+                                        <Smartphone size={16} className="text-emerald-600" /> Número de Celular (WhatsApp) del Negocio
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={config.telefono_negocio_wa || ''}
+                                        onChange={(e) => setConfig({ ...config, telefono_negocio_wa: e.target.value })}
+                                        placeholder="Ej: +51 987 654 321"
+                                        className="w-full px-3 py-2 text-xs border border-emerald-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white font-semibold text-slate-900"
+                                    />
+                                    <p className="text-[11px] text-slate-600 mt-1">
+                                        💡 Ingresa aquí el número del teléfono celular que atiende las ventas del negocio. La IA tomará el control automático de las respuestas 24/7.
+                                    </p>
+                                </div>
                                 <div>
                                     <label className="block text-xs font-medium text-slate-700 mb-1">Phone Number ID (Meta)</label>
                                     <input

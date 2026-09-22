@@ -122,6 +122,11 @@ export default function Navbar() {
                                             >
                                                 <item.icon size={18} className={active ? 'text-white' : 'text-slate-400 group-hover:text-slate-600 transition-colors'} />
                                                 <span className="flex-1 truncate">{item.label}</span>
+                                                {item.href === '/whatsapp' && (
+                                                    <span className={`text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider shrink-0 ${active ? 'bg-amber-400 text-slate-950' : 'bg-amber-100 text-amber-900 border border-amber-300'}`}>
+                                                        BETA
+                                                    </span>
+                                                )}
                                             </div>
                                         </Link>
                                     );
