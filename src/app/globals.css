@@ -61,6 +61,17 @@
   --border-main: #334155;
 }
 
+/* ─── BRAND THEME ─── */
+.theme-brand body {
+  background: color-mix(in srgb, var(--theme-primary) 12%, #020617 88%);
+  color: #f8fafc;
+}
+
+.theme-brand {
+  --border-light: color-mix(in srgb, var(--theme-primary) 20%, #1e293b 80%);
+  --border-main: color-mix(in srgb, var(--theme-primary) 30%, #334155 70%);
+}
+
 /* ─── BASE ─── */
 body {
   background: #f8fafc;
@@ -76,6 +87,11 @@ body {
 .dark body {
   background: #020617;
   color: #e2e8f0;
+}
+
+.theme-brand body {
+  background: color-mix(in srgb, var(--theme-primary) 12%, #020617 88%);
+  color: #f8fafc;
 }
 
 /* Force 16px min font for inputs on mobile */

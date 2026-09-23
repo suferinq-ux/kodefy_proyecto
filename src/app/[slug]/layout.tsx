@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase';
 import { BusinessProvider } from '@/contexts/BusinessContext';
 import BusinessThemeProvider from '@/components/BusinessThemeProvider';
 import type { Negocio } from '@/lib/database.types';
+import { ThemeProvider } from '@/contexts/ThemeContext';
 import Navbar from '@/components/Navbar';
 import DynamicFavicon from '@/components/DynamicFavicon';
 
@@ -70,18 +71,20 @@ export default function TenantLayout({ children }: { children: React.ReactNode }
     return (
         <BusinessProvider business={business}>
             <DynamicFavicon />
-            <BusinessThemeProvider>
-                <div id="app-root" className="flex min-h-screen w-full overflow-x-hidden bg-[#f8fafc]">
-                    <div className="print:hidden">
-                        <Navbar />
+            <ThemeProvider>
+                <BusinessThemeProvider>
+                    <div id="app-root" className="flex min-h-screen w-full overflow-x-hidden">
+                        <div className="print:hidden">
+                            <Navbar />
+                        </div>
+                        <div className="flex-1 flex flex-col min-h-screen w-full lg:pl-60 relative">
+                            <main className="flex-1 w-full max-w-[100vw] p-3 sm:p-6 lg:p-8 pt-20 lg:pt-6 pb-28 lg:pb-8">
+                                {children}
+                            </main>
+                        </div>
                     </div>
-                    <div className="flex-1 flex flex-col min-h-screen w-full lg:pl-60 relative">
-                        <main className="flex-1 w-full max-w-[100vw] p-3 sm:p-6 lg:p-8 pt-20 lg:pt-6 pb-28 lg:pb-8">
-                            {children}
-                        </main>
-                    </div>
-                </div>
-            </BusinessThemeProvider>
+                </BusinessThemeProvider>
+            </ThemeProvider>
         </BusinessProvider>
     );
 }

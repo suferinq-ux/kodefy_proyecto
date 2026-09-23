@@ -8,6 +8,7 @@ import { useBusiness } from '@/contexts/BusinessContext';
 import { hasPermission } from '@/lib/roles';
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import ThemeSwitcher from '@/components/ThemeSwitcher';
 
 const menuSections = [
     {
@@ -72,7 +73,7 @@ export default function Navbar() {
     // Branding section component
     const BrandingHeader = ({ size = 'normal' }: { size?: 'normal' | 'small' }) => (
         <div className="flex items-center gap-3">
-            <div className={`relative ${size === 'small' ? 'w-9 h-9' : 'w-10 h-10'} rounded-none overflow-hidden shadow-sm border border-slate-100 flex items-center justify-center bg-slate-50`}>
+            <div className={`relative ${size === 'small' ? 'w-9 h-9' : 'w-10 h-10'} rounded-none overflow-hidden shadow-sm border border-slate-100 dark:border-slate-800 flex items-center justify-center bg-slate-50 dark:bg-slate-900`}>
                 {business?.logo_url ? (
                     <img src={business.logo_url} alt={business.nombre} className="w-full h-full object-cover" />
                 ) : (
@@ -80,7 +81,7 @@ export default function Navbar() {
                 )}
             </div>
             <div>
-                <h1 className={`${size === 'small' ? 'text-sm' : 'text-sm'} font-black text-slate-900 leading-none tracking-tight`}>
+                <h1 className={`${size === 'small' ? 'text-sm' : 'text-sm'} font-black text-slate-900 dark:text-white leading-none tracking-tight`}>
                     {business?.nombre || 'KODEFY'}
                 </h1>
                 <p className="text-[10px] font-bold uppercase tracking-wider mt-1" style={{ color: primaryColor }}>
@@ -93,8 +94,8 @@ export default function Navbar() {
     return (
         <>
             {/* SIDEBAR (Desktop) - siempre visible */}
-            <aside className="hidden lg:flex fixed left-0 top-0 bottom-0 w-60 flex-col z-50 bg-white border-r border-slate-100 shadow-[2px_0_10px_rgba(0,0,0,0.02)]">
-                <div className="flex items-center gap-3 px-5 py-6 border-b border-slate-50">
+            <aside className="hidden lg:flex fixed left-0 top-0 bottom-0 w-60 flex-col z-50 bg-white dark:bg-transparent border-r border-slate-100 dark:border-slate-800/50 shadow-[2px_0_10px_rgba(0,0,0,0.02)]">
+                <div className="flex items-center gap-3 px-5 py-6 border-b border-slate-50 dark:border-slate-800/50">
                     <BrandingHeader />
                 </div>
 
@@ -116,11 +117,11 @@ export default function Navbar() {
                                             <div
                                                 className={`flex items-center gap-3 px-4 py-2.5 rounded-none text-[13px] transition-all duration-200 group ${active
                                                     ? 'text-white font-bold shadow-md'
-                                                    : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50 font-semibold'
+                                                    : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50 dark:text-slate-400 dark:hover:text-white dark:hover:bg-slate-800/50 font-semibold'
                                                     }`}
                                                 style={active ? { backgroundColor: primaryColor, boxShadow: `0 4px 14px ${primaryColor}33` } : {}}
                                             >
-                                                <item.icon size={18} className={active ? 'text-white' : 'text-slate-400 group-hover:text-slate-600 transition-colors'} />
+                                                <item.icon size={18} className={active ? 'text-white' : 'text-slate-400 group-hover:text-slate-600 dark:group-hover:text-white transition-colors'} />
                                                 <span className="flex-1 truncate">{item.label}</span>
                                                 {item.href === '/whatsapp' && (
                                                     <span className={`text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider shrink-0 ${active ? 'bg-amber-400 text-slate-950' : 'bg-amber-100 text-amber-900 border border-amber-300'}`}>
@@ -136,13 +137,15 @@ export default function Navbar() {
                     ))}
                 </nav>
 
-                <div className="border-t border-slate-50 p-4 bg-slate-50/30">
+                <ThemeSwitcher />
+
+                <div className="border-t border-slate-50 dark:border-slate-800/50 p-4 bg-slate-50/30 dark:bg-slate-800/20">
                     <div className="flex items-center gap-3 mb-3 p-2">
                         <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-black" style={{ backgroundColor: primaryColor }}>
                             {user.nombre.charAt(0)}
                         </div>
                         <div className="flex-1 min-w-0">
-                            <p className="text-xs font-black text-slate-900 truncate tracking-tight">{user.nombre}</p>
+                            <p className="text-xs font-black text-slate-900 dark:text-white truncate tracking-tight">{user.nombre}</p>
                             <p className="text-[10px] text-slate-400 capitalize font-bold">{user.rol}</p>
                         </div>
                     </div>
@@ -155,11 +158,11 @@ export default function Navbar() {
             </aside>
 
             {/* MOBILE HEADER */}
-            <header className="lg:hidden fixed top-0 left-0 right-0 z-[60] bg-white/80 backdrop-blur-xl border-b border-slate-100 px-4 py-3 flex items-center justify-between shadow-sm">
+            <header className="lg:hidden fixed top-0 left-0 right-0 z-[60] bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-slate-100 dark:border-slate-800/50 px-4 py-3 flex items-center justify-between shadow-sm">
                 <div className="flex items-center gap-3">
                     <button
                         onClick={() => setSidebarOpen(true)}
-                        className="w-11 h-11 flex items-center justify-center rounded-none bg-slate-50 border border-slate-100 text-slate-600 active:scale-95 transition-all"
+                        className="w-11 h-11 flex items-center justify-center rounded-none bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 text-slate-600 dark:text-slate-300 active:scale-95 transition-all"
                     >
                         <Menu size={22} />
                     </button>
@@ -179,7 +182,7 @@ export default function Navbar() {
             </header>
 
             {/* BOTTOM NAV (Mobile Only) */}
-            <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-[60] bg-white/95 backdrop-blur-xl border-t border-slate-100 pb-safe shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
+            <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-[60] bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-t border-slate-100 dark:border-slate-800/50 pb-safe shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
                 <div className="flex items-center justify-around h-20 px-4">
                     {[
                         { icon: Home, label: 'Inicio', href: '/dashboard', permission: 'dashboard' },
@@ -230,13 +233,13 @@ export default function Navbar() {
                             animate={{ x: 0 }}
                             exit={{ x: '-100%' }}
                             transition={{ type: 'tween', duration: 0.3 }}
-                            className="lg:hidden fixed left-0 top-0 h-screen w-72 max-w-[85vw] z-[80] bg-white shadow-2xl flex flex-col"
+                            className="lg:hidden fixed left-0 top-0 h-screen w-72 max-w-[85vw] z-[80] bg-white dark:bg-slate-900 shadow-2xl flex flex-col"
                         >
-                            <div className="flex items-center justify-between px-4 py-4 border-b border-slate-100">
+                            <div className="flex items-center justify-between px-4 py-4 border-b border-slate-100 dark:border-slate-800/50">
                                 <BrandingHeader />
                                 <button
                                     onClick={() => setSidebarOpen(false)}
-                                    className="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-50 text-slate-400 hover:bg-slate-100"
+                                    className="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-50 dark:bg-slate-800 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700"
                                 >
                                     <X size={18} />
                                 </button>
@@ -245,7 +248,7 @@ export default function Navbar() {
                             <nav className="flex-1 py-6 px-4 overflow-y-auto no-scrollbar">
                                 {filteredSections.map((section) => (
                                     <div key={section.title} className="mb-8">
-                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] px-4 mb-3 italic">
+                                        <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] px-4 mb-3 italic">
                                             {section.title}
                                         </p>
                                         <div className="space-y-1">
@@ -255,13 +258,13 @@ export default function Navbar() {
                                                 return (
                                                     <Link key={item.href} href={buildHref(item.href)} onClick={() => setSidebarOpen(false)}>
                                                         <div
-                                                            className={`flex items-center gap-4 px-5 py-4 rounded-none text-sm transition-all active:scale-[0.98] ${active
+                                                            className={`flex items-center gap-4 px-5 py-4 rounded-none text-sm transition-all group active:scale-[0.98] ${active
                                                                 ? 'text-white font-black shadow-lg'
-                                                                : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50 font-bold'
+                                                                : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50 dark:text-slate-400 dark:hover:text-white dark:hover:bg-slate-800/50 font-bold'
                                                                 }`}
                                                             style={active ? { backgroundColor: primaryColor, boxShadow: `0 6px 20px ${primaryColor}33` } : {}}
                                                         >
-                                                            <Icon size={20} className={active ? 'text-white' : 'text-slate-400'} />
+                                                            <Icon size={20} className={active ? 'text-white' : 'text-slate-400 group-hover:text-slate-600 dark:group-hover:text-white'} />
                                                             <span className="tracking-tight">{item.label}</span>
                                                         </div>
                                                     </Link>
@@ -272,13 +275,15 @@ export default function Navbar() {
                                 ))}
                             </nav>
 
-                            <div className="border-t border-slate-100 p-4 bg-slate-50/50">
+                            <ThemeSwitcher />
+
+                            <div className="border-t border-slate-100 dark:border-slate-800/50 p-4 bg-slate-50/50 dark:bg-slate-800/20">
                                 <div className="flex items-center gap-3 mb-3">
                                     <div className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-black" style={{ backgroundColor: primaryColor }}>
                                         {user.nombre.charAt(0)}
                                     </div>
                                     <div className="flex-1">
-                                        <p className="text-xs font-black text-slate-900">{user.nombre}</p>
+                                        <p className="text-xs font-black text-slate-900 dark:text-white">{user.nombre}</p>
                                         <p className="text-[10px] text-slate-400 capitalize">{user.rol}</p>
                                     </div>
                                 </div>
