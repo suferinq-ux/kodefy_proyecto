@@ -2,6 +2,12 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 
+/**
+ * Temas disponibles:
+ * - 'light': Sidebar blanco con bordes suaves (actual)
+ * - 'dark': Sidebar oscuro profesional (slate-900)  
+ * - 'brand': Sidebar con el color de marca del negocio (como la imagen de referencia)
+ */
 type Theme = 'light' | 'dark' | 'brand';
 
 interface ThemeContextProps {
@@ -21,35 +27,17 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const [mounted, setMounted] = useState(false);
 
     useEffect(() => {
-        // Cargar el tema desde localStorage al montar
         const savedTheme = localStorage.getItem('kodefy_theme') as Theme;
         if (savedTheme && ['light', 'dark', 'brand'].includes(savedTheme)) {
             setThemeState(savedTheme);
-        } else {
-            // Check system preference
-            if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-                setThemeState('dark');
-            }
         }
         setMounted(true);
     }, []);
 
     useEffect(() => {
         if (!mounted) return;
-        
-        const root = document.documentElement;
-        
-        // Quitar clases anteriores
-        root.classList.remove('dark', 'theme-brand');
-        
-        // Aplicar nuevas clases
-        if (theme === 'dark') {
-            root.classList.add('dark');
-        } else if (theme === 'brand') {
-            root.classList.add('dark', 'theme-brand');
-        }
-
-        // Guardar en localStorage
+        // Solo guardamos en localStorage — no tocamos clases de html
+        // Cada componente decide cómo renderizar según el tema
         localStorage.setItem('kodefy_theme', theme);
     }, [theme, mounted]);
 

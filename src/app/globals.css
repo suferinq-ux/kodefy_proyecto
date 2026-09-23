@@ -50,26 +50,10 @@
   --font-sans: 'Plus Jakarta Sans', ui-sans-serif, system-ui, -apple-system, sans-serif;
 }
 
-/* ─── DARK MODE ─── */
-.dark body {
-  background: #020617;
-  color: #e2e8f0;
-}
-
+/* ─── DARK MODE (reserved for future full-page dark if needed) ─── */
 .dark {
   --border-light: #1e293b;
   --border-main: #334155;
-}
-
-/* ─── BRAND THEME ─── */
-.theme-brand body {
-  background: color-mix(in srgb, var(--theme-primary) 12%, #020617 88%);
-  color: #f8fafc;
-}
-
-.theme-brand {
-  --border-light: color-mix(in srgb, var(--theme-primary) 20%, #1e293b 80%);
-  --border-main: color-mix(in srgb, var(--theme-primary) 30%, #334155 70%);
 }
 
 /* ─── BASE ─── */
@@ -81,17 +65,6 @@ body {
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden; /* Prevents side-scrolling app-wide */
   width: 100%;
-}
-
-/* Dark mode overrides for body */
-.dark body {
-  background: #020617;
-  color: #e2e8f0;
-}
-
-.theme-brand body {
-  background: color-mix(in srgb, var(--theme-primary) 12%, #020617 88%);
-  color: #f8fafc;
 }
 
 /* Force 16px min font for inputs on mobile */
