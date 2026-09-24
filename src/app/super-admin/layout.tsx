@@ -72,7 +72,7 @@ function SuperAdminLayoutInner({ children }: { children: React.ReactNode }) {
       {/* Sidebar */}
       <aside
         className={cn(
-          'fixed lg:sticky top-0 left-0 z-50 h-screen flex flex-col bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 transition-all duration-300',
+          'fixed lg:sticky top-0 left-0 z-50 h-[100dvh] flex flex-col bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 transition-all duration-300',
           collapsed ? 'w-[72px]' : 'w-64',
           mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         )}
@@ -142,7 +142,7 @@ function SuperAdminLayoutInner({ children }: { children: React.ReactNode }) {
         </nav>
 
         {/* Bottom controls */}
-        <div className={cn('border-t border-slate-100 dark:border-slate-800', collapsed ? 'p-2' : 'p-3')}>
+        <div className={cn('border-t border-slate-100 dark:border-slate-800 pb-[env(safe-area-inset-bottom)]', collapsed ? 'p-2' : 'p-3')}>
           {/* Theme toggle */}
           <button
             onClick={toggleTheme}

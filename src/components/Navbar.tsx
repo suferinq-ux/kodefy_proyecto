@@ -334,7 +334,7 @@ export default function Navbar() {
                                     setSidebarOpen(false);
                                 }
                             }}
-                            className="lg:hidden fixed left-0 top-0 h-screen w-72 max-w-[85vw] z-[80] shadow-2xl flex flex-col"
+                            className="lg:hidden fixed left-0 top-0 h-[100dvh] w-72 max-w-[85vw] z-[80] shadow-2xl flex flex-col"
                             style={isDarkSidebar ? sidebarStyle : { background: '#ffffff' }}
                         >
                             {/* Close + Logo */}
@@ -357,7 +357,7 @@ export default function Navbar() {
                             <ThemeSwitcher variant={isDarkSidebar ? 'branded' : 'default'} />
 
                             {/* Mobile user footer */}
-                            <div className={`border-t p-4 ${isDarkSidebar ? 'border-white/10' : 'border-slate-100'}`}>
+                            <div className={`border-t p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] ${isDarkSidebar ? 'border-white/10' : 'border-slate-100'}`}>
                                 <div className="flex items-center gap-3 mb-3">
                                     <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-black shrink-0 ${
                                         isDarkSidebar ? 'bg-white/15 text-white' : 'text-white'
