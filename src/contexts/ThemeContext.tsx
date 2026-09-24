@@ -16,14 +16,14 @@ interface ThemeContextProps {
 }
 
 const ThemeContext = createContext<ThemeContextProps>({
-    theme: 'light',
+    theme: 'brand',
     setTheme: () => {},
 });
 
 export const useTheme = () => useContext(ThemeContext);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-    const [theme, setThemeState] = useState<Theme>('light');
+    const [theme, setThemeState] = useState<Theme>('brand');
     const [mounted, setMounted] = useState(false);
 
     useEffect(() => {
