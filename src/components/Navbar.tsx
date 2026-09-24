@@ -325,7 +325,15 @@ export default function Navbar() {
                             initial={{ x: '-100%' }}
                             animate={{ x: 0 }}
                             exit={{ x: '-100%' }}
-                            transition={{ type: 'tween', duration: 0.3 }}
+                            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                            drag="x"
+                            dragConstraints={{ left: 0, right: 0 }}
+                            dragElastic={{ right: 0, left: 0.5 }}
+                            onDragEnd={(e, { offset, velocity }) => {
+                                if (offset.x < -50 || velocity.x < -300) {
+                                    setSidebarOpen(false);
+                                }
+                            }}
                             className="lg:hidden fixed left-0 top-0 h-screen w-72 max-w-[85vw] z-[80] shadow-2xl flex flex-col"
                             style={isDarkSidebar ? sidebarStyle : { background: '#ffffff' }}
                         >

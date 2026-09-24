@@ -198,22 +198,22 @@ function DashboardContent() {
         <div className="lg:col-span-8 space-y-8">
           {/* Inventario Real-time */}
           <div className="glass-panel overflow-hidden border-slate-200">
-            <div className="flex items-center justify-between px-8 py-6 bg-slate-50 border-b border-slate-100">
+            <div className="flex items-center justify-between px-4 sm:px-6 lg:px-8 py-4 sm:py-6 bg-slate-50 border-b border-slate-100">
               <div>
-                <h2 className="text-xl font-black text-slate-900 uppercase italic tracking-tight">Gestión de Inventario</h2>
+                <h2 className="text-lg sm:text-xl font-black text-slate-900 uppercase italic tracking-tight">Gestión de Inventario</h2>
                 <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Estado actual del stock de cocina</p>
               </div>
               {stock && (
                 <div className="flex items-center gap-2 bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded-full border border-emerald-200 shadow-sm animate-pulse-slow">
                   <div className="w-1.5 h-1.5 bg-emerald-600 rounded-full" />
-                  <span className="text-[10px] font-black uppercase tracking-widest">En Línea</span>
+                  <span className="text-[10px] font-black uppercase tracking-widest hidden sm:inline">En Línea</span>
                 </div>
               )}
             </div>
 
             {!stock ? (
-              <div className="py-20 text-center">
-                <Package size={48} className="text-slate-100 mx-auto mb-4" />
+              <div className="py-12 sm:py-20 text-center">
+                <Package size={40} className="sm:w-12 sm:h-12 text-slate-100 mx-auto mb-4" />
                 <p className="text-xs text-slate-400 font-black uppercase tracking-widest px-4">Inicia la jornada para ver el stock</p>
               </div>
             ) : (
@@ -326,8 +326,8 @@ function DashboardContent() {
           </div>
 
           {/* Top Productos (Inspirado en Referencia) */}
-          <div className="p-8 bg-white border border-slate-100 rounded-none shadow-sm">
-            <h2 className="text-xl font-black text-slate-900 uppercase italic tracking-tight mb-8">Productos Más Vendidos</h2>
+          <div className="p-4 sm:p-6 lg:p-8 bg-white border border-slate-100 rounded-none shadow-sm">
+            <h2 className="text-lg sm:text-xl font-black text-slate-900 uppercase italic tracking-tight mb-6 sm:mb-8">Productos Más Vendidos</h2>
             <div className="space-y-6">
               {topProductos.map((p, i) => {
                 const maxQty = topProductos[0]?.cantidad || 1;
@@ -387,36 +387,36 @@ function DashboardContent() {
           </div>
 
           {/* Egresos/Gastos (Clean Card) */}
-          <div className="bg-white border border-slate-100 rounded-none shadow-sm overflow-hidden flex flex-col h-full min-h-[400px]">
-            <div className="p-8 border-b border-slate-50 flex items-center justify-between bg-white sticky top-0 z-10">
+          <div className="bg-white border border-slate-100 rounded-none shadow-sm overflow-hidden flex flex-col h-full min-h-[300px] sm:min-h-[400px]">
+            <div className="p-4 sm:p-6 lg:p-8 border-b border-slate-50 flex items-center justify-between bg-white sticky top-0 z-10">
               <div>
-                <h2 className="text-xl font-black text-slate-900 uppercase italic tracking-tight">Egresos</h2>
+                <h2 className="text-lg sm:text-xl font-black text-slate-900 uppercase italic tracking-tight">Egresos</h2>
                 <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Resumen de costos hoy</p>
               </div>
               <div className="text-right">
                 <p className="text-xs font-black text-slate-300 uppercase tracking-widest">Total</p>
-                <p className="text-2xl font-black text-red-500 tracking-tighter">S/ {totalGastos.toFixed(2)}</p>
+                <p className="text-xl sm:text-2xl font-black text-red-500 tracking-tighter">S/ {totalGastos.toFixed(2)}</p>
               </div>
             </div>
 
-            <div className="flex-1 p-8 overflow-y-auto no-scrollbar space-y-4">
+            <div className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto no-scrollbar space-y-4">
               {gastosDelDia.length > 0 ? (
                 gastosDelDia.map(g => (
-                  <div key={g.id} className="p-4 bg-slate-50 rounded-none flex items-center justify-between border border-transparent hover:border-red-100 transition-all group/gasto">
-                    <div className="flex items-center gap-4 flex-1 mr-3">
-                      <div className="w-8 h-8 bg-red-500/10 text-red-500 rounded-none flex items-center justify-center font-black text-[10px] uppercase">
+                  <div key={g.id} className="p-3 sm:p-4 bg-slate-50 rounded-none flex items-center justify-between border border-transparent hover:border-red-100 transition-all group/gasto">
+                    <div className="flex items-center gap-3 sm:gap-4 flex-1 mr-2 sm:mr-3">
+                      <div className="w-8 h-8 bg-red-500/10 text-red-500 rounded-none flex items-center justify-center font-black text-[10px] uppercase shrink-0">
                         {g.metodo_pago?.[0] || 'E'}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-xs font-bold text-slate-700 uppercase truncate italic">{g.descripcion}</p>
+                        <p className="text-[11px] sm:text-xs font-bold text-slate-700 uppercase truncate italic">{g.descripcion}</p>
                         <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{g.metodo_pago || 'efectivo'}</p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <p className="text-sm font-black text-red-500">-S/ {g.monto.toFixed(2)}</p>
+                    <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+                      <p className="text-[13px] sm:text-sm font-black text-red-500">-S/ {g.monto.toFixed(2)}</p>
                       <button 
                         onClick={() => eliminarGasto(g.id)}
-                        className="opacity-0 group-hover/gasto:opacity-100 p-1.5 text-slate-300 hover:text-red-600 transition-all active:scale-90"
+                        className="opacity-100 lg:opacity-0 lg:group-hover/gasto:opacity-100 p-1.5 text-slate-300 hover:text-red-600 transition-all active:scale-90"
                         title="Eliminar gasto"
                       >
                         <Trash2 size={14} />
@@ -425,14 +425,14 @@ function DashboardContent() {
                   </div>
                 ))
               ) : (
-                <div className="py-20 text-center flex flex-col items-center justify-center h-full">
-                  <Receipt size={48} className="text-slate-100 mb-4" />
-                  <p className="text-xs text-slate-300 font-black uppercase tracking-[0.2em]">Sin gastos hoy</p>
+                <div className="py-12 sm:py-20 text-center flex flex-col items-center justify-center h-full">
+                  <Receipt size={40} className="sm:w-12 sm:h-12 text-slate-100 mb-4" />
+                  <p className="text-[10px] sm:text-xs text-slate-300 font-black uppercase tracking-[0.2em]">Sin gastos hoy</p>
                 </div>
               )}
             </div>
 
-            <div className="p-8 bg-slate-50 border-t border-slate-100 sticky bottom-0">
+            <div className="p-4 sm:p-6 lg:p-8 bg-slate-50 border-t border-slate-100 sticky bottom-0">
               <button 
                 onClick={() => {
                   if (!stock) {
