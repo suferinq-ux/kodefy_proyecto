@@ -1,0 +1,489 @@
+\documentclass[10pt,a4paper,twoside]{article}
+
+% ============================================
+% PAQUETES
+% ============================================
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish]{babel}
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage{enumitem}
+\usepackage{tabularx}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{tcolorbox}
+\usepackage{fontawesome5}
+\usepackage{tikz}
+\usepackage{caption}
+\usepackage{tocloft}
+\usepackage{setspace}
+\usepackage{parskip}
+\usepackage{lastpage}
+
+% ============================================
+% CONFIGURACIÓN DE PÁGINA (Compacta)
+% ============================================
+\geometry{
+    top=1.5cm,
+    bottom=1.5cm,
+    left=1.5cm,
+    right=1.5cm,
+    headheight=15pt,
+    columnsep=0.8cm
+}
+
+% ============================================
+% COLORES KODEFY
+% ============================================
+\definecolor{kodefyBlue}{HTML}{2563EB}
+\definecolor{kodefyDark}{HTML}{0F172A}
+\definecolor{kodefyLight}{HTML}{E0E7FF}
+\definecolor{kodefyGreen}{HTML}{10B981}
+\definecolor{kodefyOrange}{HTML}{F59E0B}
+\definecolor{kodefyRed}{HTML}{EF4444}
+\definecolor{kodefyGray}{HTML}{64748B}
+\definecolor{kodefyBg}{HTML}{F8FAFC}
+\definecolor{tipBg}{HTML}{ECFDF5}
+\definecolor{warnBg}{HTML}{FEF3C7}
+\definecolor{noteBg}{HTML}{EFF6FF}
+\definecolor{dangerBg}{HTML}{FEF2F2}
+
+% ============================================
+% ESTILOS DE TÍTULOS (Más compactos)
+% ============================================
+\titleformat{\section}
+{\large\bfseries\color{kodefyDark}}
+{\colorbox{kodefyBlue}{\textcolor{white}{\thesection}}}{0.5em}{}
+[\vspace{-0.2em}\textcolor{kodefyBlue}{\rule{\columnwidth}{1.5pt}}]
+
+\titleformat{\subsection}
+{\normalsize\bfseries\color{kodefyDark}}
+{\textcolor{kodefyBlue}{\thesubsection}}{0.5em}{}
+
+\titleformat{\subsubsection}
+{\normalsize\bfseries\color{kodefyGray}}
+{\textcolor{kodefyBlue}{\thesubsubsection}}{0.4em}{}
+
+\titlespacing*{\section}{0pt}{1.5ex plus 1ex minus .2ex}{1ex plus .2ex}
+\titlespacing*{\subsection}{0pt}{1ex plus 1ex minus .2ex}{0.5ex plus .2ex}
+\titlespacing*{\subsubsection}{0pt}{1ex plus 1ex minus .2ex}{0.5ex plus .2ex}
+
+% ============================================
+% CAJAS INFORMATIVAS (Compactas)
+% ============================================
+\newtcolorbox{tipbox}[1][Consejo]{
+    colback=tipBg,
+    colframe=kodefyGreen,
+    coltitle=white,
+    fonttitle=\bfseries\small,
+    title={\faLightbulb\ #1},
+    rounded corners,
+    boxrule=1pt,
+    left=4pt, right=4pt, top=2pt, bottom=2pt,
+    before skip=6pt, after skip=6pt
+}
+
+\newtcolorbox{warningbox}[1][Importante]{
+    colback=warnBg,
+    colframe=kodefyOrange,
+    coltitle=white,
+    fonttitle=\bfseries\small,
+    title={\faExclamationTriangle\ #1},
+    rounded corners,
+    boxrule=1pt,
+    left=4pt, right=4pt, top=2pt, bottom=2pt,
+    before skip=6pt, after skip=6pt
+}
+
+\newtcolorbox{notebox}[1][Nota]{
+    colback=noteBg,
+    colframe=kodefyBlue,
+    coltitle=white,
+    fonttitle=\bfseries\small,
+    title={\faInfoCircle\ #1},
+    rounded corners,
+    boxrule=1pt,
+    left=4pt, right=4pt, top=2pt, bottom=2pt,
+    before skip=6pt, after skip=6pt
+}
+
+\newtcolorbox{dangerbox}[1][Cuidado]{
+    colback=dangerBg,
+    colframe=kodefyRed,
+    coltitle=white,
+    fonttitle=\bfseries\small,
+    title={\faTimesCircle\ #1},
+    rounded corners,
+    boxrule=1pt,
+    left=4pt, right=4pt, top=2pt, bottom=2pt,
+    before skip=6pt, after skip=6pt
+}
+
+\newtcolorbox{stepbox}[1][]{
+    colback=kodefyBg,
+    colframe=kodefyBlue!30,
+    coltitle=kodefyDark,
+    fonttitle=\bfseries\small,
+    title={#1},
+    rounded corners,
+    boxrule=0.5pt,
+    left=4pt, right=4pt, top=2pt, bottom=2pt,
+    before skip=4pt, after skip=4pt
+}
+
+% ============================================
+% ENCABEZADOS Y PIES DE PÁGINA
+% ============================================
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[LE,RO]{\textcolor{kodefyGray}{\small\thepage\ / \pageref{LastPage}}}
+\fancyhead[LO]{\textcolor{kodefyBlue}{\small\bfseries KODEFY TECH}}
+\fancyhead[RE]{\textcolor{kodefyGray}{\small\leftmark}}
+\fancyfoot[C]{\textcolor{kodefyGray}{\footnotesize Manual de Usuario --- Versión 1.0}}
+\renewcommand{\headrulewidth}{0.5pt}
+\renewcommand{\headrule}{\hbox to\headwidth{\color{kodefyBlue}\leaders\hrule height \headrulewidth\hfill}}
+\renewcommand{\footrulewidth}{0.3pt}
+\renewcommand{\footrule}{\hbox to\headwidth{\color{kodefyLight}\leaders\hrule height \footrulewidth\hfill}}
+
+% ============================================
+% HYPERLINKS
+% ============================================
+\hypersetup{
+    colorlinks=true,
+    linkcolor=kodefyBlue,
+    urlcolor=kodefyBlue,
+    citecolor=kodefyBlue,
+    bookmarksopen=true,
+    pdfauthor={KODEFY TECH},
+    pdftitle={Manual de Usuario - Sistema de Gestión KODEFY},
+}
+
+% ============================================
+% TABLA DE CONTENIDOS
+% ============================================
+\renewcommand{\cftsecfont}{\bfseries\color{kodefyDark}\small}
+\renewcommand{\cftsecpagefont}{\bfseries\color{kodefyBlue}\small}
+\renewcommand{\cftsubsecfont}{\color{kodefyGray}\footnotesize}
+\renewcommand{\cftsecdotsep}{\cftdotsep}
+\setlength{\cftbeforesecskip}{2pt}
+
+\begin{document}
+\onecolumn
+
+% ============================================
+% PORTADA
+% ============================================
+\begin{titlepage}
+\begin{tikzpicture}[remember picture, overlay]
+    \fill[kodefyDark] (current page.south west) rectangle (current page.north east);
+    \fill[kodefyBlue, opacity=0.3] (current page.north west) -- ++(0,-8) -- ++(\paperwidth,3) -- ++(0,5) -- cycle;
+    \fill[kodefyBlue, opacity=0.15] (current page.north west) -- ++(0,-12) -- ++(\paperwidth,5) -- ++(0,7) -- cycle;
+    \fill[kodefyBlue, opacity=0.2] (current page.south west) -- ++(0,4) -- ++(\paperwidth,-2) -- ++(0,-2) -- cycle;
+    \fill[kodefyBlue, opacity=0.08] (14,-14) circle (6cm);
+    \fill[kodefyBlue, opacity=0.05] (3,-20) circle (4cm);
+\end{tikzpicture}
+
+\vspace*{2cm}
+
+\begin{center}
+    {\fontsize{50}{60}\selectfont\textbf{\textcolor{white}{KODEFY}\textcolor{kodefyBlue}{TECH}}}
+    
+    \vspace{0.5cm}
+    {\textcolor{kodefyBlue}{\rule{6cm}{2pt}}}
+    
+    \vspace{1.5cm}
+    {\fontsize{24}{30}\selectfont\textcolor{white}{\textbf{Manual de Usuario}}}
+    
+    \vspace{0.3cm}
+    {\Large\textcolor{kodefyBlue}{Sistema de Gestión Integral para Negocios}}
+    
+    \vspace{0.5cm}
+    {\large\textcolor{gray!60}{Punto de Venta · Inventario · Reportes · Delivery}}
+    
+    \vspace{2cm}
+    
+    \begin{tcolorbox}[
+        colback=kodefyBlue!10,
+        colframe=kodefyBlue!40,
+        width=10cm,
+        arc=8pt,
+        boxrule=1pt
+    ]
+    \centering
+    \textcolor{white}{\large\bfseries Versión 1.0}\\[4pt]
+    \textcolor{gray!70}{\small Octubre 2026 · Todos los derechos reservados}\\[4pt]
+    \textcolor{gray!70}{\small Soporte: contacto@kodefytech.com}
+    \end{tcolorbox}
+\end{center}
+\end{titlepage}
+
+% ============================================
+% TABLA DE CONTENIDOS
+% ============================================
+\newpage
+\tableofcontents
+\vspace{1cm}
+\begin{center}
+{\LARGE\bfseries\textcolor{kodefyDark}{¡Bienvenido a KODEFY TECH!}}
+\end{center}
+\vspace{0.5cm}
+Estimado usuario, gracias por confiar en \textbf{KODEFY TECH} como la solución tecnológica para tu negocio. Este manual ha sido diseñado para guiarte paso a paso en el uso de todas las funcionalidades del sistema, desde la apertura diaria de tu caja hasta la generación de reportes detallados.
+
+\begin{tipbox}[Sobre este manual]
+Recomendamos leerlo completo la primera vez y después usarlo como referencia rápida cuando necesites recordar algún procedimiento.
+\end{tipbox}
+
+\newpage
+\twocolumn
+% ============================================
+% INICIO DEL CONTENIDO EN DOS COLUMNAS
+% ============================================
+
+\section{Primeros Pasos}
+
+\subsection{¿Qué es KODEFY TECH?}
+
+\textbf{KODEFY TECH} es un sistema de gestión integral para negocios de comida. Funciona desde tu navegador web --- puedes usarlo desde una computadora, tablet o celular sin instalar nada.
+
+Te permite manejar:
+\begin{itemize}[itemsep=1pt, leftmargin=15pt]
+    \item \textbf{POS:} Registrar pedidos rápidamente
+    \item \textbf{Mesas:} Ver qué mesas están ocupadas
+    \item \textbf{Cocina:} Pedidos en tiempo real
+    \item \textbf{Inventario:} Control de stock
+    \item \textbf{Delivery:} Gestión de repartos
+    \item \textbf{Reportes:} Análisis detallado
+    \item \textbf{WhatsApp IA:} Bot que atiende clientes
+\end{itemize}
+
+\subsection{¿Cómo accedo al sistema?}
+
+Abre tu navegador web y ve a la dirección web proporcionada.
+
+\subsubsection{Método 1: PIN de Negocio}
+
+\begin{stepbox}[Paso 1: PIN]
+Ingresa el \textbf{``PIN de Negocio (6 dígitos)''}. Cada negocio tiene su propio PIN único.
+\end{stepbox}
+
+\begin{stepbox}[Paso 2: Credenciales]
+Una vez verificado el PIN, ingresa tu correo electrónico y tu contraseña personal.
+\end{stepbox}
+
+\subsubsection{Método 2: Multi-Negocio}
+
+\begin{stepbox}[Varias sucursales]
+\begin{enumerate}[itemsep=1pt, leftmargin=15pt]
+    \item Presiona \textbf{``Tengo varios negocios''}.
+    \item Ingresa tu correo y contraseña.
+    \item Selecciona el negocio donde trabajarás hoy.
+\end{enumerate}
+\end{stepbox}
+
+\subsection{Roles de Usuario}
+
+\begin{itemize}[itemsep=2pt, leftmargin=15pt]
+    \item \textcolor{kodefyBlue}{\textbf{Admin:}} Acceso total (crear usuarios, cambiar precios, reportes, configurar negocio).
+    \item \textcolor{kodefyGreen}{\textbf{Cajero:}} Puede tomar pedidos, ver mesas, registrar ventas y ver el dashboard del día.
+    \item \textcolor{kodefyOrange}{\textbf{Mozo:}} Puede tomar pedidos y asignarlos a mesas.
+    \item \textcolor{kodefyRed}{\textbf{Repartidor:}} Ve únicamente sus pedidos de delivery con mapa GPS.
+\end{itemize}
+
+\begin{warningbox}
+Solo el \textbf{Admin} puede crear usuarios y modificar la configuración.
+\end{warningbox}
+
+% ============================================
+\section{Dashboard}
+
+El \textbf{Dashboard} es tu panel de control principal.
+
+\subsection{¿Qué muestra?}
+\begin{itemize}[itemsep=1pt, leftmargin=15pt]
+    \item \textbf{Ingresos:} Total vendido hoy.
+    \item \textbf{Pedidos:} Cuántos atendiste hoy.
+    \item \textbf{Stock:} Pollos y bebidas disponibles.
+    \item \textbf{Gastos:} Compras registradas.
+    \item \textbf{Top 5:} Productos más vendidos.
+    \item \textbf{Métodos de pago:} Desglose de ingresos por efectivo, Yape, Plin, etc.
+\end{itemize}
+
+\begin{tipbox}
+Se actualiza \textbf{en tiempo real}. Si otro cajero vende, los números se actualizan solos.
+\end{tipbox}
+
+% ============================================
+\section{Apertura de Caja}
+
+Es obligatorio abrir la caja antes de empezar a vender para indicar tu stock y dinero base.
+
+\subsection{Proceso}
+\begin{stepbox}[Cómo abrir]
+\begin{enumerate}[itemsep=1pt, leftmargin=15pt]
+    \item Ve a la sección \textbf{``Apertura''}.
+    \item Ingresa los \textbf{Pollos enteros} disponibles.
+    \item Ingresa \textbf{Kilos de papas} y \textbf{Litros de chicha}.
+    \item Ingresa el \textbf{Dinero inicial} (base).
+    \item Ingresa las \textbf{Bebidas} por marca y tamaño.
+    \item Presiona \textbf{``Abrir Caja''}.
+\end{enumerate}
+\end{stepbox}
+
+\begin{tipbox}[Carga automática]
+Si cerraste caja correctamente el día anterior, el stock sobrante se \textbf{pre-carga automáticamente}.
+\end{tipbox}
+
+% ============================================
+\section{Punto de Venta (POS)}
+
+\subsection{Tipos de Pedido}
+\begin{itemize}[itemsep=1pt, leftmargin=15pt]
+    \item \textbf{Para Mesa:} Selecciona una mesa libre.
+    \item \textbf{Para Llevar:} No se asigna mesa.
+    \item \textbf{Delivery:} Pide dirección del cliente.
+\end{itemize}
+
+\subsection{Tomar un pedido}
+\begin{stepbox}[Paso a paso]
+\begin{enumerate}[itemsep=1pt, leftmargin=15pt]
+    \item Elige el tipo de pedido.
+    \item Agrega productos al carrito tocándolos.
+    \item Si el producto tiene opciones (ej: parte del pollo), selecciónalas.
+    \item Elige el método de pago (Efectivo, Yape, Plin, Tarjeta, Mixto).
+    \item Presiona \textbf{``Confirmar Pedido''}.
+\end{enumerate}
+\end{stepbox}
+
+\subsection{Impresión automática}
+Al confirmar, se imprime el ticket para el cliente y la comanda para la cocina automáticamente (requiere configurar las IPs de las impresoras).
+
+% ============================================
+\section{Mesas y Cocina}
+
+\subsection{Mesas}
+\begin{itemize}[itemsep=1pt, leftmargin=15pt]
+    \item \textbf{Verdes (Libres):} Listas para usar.
+    \item \textbf{Rojas (Ocupadas):} Puedes tocarlas para agregar más productos, cambiar de mesa o cobrar.
+\end{itemize}
+
+\subsection{Pantalla de Cocina}
+\begin{itemize}[itemsep=1pt, leftmargin=15pt]
+    \item Los pedidos llegan con estado \textbf{``Pendiente''}.
+    \item El cocinero ve detalles y notas.
+    \item Al terminar, lo marca como \textbf{``Listo''} y el cajero/mozo recibe la notificación.
+\end{itemize}
+
+% ============================================
+\section{Delivery y Radar}
+
+\subsection{Pedidos a Domicilio}
+Al crear un delivery, ingresas la dirección y el sistema calcula el \textbf{costo de envío} (si configuraste tu ubicación).
+
+El estado avanza así: Buscando repartidor → Asignado → En camino → Entregado.
+
+\subsection{Vista del Repartidor}
+El repartidor tiene un \textbf{mapa GPS} en su celular para ver la ruta óptima de entrega y marcar el pedido como entregado.
+
+% ============================================
+\section{Historial y Anulaciones}
+
+\subsection{Ventas del día}
+Muestra todas las ventas. Puedes \textbf{Reimprimir tickets} o \textbf{Anular ventas}.
+
+\begin{dangerbox}
+\textbf{Anular} (solo Admins) cancela la venta, devuelve el stock y requiere ingresar un motivo para auditoría.
+\end{dangerbox}
+
+% ============================================
+\section{Cierre de Caja}
+
+Al finalizar el día, debes comparar lo registrado vs lo real.
+
+\begin{stepbox}[Proceso de Cierre]
+\begin{enumerate}[itemsep=1pt, leftmargin=15pt]
+    \item Ve a \textbf{``Cierre de Caja''}.
+    \item Revisa el resumen automático de ventas.
+    \item Ingresa tu \textbf{conteo real}: pollos sobrantes, pollos usados por personal, mermas, bebidas sobrantes y dinero físico en caja.
+    \item El sistema calculará diferencias (faltantes o sobrantes).
+    \item Presiona \textbf{``Cerrar Caja''}.
+\end{enumerate}
+\end{stepbox}
+
+\begin{warningbox}
+Una vez cerrada la caja, no puedes registrar más ventas ese día.
+\end{warningbox}
+
+% ============================================
+\section{Reportes y Gastos}
+
+\subsection{Reportes}
+Filtra por día o rango de fechas.
+\begin{itemize}[itemsep=1pt, leftmargin=15pt]
+    \item \textbf{Top Productos:} Gráfico de barras.
+    \item \textbf{Métodos de pago:} Gráfico circular.
+    \item \textbf{Ventas por hora:} Horarios pico.
+\end{itemize}
+Puedes exportar todos los datos a Excel.
+
+\subsection{Gastos}
+Registra tus compras diarias desde el Dashboard (botón ``Registrar Gasto''). Se restarán automáticamente del cierre de caja.
+
+% ============================================
+\section{WhatsApp con IA}
+
+El bot atiende a tus clientes 24/7 por WhatsApp.
+
+\textbf{¿Qué puede hacer?}
+\begin{itemize}[itemsep=1pt, leftmargin=15pt]
+    \item Responder dudas (horarios, menú).
+    \item Tomar pedidos y calcular delivery.
+    \item Gestionar reservas de mesas.
+    \item Verificar vouchers de pago.
+\end{itemize}
+
+En la sección \textbf{``WhatsApp''} puedes apagarlo/encenderlo, cambiar su nombre, mensaje de bienvenida y configurar tus números de Yape/Plin.
+
+% ============================================
+\section{Inventario Avanzado}
+
+Además de pollos y bebidas, puedes gestionar insumos completos (ej: arroz, aceite).
+\begin{itemize}[itemsep=1pt, leftmargin=15pt]
+    \item \textbf{Insumos:} Lista de materias primas.
+    \item \textbf{Recetas:} Vincula insumos a productos para descontarlos automáticamente al vender.
+    \item \textbf{Alertas:} Te avisa si hay stock bajo.
+\end{itemize}
+
+% ============================================
+\section{Configuración}
+
+Sección exclusiva para el \textbf{Admin}.
+
+\begin{itemize}[itemsep=1pt, leftmargin=15pt]
+    \item \textbf{Productos:} Cambia precios y actívalos.
+    \item \textbf{Usuarios:} Crea empleados y asigna roles.
+    \item \textbf{Mesas:} Crea mesas por piso.
+    \item \textbf{Negocio:} Cambia nombre, logo y colores.
+    \item \textbf{Impresoras:} Pon las IPs de las térmicas.
+    \item \textbf{Catálogo de Bebidas:} Agrega o quita marcas.
+\end{itemize}
+
+% ============================================
+\section{Tips Extra}
+
+\subsection{Instalar como App}
+KODEFY TECH se puede instalar: abre Chrome en tu celular, toca los tres puntos y selecciona \textbf{``Agregar a pantalla de inicio''}. Funcionará como una app nativa a pantalla completa.
+
+\subsection{Tema Oscuro}
+Usa el botón de la luna arriba a la derecha para activar el modo oscuro (ideal para la noche o ahorrar batería).
+
+\vspace{1cm}
+
+\begin{center}
+    {\large \faWhatsapp\ Soporte: contacto@kodefytech.com}
+\end{center}
+
+\end{document}
