@@ -1,0 +1,3 @@
+{
+  "ignore": ["whatsapp_auth_sessions/*", "whatsapp_auth_sessions/**"]
+}

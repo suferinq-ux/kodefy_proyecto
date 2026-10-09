@@ -29,14 +29,38 @@ export async function processIncomingWhatsAppMessage({
 }: ProcessIncomingWhatsAppMessageInput): Promise<WhatsAppAgentResponse> {
     try {
         // 1. Obtener la configuración del negocio
-        const { data: config, error: configErr } = await supabaseAdmin
+        const { data: configRow, error: configErr } = await supabaseAdmin
             .from('whatsapp_config')
             .select('*')
             .eq('negocio_id', negocioId)
             .maybeSingle();
 
-        if (configErr || !config || !config.bot_activo) {
-            console.log(`[WhatsApp Agent] Bot desactivado o no configurado para el negocio ${negocioId}`);
+        if (configErr) {
+            console.error(`[WhatsApp Agent] Error leyendo whatsapp_config del negocio ${negocioId}:`, configErr.message);
+            return { respondió: false };
+        }
+
+        // Negocio sin fila en whatsapp_config (típico al conectar solo por QR):
+        // usamos los mismos valores por defecto que aplica la tabla.
+        const config = configRow ?? {
+            bot_activo: true,
+            modo_delivery: true,
+            modo_recojo: true,
+            modo_mesa: true,
+            modo_reserva: true,
+            modo_antifraude_comprobante: true,
+            nombre_asistente: 'Asistente Virtual',
+            mensaje_bienvenida: '¡Hola! Bienvenid@ a nuestro negocio. 🤖¿En qué te puedo ayudar hoy?',
+            prompt_personalizado: 'Eres un amable asistente de atención al cliente y toma de pedidos.',
+            costo_delivery_fijo: 0,
+            numero_yape_plin: '',
+            nombre_titular_yape_plin: '',
+            qr_yape_plin_url: '',
+            datos_cuenta_bancaria: '',
+        };
+
+        if (!config.bot_activo) {
+            console.log(`[WhatsApp Agent] Bot desactivado para el negocio ${negocioId}`);
             return { respondió: false };
         }
 

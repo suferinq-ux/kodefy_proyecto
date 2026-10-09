@@ -36,7 +36,7 @@ function ConfiguracionContent() {
     const [filtroTipo, setFiltroTipo] = useState<TipoProducto | 'todos'>('todos');
 
     const { user } = useAuth();
-    const [activeTab, setActiveTab] = useState<'precios' | 'usuarios' | 'accesos' | 'mesas' | 'negocio' | 'impresoras' | 'bebidas' | 'stock'>('precios');
+    const [activeTab, setActiveTab] = useState<'productos' | 'usuarios' | 'accesos' | 'mesas' | 'negocio' | 'impresoras' | 'bebidas' | 'stock'>('productos');
     const { allBrands, customBrands, deleteBeverage, loading: loadingBebidas, masterStock, updateMasterStock, mergeWithStock } = useBebidasConfig();
     const [config, setConfig] = useState<any>(null);
     
@@ -955,7 +955,7 @@ function ConfiguracionContent() {
                         <div className="w-full md:w-auto overflow-x-auto no-scrollbar pb-1">
                             <nav className="flex bg-slate-100 p-1.5 rounded-none border border-slate-200 shadow-sm flex-nowrap min-w-max">
                                 {[
-                                    { id: 'precios', icon: Settings, label: 'Precios', roles: ['admin', 'cajero', 'invitado'] },
+                                    { id: 'productos', icon: Settings, label: 'Productos', roles: ['admin', 'cajero', 'invitado'] },
                                     { id: 'stock', icon: RefreshCw, label: 'Stock', roles: ['admin', 'cajero', 'invitado'] },
                                     { id: 'usuarios', icon: Users, label: 'Usuarios', roles: ['admin', 'invitado'] },
                                     { id: 'accesos', icon: KeyRound, label: 'Accesos', roles: ['admin'] },
@@ -979,9 +979,9 @@ function ConfiguracionContent() {
                 </header>
 
                 <AnimatePresence mode="wait">
-                    {activeTab === 'precios' && (
+                    {activeTab === 'productos' && (
                         <motion.div
-                            key="precios"
+                            key="productos"
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: -10 }}
@@ -1127,21 +1127,29 @@ function ConfiguracionContent() {
                                                                                          </div>
                                                                                      </motion.div>
                                                                                 ) : (
-                                                                                    <motion.button
+                                                                                    <motion.div
                                                                                         key="display"
                                                                                         initial={{ opacity: 0 }}
                                                                                         animate={{ opacity: 1 }}
-                                                                                        onClick={() => iniciarEdicion(producto)}
-                                                                                        className="flex items-center justify-end gap-4 w-full group/btn text-right"
+                                                                                        className="flex items-center justify-end gap-4 w-full text-right"
                                                                                     >
-                                                                                        <div className="flex flex-col items-end">
+                                                                                        <div className="flex flex-col items-end cursor-pointer group/btn" onClick={() => iniciarEdicion(producto)}>
                                                                                             <span className="text-2xl font-black text-slate-900 italic tracking-tighter group-hover/btn:text-rodrigo-terracotta transition-colors">
                                                                                                 S/ {producto.precio.toFixed(2)}
                                                                                             </span>
                                                                                             <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest opacity-0 group-hover/btn:opacity-100 transition-all -translate-y-1 group-hover/btn:translate-y-0">Editar Tarifa</span>
                                                                                         </div>
-                                                                                        {!isReadOnly(user?.rol) && <Pencil size={16} className="text-slate-100 transition-all group-hover/btn:text-rodrigo-terracotta/40" />}
-                                                                                    </motion.button>
+                                                                                        {!isReadOnly(user?.rol) && (
+                                                                                            <div className="flex items-center gap-2">
+                                                                                                <button onClick={() => iniciarEdicion(producto)} className="p-2 text-slate-300 hover:text-rodrigo-terracotta transition-colors">
+                                                                                                    <Pencil size={16} />
+                                                                                                </button>
+                                                                                                <button onClick={() => deleteProduct(producto.id)} className="p-2 text-slate-300 hover:text-red-500 transition-colors">
+                                                                                                    <Trash2 size={16} />
+                                                                                                </button>
+                                                                                            </div>
+                                                                                        )}
+                                                                                    </motion.div>
                                                                                 )}
                                                                             </AnimatePresence>
                                                                         </td>
@@ -1183,13 +1191,22 @@ function ConfiguracionContent() {
                                                                             <button onClick={cancelarEdicion} className="w-12 h-12 bg-slate-200 text-slate-500 rounded-xl flex items-center justify-center"><X size={20} strokeWidth={3} /></button>
                                                                         </motion.div>
                                                                     ) : (
-                                                                        <button
-                                                                            key="display-mobile"
-                                                                            onClick={() => iniciarEdicion(producto)}
-                                                                            className="w-full py-3 bg-slate-100 text-slate-500 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all flex items-center justify-center gap-2"
-                                                                        >
-                                                                            <Pencil size={14} /> Ajustar Tarifa
-                                                                        </button>
+                                                                        <div key="display-mobile" className="flex gap-2 w-full">
+                                                                            <button
+                                                                                onClick={() => iniciarEdicion(producto)}
+                                                                                className="flex-1 py-3 bg-slate-100 text-slate-500 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all flex items-center justify-center gap-2"
+                                                                            >
+                                                                                <Pencil size={14} /> Ajustar Tarifa
+                                                                            </button>
+                                                                            {!isReadOnly(user?.rol) && (
+                                                                                <button
+                                                                                    onClick={() => deleteProduct(producto.id)}
+                                                                                    className="w-12 py-3 bg-red-50 text-red-500 rounded-xl hover:bg-red-100 transition-all flex items-center justify-center"
+                                                                                >
+                                                                                    <Trash2 size={14} />
+                                                                                </button>
+                                                                            )}
+                                                                        </div>
                                                                     )}
                                                                 </AnimatePresence>
                                                             </div>

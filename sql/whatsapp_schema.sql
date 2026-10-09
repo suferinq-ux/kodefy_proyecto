@@ -41,6 +41,19 @@ ALTER TABLE public.whatsapp_config ADD COLUMN IF NOT EXISTS numero_yape_plin TEX
 ALTER TABLE public.whatsapp_config ADD COLUMN IF NOT EXISTS nombre_titular_yape_plin TEXT;
 ALTER TABLE public.whatsapp_config ADD COLUMN IF NOT EXISTS qr_yape_plin_url TEXT;
 ALTER TABLE public.whatsapp_config ADD COLUMN IF NOT EXISTS datos_cuenta_bancaria TEXT;
+ALTER TABLE public.whatsapp_config ADD COLUMN IF NOT EXISTS telefono_negocio_wa TEXT;
+ALTER TABLE public.whatsapp_config ADD COLUMN IF NOT EXISTS metodo_conexion TEXT DEFAULT 'qr' CHECK (metodo_conexion IN ('qr', 'cloud_api'));
+ALTER TABLE public.whatsapp_config ADD COLUMN IF NOT EXISTS wa_estado TEXT DEFAULT 'desconectado' CHECK (wa_estado IN ('desconectado', 'qr_pendiente', 'conectado', 'error'));
+ALTER TABLE public.whatsapp_config ADD COLUMN IF NOT EXISTS wa_numero_conectado TEXT;
+
+-- 1.5 TABLA: whatsapp_sessions
+-- Almacena las sesiones de Baileys para la conexión por QR
+CREATE TABLE IF NOT EXISTS public.whatsapp_sessions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    negocio_id UUID NOT NULL UNIQUE REFERENCES public.negocios(id) ON DELETE CASCADE,
+    session_data JSONB NOT NULL DEFAULT '{}'::jsonb,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc', now())
+);
 
 -- 2. TABLA: whatsapp_conversaciones
 -- Registra los hilos de conversación de WhatsApp por cliente y estado de sesión

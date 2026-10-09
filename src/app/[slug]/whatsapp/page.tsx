@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { useBusiness } from '@/contexts/BusinessContext';
@@ -53,6 +53,9 @@ interface WhatsAppConfigData {
     qr_yape_plin_url: string;
     datos_cuenta_bancaria: string;
     telefono_negocio_wa?: string;
+    metodo_conexion?: 'qr' | 'cloud_api';
+    wa_estado?: 'desconectado' | 'qr_pendiente' | 'conectado' | 'error';
+    wa_numero_conectado?: string;
 }
 
 interface ConversacionItem {
@@ -76,7 +79,7 @@ export default function WhatsAppPage() {
     const slug = params?.slug as string;
     const { business } = useBusiness();
 
-    const [activeTab, setActiveTab] = useState<'config' | 'chats' | 'simulator'>('simulator');
+    const [activeTab, setActiveTab] = useState<'qr' | 'config' | 'chats' | 'simulator'>('qr');
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
 
@@ -101,6 +104,9 @@ export default function WhatsAppPage() {
         qr_yape_plin_url: '',
         datos_cuenta_bancaria: '',
         telefono_negocio_wa: '',
+        metodo_conexion: 'qr',
+        wa_estado: 'desconectado',
+        wa_numero_conectado: ''
     });
 
     // Estado de Chats en Vivo
@@ -117,6 +123,13 @@ export default function WhatsAppPage() {
     ]);
     const [simLoading, setSimLoading] = useState(false);
 
+    // Estado Conexión QR
+    const [qrCodeBase64, setQrCodeBase64] = useState<string | null>(null);
+    const [isConnectingQr, setIsConnectingQr] = useState(false);
+    const [qrError, setQrError] = useState('');
+    const [isConnected, setIsConnected] = useState(false);
+    const qrFetchingRef = useRef(false);
+    const isConnectedRef = useRef(false);
     // Cargar Configuración del Negocio
     useEffect(() => {
         if (!business?.id) return;
@@ -153,6 +166,9 @@ export default function WhatsAppPage() {
                     qr_yape_plin_url: data.qr_yape_plin_url || '',
                     datos_cuenta_bancaria: data.datos_cuenta_bancaria || '',
                     telefono_negocio_wa: data.telefono_negocio_wa || '',
+                    metodo_conexion: data.metodo_conexion || 'qr',
+                    wa_estado: data.wa_estado || 'desconectado',
+                    wa_numero_conectado: data.wa_numero_conectado || '',
                 });
             }
             setLoading(false);
@@ -437,8 +453,136 @@ export default function WhatsAppPage() {
         }
     };
 
+    // Funciones QR
+    const fetchQrCode = async (quiet = false) => {
+        if (!business?.id) return;
+        if (isConnectedRef.current || isConnected) return;
+        if (qrFetchingRef.current) return;
+        qrFetchingRef.current = true;
+
+        if (!quiet) {
+            setIsConnectingQr(true);
+            setQrError('');
+        }
+
+        try {
+            const res = await fetch(`/api/whatsapp/session/qr?negocioId=${business.id}`);
+            const data = await res.json().catch(() => null);
+
+            if (data?.qr) {
+                setQrCodeBase64(data.qr);
+                setQrError('');
+                setConfig(prev => ({ ...prev, wa_estado: 'qr_pendiente' }));
+            } else if (data?.status === 'connected') {
+                setQrCodeBase64(null);
+                setConfig(prev => ({ ...prev, wa_estado: 'conectado' }));
+                isConnectedRef.current = true;
+                setIsConnected(true);
+            } else if (data?.status === 'qr_pending' || data?.status === 'connecting') {
+                setConfig(prev => ({ ...prev, wa_estado: 'qr_pendiente' }));
+                if (!qrCodeBase64) {
+                    setQrError('Todavía no hay un QR disponible. Pulsa "Generar QR" para reintentar.');
+                }
+            } else {
+                setQrError(data?.error || 'No se pudo generar el QR. Reintenta en unos segundos.');
+            }
+        } catch (error: any) {
+            setQrError('Error conectando al servidor de WhatsApp. Verifica que el servicio esté activo.');
+        } finally {
+            qrFetchingRef.current = false;
+            if (!quiet) setIsConnectingQr(false);
+        }
+    };
+
+    const handleDisconnectQr = async () => {
+        if (!business?.id) return;
+        const confirm = window.confirm('¿Seguro que deseas desconectar este dispositivo de WhatsApp?');
+        if (!confirm) return;
+        try {
+            const res = await fetch('/api/whatsapp/session/disconnect', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ negocioId: business.id })
+            });
+            const data = await res.json().catch(() => null);
+            if (!res.ok || data?.success === false) {
+                throw new Error(data?.error || 'No se pudo desconectar');
+            }
+            setConfig(prev => ({ ...prev, wa_estado: 'desconectado', wa_numero_conectado: '' }));
+            setQrCodeBase64(null);
+            isConnectedRef.current = false;
+            setIsConnected(false);
+            toast.success('Dispositivo desconectado correctamente');
+        } catch (error: any) {
+            toast.error('Error al desconectar: ' + (error?.message || ''));
+        }
+    };
+
+    // Si quedó un QR pendiente (página recargada), lo pedimos automáticamente
+    useEffect(() => {
+        if (!business?.id || activeTab !== 'qr') return;
+        if (isConnectedRef.current) return;
+        if (config.wa_estado === 'qr_pendiente' && !qrCodeBase64 && !qrFetchingRef.current) {
+            fetchQrCode(true);
+        }
+    }, [business?.id, activeTab, config.wa_estado, qrCodeBase64]);
+
+    // Polling del estado de WhatsApp si estamos en la pestaña QR
+    useEffect(() => {
+        if (!business?.id || activeTab !== 'qr' || config.wa_estado === 'desconectado') return;
+        if (isConnectedRef.current) return;
+
+        let tick = 0;
+
+        const interval = setInterval(async () => {
+            if (isConnectedRef.current) {
+                clearInterval(interval);
+                return;
+            }
+            tick += 1;
+            try {
+                const res = await fetch(`/api/whatsapp/session/status?negocioId=${business.id}`);
+                const data = await res.json().catch(() => null);
+                const status = data?.status;
+
+                if (status === 'connected') {
+                    if (config.wa_estado !== 'conectado') {
+                        setConfig(prev => ({ ...prev, wa_estado: 'conectado' }));
+                        toast.success('¡WhatsApp conectado exitosamente!');
+                    }
+                    setQrCodeBase64(null);
+                    isConnectedRef.current = true;
+                    setIsConnected(true);
+                    clearInterval(interval);
+                } else if (status === 'qr_pending' || status === 'connecting') {
+                    if (config.wa_estado !== 'qr_pendiente') {
+                        setConfig(prev => ({ ...prev, wa_estado: 'qr_pendiente' }));
+                    }
+                    if (tick % 5 === 0) {
+                        fetchQrCode(true);
+                    }
+                } else if (status === 'disconnected') {
+                    if (config.wa_estado === 'conectado') {
+                        setConfig(prev => ({ ...prev, wa_estado: 'desconectado' }));
+                        setQrCodeBase64(null);
+                        isConnectedRef.current = false;
+                        setIsConnected(false);
+                        toast.error('Se perdió la conexión de WhatsApp. Vincula el dispositivo nuevamente.');
+                    } else if (tick % 5 === 0) {
+                        fetchQrCode(true);
+                    }
+                }
+            } catch (error) {
+                // Ignore silent poll errors
+            }
+        }, 3000);
+
+        return () => clearInterval(interval);
+    }, [business?.id, activeTab, config.wa_estado, qrCodeBase64, isConnected]);
+
+
     // Control de vista: Activar para mostrar únicamente la pantalla limpia "En Desarrollo (BETA)" al cliente final
-    const MODO_EN_DESARROLLO_OCULTO = true;
+    const MODO_EN_DESARROLLO_OCULTO = false;
 
     if (loading) {
         return (
@@ -495,14 +639,22 @@ export default function WhatsAppPage() {
                 </div>
 
                 {/* Tabs Switcher */}
-                <div className="flex bg-slate-100 p-1 rounded-xl">
+                <div className="flex flex-wrap bg-slate-100 p-1 rounded-xl gap-1">
+                    <button
+                        onClick={() => setActiveTab('qr')}
+                        className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg transition-all ${
+                            activeTab === 'qr' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-500 hover:text-slate-900'
+                        }`}
+                    >
+                        <Smartphone size={16} /> Conexión WhatsApp
+                    </button>
                     <button
                         onClick={() => setActiveTab('simulator')}
                         className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg transition-all ${
-                            activeTab === 'simulator' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-500 hover:text-slate-900'
+                            activeTab === 'simulator' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-900'
                         }`}
                     >
-                        <TestTube size={16} /> Probador de IA (Local)
+                        <TestTube size={16} /> Probador IA
                     </button>
                     <button
                         onClick={() => setActiveTab('config')}
@@ -522,6 +674,92 @@ export default function WhatsAppPage() {
                     </button>
                 </div>
             </div>
+
+            {/* Pestaña: CONEXIÓN WHATSAPP (QR) */}
+            {activeTab === 'qr' && (
+                <div className="bg-white rounded-2xl border border-slate-100 shadow-xs p-6 sm:p-10 text-center max-w-3xl mx-auto space-y-8">
+                    <div className="space-y-2">
+                        <div className="w-16 h-16 bg-emerald-50 rounded-2xl flex items-center justify-center mx-auto text-emerald-600 mb-4">
+                            <Smartphone size={32} />
+                        </div>
+                        <h2 className="text-xl font-bold text-slate-900">Vincular WhatsApp del Negocio</h2>
+                        <p className="text-sm text-slate-500 max-w-lg mx-auto">
+                            Conecta tu número de WhatsApp escaneando el código QR. A partir de ese momento, la IA tomará el control para responder y tomar pedidos automáticamente 24/7.
+                        </p>
+                    </div>
+
+                    {config.wa_estado === 'conectado' ? (
+                        <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-8 max-w-md mx-auto space-y-4">
+                            <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto shadow-inner">
+                                <CheckCircle2 size={40} className="text-emerald-600" />
+                            </div>
+                            <div>
+                                <h3 className="text-lg font-bold text-emerald-900">¡WhatsApp Conectado!</h3>
+                                <p className="text-sm font-medium text-emerald-700 mt-1">Número: +{config.wa_numero_conectado}</p>
+                            </div>
+                            <button
+                                onClick={handleDisconnectQr}
+                                className="mt-4 px-6 py-2.5 bg-white text-rose-600 text-xs font-bold rounded-xl border border-rose-200 hover:bg-rose-50 hover:border-rose-300 transition-colors shadow-xs"
+                            >
+                                Desconectar Dispositivo
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="flex flex-col md:flex-row items-center justify-center gap-10">
+                            {/* Instrucciones */}
+                            <div className="text-left space-y-5 max-w-xs">
+                                <div className="space-y-4">
+                                    <div className="flex items-start gap-3">
+                                        <div className="w-6 h-6 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">1</div>
+                                        <p className="text-sm text-slate-700">Abre <strong>WhatsApp</strong> en tu celular.</p>
+                                    </div>
+                                    <div className="flex items-start gap-3">
+                                        <div className="w-6 h-6 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">2</div>
+                                        <p className="text-sm text-slate-700">Toca el menú <span className="font-bold text-slate-900">⋮</span> o <strong>Configuración</strong> y selecciona <span className="font-bold text-slate-900">Dispositivos vinculados</span>.</p>
+                                    </div>
+                                    <div className="flex items-start gap-3">
+                                        <div className="w-6 h-6 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">3</div>
+                                        <p className="text-sm text-slate-700">Toca en <strong>Vincular un dispositivo</strong>.</p>
+                                    </div>
+                                    <div className="flex items-start gap-3">
+                                        <div className="w-6 h-6 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">4</div>
+                                        <p className="text-sm text-slate-700">Apunta tu cámara a esta pantalla para capturar el código.</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Área del QR */}
+                            <div className="bg-white p-4 rounded-3xl border-2 border-slate-100 shadow-xl relative min-w-[280px] min-h-[280px] flex items-center justify-center">
+                                {qrCodeBase64 ? (
+                                    <img src={qrCodeBase64} alt="WhatsApp QR Code" className="w-64 h-64 object-contain" />
+                                ) : isConnectingQr || (config.wa_estado === 'qr_pendiente' && !qrError) ? (
+                                    <div className="flex flex-col items-center justify-center text-slate-400 space-y-3">
+                                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-500"></div>
+                                        <p className="text-xs font-medium">Generando código QR...</p>
+                                    </div>
+                                ) : (
+                                    <div className="flex flex-col items-center justify-center space-y-4">
+                                        {qrError ? (
+                                            <div className="text-center text-rose-500 text-xs px-4">
+                                                <AlertCircle className="mx-auto mb-2" size={24} />
+                                                <p>{qrError}</p>
+                                            </div>
+                                        ) : (
+                                            <p className="text-xs text-slate-500 font-medium px-6 text-center">Presiona el botón para generar tu código QR único.</p>
+                                        )}
+                                        <button
+                                            onClick={() => fetchQrCode()}
+                                            className="px-6 py-3 bg-slate-900 text-white text-sm font-bold rounded-xl hover:bg-slate-800 transition-colors shadow-md flex items-center gap-2"
+                                        >
+                                            <QrCode size={18} /> Generar QR
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
 
             {/* Pestaña: PROBADOR / SIMULADOR LOCAL (Para probar YA mismo sin Meta) */}
             {activeTab === 'simulator' && (

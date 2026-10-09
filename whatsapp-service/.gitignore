@@ -1,0 +1,4 @@
+node_modules/
+dist/
+whatsapp_auth_sessions/
+service.log

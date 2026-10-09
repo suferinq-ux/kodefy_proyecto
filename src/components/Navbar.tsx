@@ -190,15 +190,6 @@ export default function Navbar() {
                                                 isDarkSidebar ? 'bg-white' : 'bg-white/80'
                                             }`} />
                                         )}
-                                        {item.href === '/whatsapp' && !active && (
-                                            <span className={`text-[8px] font-black px-1.5 py-0.5 rounded-full uppercase tracking-wider shrink-0 ${
-                                                isDarkSidebar
-                                                    ? 'bg-amber-400/20 text-amber-300'
-                                                    : 'bg-amber-100 text-amber-800'
-                                            }`}>
-                                                BETA
-                                            </span>
-                                        )}
                                     </div>
                                 </Link>
                             );
