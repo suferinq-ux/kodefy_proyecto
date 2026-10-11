@@ -582,7 +582,7 @@ export default function WhatsAppPage() {
 
 
     // Control de vista: Activar para mostrar únicamente la pantalla limpia "En Desarrollo (BETA)" al cliente final
-    const MODO_EN_DESARROLLO_OCULTO = false;
+    const MODO_EN_DESARROLLO_OCULTO = true;
 
     if (loading) {
         return (

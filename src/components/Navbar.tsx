@@ -23,7 +23,7 @@ const menuSections = [
         items: [
             { icon: ShoppingCart, label: 'Pedidos', href: '/pos', permission: 'pos' },
             { icon: ChefHat, label: 'Cocina', href: '/cocina', permission: 'cocina' },
-            { icon: MessageSquare, label: 'WhatsApp IA', href: '/whatsapp', permission: 'pos' },
+            { icon: MessageSquare, label: 'WhatsApp IA (Beta)', href: '/whatsapp', permission: 'pos' },
         ]
     },
     {

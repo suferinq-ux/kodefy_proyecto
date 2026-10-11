@@ -354,18 +354,31 @@ function ConfiguracionContent() {
     };
 
     const crearProductoNuevo = async () => {
-        if (!nuevoProducto.nombre || !nuevoProducto.precio) {
+        if (!nuevoProducto.nombre.trim() || !nuevoProducto.precio) {
             toast.error('Nombre y precio son obligatorios');
             return;
         }
+
+        const negocioId = negocioIdActual();
+        if (!negocioId) {
+            toast.error('No se pudo identificar el negocio');
+            return;
+        }
+
         setSaving(true);
         try {
-            const { error } = await supabase.from('productos').insert([{
-                ...nuevoProducto,
+            const dataToInsert = {
+                nombre: nuevoProducto.nombre.trim(),
                 precio: parseFloat(nuevoProducto.precio as string),
-                negocio_id: negocioIdActual(),
+                tipo: nuevoProducto.tipo,
+                categoria_id: nuevoProducto.categoria_id && nuevoProducto.categoria_id.trim() !== '' ? nuevoProducto.categoria_id.trim() : null,
+                imagen_url: nuevoProducto.imagen_url && nuevoProducto.imagen_url.trim() !== '' ? nuevoProducto.imagen_url.trim() : null,
+                fraccion_pollo: nuevoProducto.tipo === 'pollo' ? (Number(nuevoProducto.fraccion_pollo) || 0) : 0,
+                negocio_id: negocioId,
                 activo: true
-            }]);
+            };
+
+            const { error } = await supabase.from('productos').insert([dataToInsert]);
 
             if (error) throw error;
 
@@ -381,7 +394,7 @@ function ConfiguracionContent() {
             });
             cargarProductos();
         } catch (error: any) {
-            toast.error('Error al crear: ' + error.message);
+            toast.error('Error al crear: ' + (error?.message || error));
         } finally {
             setSaving(false);
         }
