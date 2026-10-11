@@ -30,6 +30,7 @@ function ConfiguracionContent() {
     const [loading, setLoading] = useState(true);
     const [busqueda, setBusqueda] = useState('');
     const [editingId, setEditingId] = useState<string | null>(null);
+    const [editNombre, setEditNombre] = useState('');
     const [editPrecio, setEditPrecio] = useState('');
     const [editFraccion, setEditFraccion] = useState(0);
     const [saving, setSaving] = useState(false);
@@ -661,23 +662,32 @@ function ConfiguracionContent() {
 
     const iniciarEdicion = (producto: Producto) => {
         setEditingId(producto.id);
+        setEditNombre(producto.nombre);
         setEditPrecio(producto.precio.toString());
         setEditFraccion(producto.fraccion_pollo || 0);
     };
 
     const cancelarEdicion = () => {
         setEditingId(null);
+        setEditNombre('');
         setEditPrecio('');
     };
 
     const guardarPrecio = async (producto: Producto) => {
         const nuevoPrecio = parseFloat(editPrecio);
+        const nuevoNombre = editNombre.trim();
+
+        if (!nuevoNombre) {
+            toast.error('El nombre no puede estar vacío');
+            return;
+        }
+
         if (isNaN(nuevoPrecio) || nuevoPrecio < 0) {
             toast.error('Ingresa un precio válido');
             return;
         }
 
-        if (nuevoPrecio === producto.precio) {
+        if (nuevoPrecio === producto.precio && nuevoNombre === producto.nombre && editFraccion === (producto.fraccion_pollo || 0)) {
             cancelarEdicion();
             return;
         }
@@ -687,6 +697,7 @@ function ConfiguracionContent() {
             const { data, error } = await supabase
                 .from('productos')
                 .update({ 
+                    nombre: nuevoNombre,
                     precio: nuevoPrecio,
                     fraccion_pollo: editFraccion
                 })
@@ -701,17 +712,17 @@ function ConfiguracionContent() {
             }
 
             setProductos(prev => prev.map(p =>
-                p.id === producto.id ? { ...p, precio: nuevoPrecio, fraccion_pollo: editFraccion } : p
+                p.id === producto.id ? { ...p, nombre: nuevoNombre, precio: nuevoPrecio, fraccion_pollo: editFraccion } : p
             ));
 
             toast.success(
-                `${producto.nombre}: S/ ${nuevoPrecio.toFixed(2)}`,
+                `${nuevoNombre}: S/ ${nuevoPrecio.toFixed(2)}`,
                 { duration: 3000 }
             );
             cancelarEdicion();
         } catch (error) {
-            console.error('Error al actualizar precio:', error);
-            toast.error('Error al guardar el precio');
+            console.error('Error al actualizar producto:', error);
+            toast.error('Error al guardar el producto');
         } finally {
             setSaving(false);
         }
@@ -1092,10 +1103,23 @@ function ConfiguracionContent() {
                                                                                         </div>
                                                                                     )}
                                                                                 </div>
-                                                                                <div className="flex flex-col">
-                                                                                    <span className={`text-lg font-bold tracking-tight italic transition-colors ${editingId === producto.id ? 'text-rodrigo-terracotta' : 'text-slate-900'}`}>
-                                                                                        {producto.nombre}
-                                                                                    </span>
+                                                                                <div className="flex flex-col flex-1">
+                                                                                    {editingId === producto.id ? (
+                                                                                        <div className="space-y-1">
+                                                                                            <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest italic">Nombre</label>
+                                                                                            <input
+                                                                                                type="text"
+                                                                                                value={editNombre}
+                                                                                                onChange={(e) => setEditNombre(e.target.value)}
+                                                                                                className="w-full max-w-sm bg-white border-2 border-slate-200 rounded-lg px-3 py-1.5 text-base font-bold text-slate-900 italic outline-none focus:border-rodrigo-terracotta/30"
+                                                                                                placeholder="Nombre del producto"
+                                                                                            />
+                                                                                        </div>
+                                                                                    ) : (
+                                                                                        <span className="text-lg font-bold tracking-tight italic text-slate-900">
+                                                                                            {producto.nombre}
+                                                                                        </span>
+                                                                                    )}
                                                                                     <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest">{TIPO_LABELS[tipo]}</span>
                                                                                 </div>
                                                                             </div>
@@ -1150,7 +1174,7 @@ function ConfiguracionContent() {
                                                                                             <span className="text-2xl font-black text-slate-900 italic tracking-tighter group-hover/btn:text-rodrigo-terracotta transition-colors">
                                                                                                 S/ {producto.precio.toFixed(2)}
                                                                                             </span>
-                                                                                            <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest opacity-0 group-hover/btn:opacity-100 transition-all -translate-y-1 group-hover/btn:translate-y-0">Editar Tarifa</span>
+                                                                                            <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest opacity-0 group-hover/btn:opacity-100 transition-all -translate-y-1 group-hover/btn:translate-y-0">Editar Producto</span>
                                                                                         </div>
                                                                                         {!isReadOnly(user?.rol) && (
                                                                                             <div className="flex items-center gap-2">
@@ -1191,17 +1215,33 @@ function ConfiguracionContent() {
                                                                 
                                                                 <AnimatePresence mode="wait">
                                                                     {editingId === producto.id ? (
-                                                                        <motion.div key="edit-mobile" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="bg-slate-50 p-4 rounded-2xl flex items-center gap-3">
-                                                                            <input
-                                                                                type="number"
-                                                                                step="0.10"
-                                                                                value={editPrecio}
-                                                                                onChange={(e) => setEditPrecio(e.target.value)}
-                                                                                className="flex-1 bg-white border border-slate-200 rounded-xl px-4 py-3 text-lg font-black text-slate-900 italic outline-none"
-                                                                                autoFocus
-                                                                            />
-                                                                            <button onClick={() => guardarPrecio(producto)} disabled={saving} className="w-12 h-12 bg-slate-900 text-white rounded-xl flex items-center justify-center shadow-lg"><Check size={20} strokeWidth={3} /></button>
-                                                                            <button onClick={cancelarEdicion} className="w-12 h-12 bg-slate-200 text-slate-500 rounded-xl flex items-center justify-center"><X size={20} strokeWidth={3} /></button>
+                                                                        <motion.div key="edit-mobile" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="bg-slate-50 p-4 rounded-2xl flex flex-col gap-3">
+                                                                            <div className="space-y-1">
+                                                                                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest italic">Nombre</label>
+                                                                                <input
+                                                                                    type="text"
+                                                                                    value={editNombre}
+                                                                                    onChange={(e) => setEditNombre(e.target.value)}
+                                                                                    className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-900 italic outline-none"
+                                                                                    placeholder="Nombre del producto"
+                                                                                />
+                                                                            </div>
+                                                                            <div className="flex items-center gap-3">
+                                                                                <div className="flex-1 space-y-1">
+                                                                                    <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest italic">Precio (S/)</label>
+                                                                                    <input
+                                                                                        type="number"
+                                                                                        step="0.10"
+                                                                                        value={editPrecio}
+                                                                                        onChange={(e) => setEditPrecio(e.target.value)}
+                                                                                        className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-lg font-black text-slate-900 italic outline-none"
+                                                                                    />
+                                                                                </div>
+                                                                                <div className="flex gap-2 self-end">
+                                                                                    <button onClick={() => guardarPrecio(producto)} disabled={saving} className="w-11 h-11 bg-slate-900 text-white rounded-xl flex items-center justify-center shadow-lg"><Check size={20} strokeWidth={3} /></button>
+                                                                                    <button onClick={cancelarEdicion} className="w-11 h-11 bg-slate-200 text-slate-500 rounded-xl flex items-center justify-center"><X size={20} strokeWidth={3} /></button>
+                                                                                </div>
+                                                                            </div>
                                                                         </motion.div>
                                                                     ) : (
                                                                         <div key="display-mobile" className="flex gap-2 w-full">
@@ -1209,7 +1249,7 @@ function ConfiguracionContent() {
                                                                                 onClick={() => iniciarEdicion(producto)}
                                                                                 className="flex-1 py-3 bg-slate-100 text-slate-500 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all flex items-center justify-center gap-2"
                                                                             >
-                                                                                <Pencil size={14} /> Ajustar Tarifa
+                                                                                <Pencil size={14} /> Editar Producto
                                                                             </button>
                                                                             {!isReadOnly(user?.rol) && (
                                                                                 <button
