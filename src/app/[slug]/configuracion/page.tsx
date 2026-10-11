@@ -184,24 +184,29 @@ function ConfiguracionContent() {
         }
         setCreandoCategoria(true);
         try {
-            const { data, error } = await supabase
-                .from('categorias')
-                .insert([{
+            const { data: { session } } = await supabase.auth.getSession();
+            const res = await fetch('/api/admin/productos', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${session?.access_token}`
+                },
+                body: JSON.stringify({
+                    action: 'crear_categoria',
                     nombre: nuevaCategoriaNombre.trim(),
-                    negocio_id: nid,
-                    orden: categorias.length + 1
-                }])
-                .select()
-                .single();
+                    negocio_id: nid
+                })
+            });
 
-            if (error) throw error;
+            const resData = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(resData.error || 'Error al crear categoría');
 
-            if (data) {
-                setCategorias(prev => [...prev, data]);
-                setNuevoProducto(prev => ({ ...prev, categoria_id: data.id }));
+            if (resData.categoria) {
+                setCategorias(prev => [...prev, resData.categoria]);
+                setNuevoProducto(prev => ({ ...prev, categoria_id: resData.categoria.id }));
                 setNuevaCategoriaNombre('');
                 setShowNuevaCategoriaInput(false);
-                toast.success(`Categoría "${data.nombre}" creada`);
+                toast.success(`Categoría "${resData.categoria.nombre}" creada`);
             }
         } catch (error: any) {
             console.error('Error al crear categoría:', error);
@@ -440,13 +445,21 @@ function ConfiguracionContent() {
                 categoria_id: nuevoProducto.categoria_id && nuevoProducto.categoria_id.trim() !== '' ? nuevoProducto.categoria_id.trim() : null,
                 imagen_url: nuevoProducto.imagen_url && nuevoProducto.imagen_url.trim() !== '' ? nuevoProducto.imagen_url.trim() : null,
                 fraccion_pollo: nuevoProducto.tipo === 'pollo' ? (Number(nuevoProducto.fraccion_pollo) || 0) : 0,
-                negocio_id: negocioId,
-                activo: true
+                negocio_id: negocioId
             };
 
-            const { error } = await supabase.from('productos').insert([dataToInsert]);
+            const { data: { session } } = await supabase.auth.getSession();
+            const res = await fetch('/api/admin/productos', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${session?.access_token}`
+                },
+                body: JSON.stringify(dataToInsert)
+            });
 
-            if (error) throw error;
+            const resData = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(resData.error || 'Error al crear producto');
 
             toast.success('Producto creado exitosamente');
             setIsCreatingProduct(false);
@@ -474,12 +487,21 @@ function ConfiguracionContent() {
             type: 'danger',
             onConfirm: async () => {
                 try {
-                    const { error } = await supabase.from('productos').delete().eq('id', id);
-                    if (error) throw error;
+                    const { data: { session } } = await supabase.auth.getSession();
+                    const res = await fetch(`/api/admin/productos?id=${encodeURIComponent(id)}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'Authorization': `Bearer ${session?.access_token}`
+                        }
+                    });
+
+                    const resData = await res.json().catch(() => ({}));
+                    if (!res.ok) throw new Error(resData.error || 'Error al eliminar producto');
+
                     toast.success('Producto eliminado');
                     cargarProductos();
-                } catch (error) {
-                    toast.error('Error al eliminar');
+                } catch (error: any) {
+                    toast.error('Error al eliminar: ' + (error?.message || error));
                 }
                 setConfirmModal(prev => ({ ...prev, isOpen: false }));
             }
@@ -753,22 +775,23 @@ function ConfiguracionContent() {
 
         setSaving(true);
         try {
-            const { data, error } = await supabase
-                .from('productos')
-                .update({ 
+            const { data: { session } } = await supabase.auth.getSession();
+            const res = await fetch('/api/admin/productos', {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${session?.access_token}`
+                },
+                body: JSON.stringify({
+                    id: producto.id,
                     nombre: nuevoNombre,
                     precio: nuevoPrecio,
                     fraccion_pollo: editFraccion
                 })
-                .eq('id', producto.id)
-                .select();
+            });
 
-            if (error) throw error;
-
-            if (!data || data.length === 0) {
-                toast.error('No se pudo actualizar. Verifica permisos.', { duration: 5000 });
-                return;
-            }
+            const resData = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(resData.error || 'Error al actualizar producto');
 
             setProductos(prev => prev.map(p =>
                 p.id === producto.id ? { ...p, nombre: nuevoNombre, precio: nuevoPrecio, fraccion_pollo: editFraccion } : p
@@ -779,9 +802,9 @@ function ConfiguracionContent() {
                 { duration: 3000 }
             );
             cancelarEdicion();
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error al actualizar producto:', error);
-            toast.error('Error al guardar el producto');
+            toast.error('Error al guardar el producto: ' + (error?.message || error));
         } finally {
             setSaving(false);
         }
