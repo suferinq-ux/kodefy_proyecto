@@ -99,6 +99,9 @@ function ConfiguracionContent() {
         fraccion_pollo: 0
     });
     const [categorias, setCategorias] = useState<any[]>([]);
+    const [showNuevaCategoriaInput, setShowNuevaCategoriaInput] = useState(false);
+    const [nuevaCategoriaNombre, setNuevaCategoriaNombre] = useState('');
+    const [creandoCategoria, setCreandoCategoria] = useState(false);
     
     // Printers stuff
     const [impresoras, setImpresoras] = useState<any[]>([]);
@@ -126,13 +129,20 @@ function ConfiguracionContent() {
         type: 'info'
     });
 
+    const negocioIdActual = () => {
+        if (business?.id) return business.id;
+        if (user?.negocio_id && user.negocio_id !== 'null') return user.negocio_id;
+        return null;
+    };
+
     const cargarProductos = async () => {
         try {
-            if (!business?.id) return;
+            const nid = negocioIdActual();
+            if (!nid) return;
             const { data, error } = await supabase
                 .from('productos')
                 .select('*')
-                .eq('negocio_id', business.id)
+                .eq('negocio_id', nid)
                 .order('tipo', { ascending: true })
                 .order('nombre', { ascending: true });
 
@@ -146,16 +156,77 @@ function ConfiguracionContent() {
         }
     };
 
+    const cargarCategorias = async () => {
+        const nid = negocioIdActual();
+        if (!nid) return;
+        try {
+            const { data, error } = await supabase
+                .from('categorias')
+                .select('*')
+                .eq('negocio_id', nid)
+                .order('nombre', { ascending: true });
+            if (error) throw error;
+            setCategorias(data || []);
+        } catch (error) {
+            console.error('Error al cargar categorias:', error);
+        }
+    };
+
+    const crearCategoriaRapida = async () => {
+        if (!nuevaCategoriaNombre.trim()) {
+            toast.error('Ingresa un nombre para la categoría');
+            return;
+        }
+        const nid = negocioIdActual();
+        if (!nid) {
+            toast.error('No se pudo identificar el negocio');
+            return;
+        }
+        setCreandoCategoria(true);
+        try {
+            const { data, error } = await supabase
+                .from('categorias')
+                .insert([{
+                    nombre: nuevaCategoriaNombre.trim(),
+                    negocio_id: nid,
+                    orden: categorias.length + 1
+                }])
+                .select()
+                .single();
+
+            if (error) throw error;
+
+            if (data) {
+                setCategorias(prev => [...prev, data]);
+                setNuevoProducto(prev => ({ ...prev, categoria_id: data.id }));
+                setNuevaCategoriaNombre('');
+                setShowNuevaCategoriaInput(false);
+                toast.success(`Categoría "${data.nombre}" creada`);
+            }
+        } catch (error: any) {
+            console.error('Error al crear categoría:', error);
+            toast.error('Error al crear categoría: ' + (error?.message || error));
+        } finally {
+            setCreandoCategoria(false);
+        }
+    };
+
     useEffect(() => {
         cargarProductos();
+        cargarCategorias();
         if (user && user.rol === 'admin') {
             cargarEmpleados();
             cargarConfiguracion();
             cargarMesas();
-            cargarCategorias();
             cargarImpresoras();
         }
-    }, [user]);
+    }, [user, business?.id]);
+
+    useEffect(() => {
+        if (isCreatingProduct) {
+            cargarCategorias();
+        }
+    }, [isCreatingProduct]);
 
     useEffect(() => {
         if (activeTab === 'accesos' && user?.rol === 'admin') {
@@ -181,12 +252,6 @@ function ConfiguracionContent() {
                 code: error.code
             });
         }
-    };
-
-    const cargarCategorias = async () => {
-        if (!business?.id) return;
-        const { data } = await supabase.from('categorias').select('*').eq('negocio_id', business.id).order('nombre', { ascending: true });
-        setCategorias(data || []);
     };
 
     const cargarMesas = async () => {
@@ -567,12 +632,6 @@ function ConfiguracionContent() {
         } catch (error) {
             console.error('Error cargando empleados:', error);
         }
-    };
-
-    const negocioIdActual = () => {
-        if (business?.id) return business.id;
-        if (user?.negocio_id && user.negocio_id !== 'null') return user.negocio_id;
-        return null;
     };
 
     const cargarAccesos = async () => {
@@ -2399,17 +2458,56 @@ function ConfiguracionContent() {
                                             </select>
                                         </div>
                                         <div className="col-span-2 space-y-2">
-                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">Categoría</label>
-                                            <select
-                                                value={nuevoProducto.categoria_id}
-                                                onChange={e => setNuevoProducto({...nuevoProducto, categoria_id: e.target.value})}
-                                                className="w-full bg-slate-50 border-2 border-slate-100 rounded-none px-6 py-4 text-slate-900 font-bold outline-none italic"
-                                            >
-                                                <option value="">Seleccionar categoría...</option>
-                                                {categorias.map((cat, idx) => (
-                                                    <option key={cat.id || `cat-${idx}`} value={cat.id}>{cat.nombre}</option>
-                                                ))}
-                                            </select>
+                                            <div className="flex items-center justify-between ml-4">
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Categoría</label>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setShowNuevaCategoriaInput(!showNuevaCategoriaInput);
+                                                        setNuevaCategoriaNombre('');
+                                                    }}
+                                                    className="text-[9px] font-black text-rodrigo-terracotta hover:underline uppercase tracking-widest transition-colors"
+                                                >
+                                                    {showNuevaCategoriaInput ? 'Volver a lista' : '+ Nueva Categoría'}
+                                                </button>
+                                            </div>
+                                            {showNuevaCategoriaInput ? (
+                                                <div className="flex gap-2">
+                                                    <input
+                                                        type="text"
+                                                        value={nuevaCategoriaNombre}
+                                                        onChange={e => setNuevaCategoriaNombre(e.target.value)}
+                                                        placeholder="Nombre de categoría (ej: Platos, Postres)"
+                                                        className="w-full bg-slate-50 border-2 border-slate-100 rounded-none px-6 py-4 text-slate-900 font-bold focus:border-rodrigo-terracotta/20 outline-none transition-all italic text-sm"
+                                                        autoFocus
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === 'Enter') {
+                                                                e.preventDefault();
+                                                                crearCategoriaRapida();
+                                                            }
+                                                        }}
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        onClick={crearCategoriaRapida}
+                                                        disabled={creandoCategoria}
+                                                        className="px-6 bg-slate-900 text-white font-black text-[10px] uppercase tracking-widest rounded-none hover:bg-black transition-all shrink-0 disabled:opacity-50"
+                                                    >
+                                                        {creandoCategoria ? 'Creando...' : 'Crear'}
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <select
+                                                    value={nuevoProducto.categoria_id}
+                                                    onChange={e => setNuevoProducto({...nuevoProducto, categoria_id: e.target.value})}
+                                                    className="w-full bg-slate-50 border-2 border-slate-100 rounded-none px-6 py-4 text-slate-900 font-bold outline-none italic"
+                                                >
+                                                    <option value="">Seleccionar categoría...</option>
+                                                    {categorias.map((cat, idx) => (
+                                                        <option key={cat.id || `cat-${idx}`} value={cat.id}>{cat.nombre}</option>
+                                                    ))}
+                                                </select>
+                                            )}
                                         </div>
                                         <div className="col-span-2 space-y-2">
                                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">URL de Imagen</label>
