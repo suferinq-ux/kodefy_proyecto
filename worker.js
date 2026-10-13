@@ -2,296 +2,309 @@ const { createClient } = require('@supabase/supabase-js');
 const net = require('net');
 
 const SUPABASE_URL = 'https://okzncqmhjvsrdhluwuhx.supabase.co';
-const SUPABASE_KEY = process.env.SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9rem5jcW1oanZzcmRobHV3dWh4Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NzI0MDE2NCwiZXhwIjoyMDkyODE2MTY0fQ.2iI3KSEyNOZWxqUQIXOLsJjk2yuQXy2c6lZVlIglVdA';
-const NEGOCIO_ID = process.env.NEGOCIO_ID || 'cba58c29-541f-4388-83b1-ce47c66d9328';
-const PRINTER_IP = process.env.PRINTER_IP || '192.168.123.100';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9rem5jcW1oanZzcmRobHV3dWh4Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NzI0MDE2NCwiZXhwIjoyMDkyODE2MTY0fQ.2iI3KSEyNOZWxqUQIXOLsJjk2yuQXy2c6lZVlIglVdA';
+const NEGOCIO_ID = 'cba58c29-541f-4388-83b1-ce47c66d9328'; // Reykelt
+const PRINTER_IP = process.env.PRINTER_IP || '192.168.18.50';
 const PRINTER_PORT = parseInt(process.env.PRINTER_PORT || '9100');
-const NOMBRE_NEGOCIO = process.env.NOMBRE_NEGOCIO || "POLLERIA CHIFA D'REYKELT";
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
+const ESC = '\x1b';
+const GS = '\x1d';
+
+const a = (s = '') => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[ñÑ]/g, 'N').toUpperCase();
+const pad = n => String(n).padStart(2, '0');
+const fmtFecha = d => `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
+const fmtHora = d => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+const pisoLabel = (piso) => {
+    const n = Number(piso || 1);
+    if (n === 1) return '1ER PISO';
+    if (n === 2) return '2DO PISO';
+    if (n === 3) return '3ER PISO';
+    if (n === 4) return '4TO PISO';
+    if (n === 5) return 'TERRAZA';
+    return 'PISO ' + n;
+};
+
+const LINEA = '--------------------------------';
+
 console.log('===========================================');
-console.log('  KODEFY PRINT WORKER - ' + NOMBRE_NEGOCIO);
+console.log('  KODEFY PRINT WORKER (COCINA) - REALTIME');
+console.log('  SISTEMA ANTI-DUPLICADOS ACTIVO');
 console.log('===========================================');
 console.log('Impresora: ' + PRINTER_IP + ':' + PRINTER_PORT);
 console.log('Negocio ID: ' + NEGOCIO_ID);
 console.log('-------------------------------------------');
 
-function obtenerFechaHoy() {
-    var ahora = new Date();
-    var peru = new Date(ahora.getTime() - (5 * 60 * 60 * 1000));
-    var dia = String(peru.getUTCDate()).padStart(2, '0');
-    var mes = String(peru.getUTCMonth() + 1).padStart(2, '0');
-    var anio = peru.getUTCFullYear();
-    return anio + '-' + mes + '-' + dia;
-}
+async function imprimirTicket(venta, itemsAImprimir, esAdicional) {
+    const ahora = new Date();
 
-function obtenerFechaHora() {
-    var ahora = new Date();
-    var peru = new Date(ahora.getTime() - (5 * 60 * 60 * 1000));
-    var dia = String(peru.getUTCDate()).padStart(2, '0');
-    var mes = String(peru.getUTCMonth() + 1).padStart(2, '0');
-    var anio = peru.getUTCFullYear();
-    var hora = String(peru.getUTCHours()).padStart(2, '0');
-    var min = String(peru.getUTCMinutes()).padStart(2, '0');
-    return dia + '/' + mes + '/' + anio + '  ' + hora + ':' + min;
-}
+    // Número REAL de mesa + su piso (venta.mesa_id es el ID interno)
+    let mesaNumero = '';
+    let pisoTxt = '';
+    const tipo = String(venta.tipo_pedido || 'mesa').toLowerCase();
+    if (tipo === 'mesa' && venta.mesa_id != null) {
+        const { data: mesa } = await supabase
+            .from('mesas')
+            .select('numero, piso')
+            .eq('id', venta.mesa_id)
+            .maybeSingle();
+        if (mesa) {
+            mesaNumero = mesa.numero;
+            pisoTxt = pisoLabel(mesa.piso);
+        }
+    }
 
-function repetir(caracter, veces) {
-    var resultado = '';
-    for (var i = 0; i < veces; i++) resultado += caracter;
-    return resultado;
-}
+    return new Promise((resolve, reject) => {
+        const client = new net.Socket();
+        let p = '';
+        p += ESC + '@';                                    // Inicializar
 
-function pisoLabel(pisoNum) {
-    var n = Number(pisoNum || 1);
-    if (n === 1) return '1er PISO';
-    if (n === 2) return '2do PISO';
-    if (n === 3) return '3er PISO';
-    if (n === 4) return '4to PISO';
-    if (n === 5) return 'TERRAZA';
-    return 'PISO ' + n;
-}
-
-async function imprimirTicket(venta) {
-    return new Promise(function(resolve, reject) {
-        var client = new net.Socket();
-        var ESC = '\x1b';
-        var GS = '\x1d';
-        var LF = '\x0a';
-
-        var p = '';
-        var isAdicional = Boolean(venta.es_adicional);
-
-        // ====== INICIALIZAR IMPRESORA ======
-        p += ESC + '@';
-        p += ESC + 't' + '\x10';          // Codepage WPC1252 (soporta ñ, tildes)
-
-        // ====== ENCABEZADO ======
-        p += ESC + 'a' + '\x01';          // Centrar
-        p += ESC + 'E' + '\x01';          // Bold ON
-        p += GS + '!' + '\x11';           // Doble alto y ancho
-        p += NOMBRE_NEGOCIO + LF;
-        p += GS + '!' + '\x00';           // Normal
-        p += LF;
-
-        p += ESC + 'E' + '\x00';          // Bold OFF
-        p += repetir('=', 42) + LF;
-
-        // ====== TITULO COCINA ======
+        // ====== ENCABEZADO (centrado, doble) ======
+        p += ESC + 'a' + '\x01';
         p += ESC + 'E' + '\x01';
         p += GS + '!' + '\x11';
-        p += (isAdicional ? '*** COMANDA ADICIONAL ***' : '*** COCINA ***') + LF;
+        p += 'REYKELT\n';
         p += GS + '!' + '\x00';
         p += ESC + 'E' + '\x00';
-        p += repetir('=', 42) + LF;
+        p += 'BRASAS & BROASTERS\n';
+        p += LINEA + '\n';
 
-        // ====== FECHA Y HORA ======
-        p += ESC + 'a' + '\x00';          // Izquierda
-        p += 'Fecha: ' + obtenerFechaHora() + LF;
-
-        // ====== TICKET ID ======
+        // ====== TITULO (doble) ======
         p += ESC + 'E' + '\x01';
-        p += 'Ticket: #' + String(venta.id).split('-')[0].toUpperCase() + LF;
-        p += ESC + 'E' + '\x00';
-
-        // ====== TIPO DE PEDIDO + MESA + PISO ======
-        var tipoPedido = venta.tipo_pedido || 'mesa';
-        var mesaInfo = venta.mesas || {};
-        var numeroMesa = mesaInfo.numero || '';
-        var pisoTexto = pisoLabel(mesaInfo.piso || venta.piso || 1);
-
         p += GS + '!' + '\x11';
-        p += ESC + 'E' + '\x01';
-        if (tipoPedido === 'mesa') {
-            p += 'MESA N: ' + numeroMesa + LF;
-            p += 'PISO: ' + pisoTexto + LF;
-        } else if (tipoPedido === 'llevar') {
-            p += '>> PARA LLEVAR <<' + LF;
-        } else if (tipoPedido === 'delivery') {
-            p += '>> DELIVERY <<' + LF;
-        }
+        p += esAdicional ? '*** ADICIONAL ***\n' : '*** COMANDA ***\n';
         p += GS + '!' + '\x00';
         p += ESC + 'E' + '\x00';
+        p += LINEA + '\n';
 
-        if (tipoPedido === 'delivery' && venta.direccion_envio) {
-            p += 'Dir: ' + venta.direccion_envio + LF;
-        }
-
-        // ====== USUARIO ======
-        if (venta.usuario_nombre) {
-            p += 'Atendido por: ' + venta.usuario_nombre + LF;
-        }
-
-        p += repetir('-', 42) + LF;
-
-        // ====== ITEMS ======
+        // ====== FECHA / HORA / # ======
         p += ESC + 'a' + '\x00';
-        p += ESC + 'E' + '\x01';
-        p += '  DETALLE DEL PEDIDO' + LF;
-        p += ESC + 'E' + '\x00';
-        p += repetir('-', 42) + LF;
+        p += `${fmtFecha(ahora)}   ${fmtHora(ahora)}\n`;
+        p += `#${String(venta.id || '').split('-')[0].toUpperCase()}\n`;
 
-        // Seleccionar items (si es adicional usar SOLO items_adicionales)
-        var itemsAImprimir = (isAdicional && Array.isArray(venta.items_adicionales) && venta.items_adicionales.length > 0)
-            ? venta.items_adicionales
-            : (venta.items || []);
-
-        if (Array.isArray(itemsAImprimir)) {
-            itemsAImprimir.forEach(function(item, index) {
-                p += ESC + 'E' + '\x01';
-                p += GS + '!' + '\x01';   // Doble alto
-                p += ' ' + item.cantidad + 'x ' + (item.nombre || 'Sin nombre') + LF;
-                p += GS + '!' + '\x00';
-                p += ESC + 'E' + '\x00';
-
-                var detalles = item.detalles || {};
-
-                if (detalles.parte) {
-                    p += '    > PRESA: ' + detalles.parte + LF;
-                }
-                if (detalles.trozado && String(detalles.trozado).toLowerCase() !== 'entero') {
-                    p += '    > TROZADO: ' + detalles.trozado + LF;
-                }
-                if (detalles.termino) {
-                    p += '    > TERMINO: ' + detalles.termino + LF;
-                }
-                if (detalles.salsa) {
-                    p += '    > SALSA: ' + detalles.salsa + LF;
-                }
-                if (detalles.guarnicion) {
-                    p += '    > GUARNICION: ' + detalles.guarnicion + LF;
-                }
-                if (item.detalle_bebida && item.detalle_bebida.marca) {
-                    var bebida = String(item.detalle_bebida.marca);
-                    if (item.detalle_bebida.tipo) {
-                        bebida += ' ' + String(item.detalle_bebida.tipo);
-                    }
-                    p += '    > BEBIDA: ' + bebida + LF;
-                }
-                if (detalles.notas || item.notas) {
-                    p += ESC + 'E' + '\x01';
-                    p += '    ** NOTA: ' + (detalles.notas || item.notas) + LF;
-                    p += ESC + 'E' + '\x00';
-                }
-                if (detalles.complementos && Array.isArray(detalles.complementos)) {
-                    detalles.complementos.forEach(function(comp) {
-                        p += '    + ' + comp + LF;
-                    });
-                }
-
-                if (index < itemsAImprimir.length - 1) {
-                    p += '    ........................' + LF;
-                }
-            });
+        // ====== TIPO DE PEDIDO + MESA + PISO (GRANDE) ======
+        if (tipo === 'delivery') {
+            p += ESC + 'a' + '\x01';
+            p += ESC + 'E' + '\x01';
+            p += GS + '!' + '\x11';
+            p += 'DELIVERY\n';
+            p += GS + '!' + '\x00';
+            p += ESC + 'E' + '\x00';
+            if (venta.telefono_envio) p += `TEL: ${venta.telefono_envio}\n`;
+            if (venta.direccion_envio) p += a('DIR: ' + venta.direccion_envio) + '\n';
+            p += ESC + 'a' + '\x00';
+        } else if (tipo === 'llevar') {
+            p += ESC + 'a' + '\x01';
+            p += ESC + 'E' + '\x01';
+            p += GS + '!' + '\x11';
+            p += 'PARA LLEVAR\n';
+            p += GS + '!' + '\x00';
+            p += ESC + 'E' + '\x00';
+            p += ESC + 'a' + '\x00';
+        } else {
+            p += ESC + 'E' + '\x01';
+            p += GS + '!' + '\x01';                        // Doble alto, ancho normal
+            p += 'TIPO: MESA\n';
+            p += `MESA N: ${mesaNumero || '---'}\n`;
+            p += `PISO: ${pisoTxt || '1ER PISO'}\n`;
+            p += GS + '!' + '\x00';
+            p += ESC + 'E' + '\x00';
         }
 
-        p += repetir('-', 42) + LF;
+        if (venta.usuario_nombre) p += `ATIENDE: ${a(venta.usuario_nombre)}\n`;
+        p += LINEA + '\n';
+
+        // ====== PRODUCTOS (nombre en doble alto) ======
+        itemsAImprimir.forEach(item => {
+            p += ESC + 'a' + '\x00';
+            p += ESC + 'E' + '\x01';
+            p += GS + '!' + '\x01';
+            p += `${item.cantidad}x ${a(item.nombre)}\n`;
+            p += GS + '!' + '\x00';
+            p += ESC + 'E' + '\x00';
+
+            const det = item.detalles || {};
+            const lineas = [];
+            if (det.parte) lineas.push(`PRESA: ${det.parte}`);
+            if (det.trozado && String(det.trozado).toLowerCase() !== 'entero') lineas.push(`TROZADO: ${det.trozado}`);
+            if (det.termino) lineas.push(`TERMINO: ${det.termino}`);
+            if (det.salsa) lineas.push(`SALSA: ${det.salsa}`);
+            if (det.guarnicion) lineas.push(`GUARNICION: ${det.guarnicion}`);
+            if (item.detalle_bebida && item.detalle_bebida.marca) {
+                lineas.push(`BEBIDA: ${[item.detalle_bebida.marca, item.detalle_bebida.tipo].filter(Boolean).join(' ')}`);
+            }
+            lineas.forEach(l => p += `   ${a(l)}\n`);
+            if (det.notas || item.notas) p += `   NOTA: ${a(det.notas || item.notas)}\n`;
+            if (det.complementos && Array.isArray(det.complementos)) {
+                det.complementos.forEach(c => p += `   + ${a(c)}\n`);
+            }
+            p += '\n';
+        });
 
         // ====== NOTAS GENERALES ======
         if (venta.notas) {
+            p += LINEA + '\n';
             p += ESC + 'E' + '\x01';
             p += GS + '!' + '\x01';
-            p += 'NOTAS: ' + venta.notas + LF;
+            p += `NOTA: ${a(venta.notas)}\n`;
             p += GS + '!' + '\x00';
             p += ESC + 'E' + '\x00';
-            p += repetir('-', 42) + LF;
         }
 
-        // ====== PIE ======
+        // ====== PIE + CORTE ======
         p += ESC + 'a' + '\x01';
-        p += LF;
-        p += 'Impreso por KODEFY' + LF;
-        p += repetir('=', 42) + LF;
-
-        // ====== CORTAR PAPEL ======
-        p += LF + LF + LF + LF;
+        p += LINEA + '\n';
+        p += 'IMPRESO POR KODEFY POS\n';
+        p += '\n\n\n\n\n';
         p += GS + 'V' + '\x41' + '\x00';
 
-        var buffer = Buffer.from(p, 'latin1');
+        const buffer = Buffer.from(p, 'latin1');
 
-        client.setTimeout(5000);
-        client.connect(PRINTER_PORT, PRINTER_IP, function() {
-            console.log('[OK] Conectado a impresora ' + PRINTER_IP);
-            client.write(buffer, function(err) {
+        client.setTimeout(4000);
+        client.connect(PRINTER_PORT, PRINTER_IP, () => {
+            console.log(`🔗 Conectado a la impresora ${PRINTER_IP}`);
+            client.write(buffer, (err) => {
                 if (err) { client.destroy(); reject(err); }
                 else { client.end(); resolve(); }
             });
         });
-        client.on('error', function(err) { client.destroy(); reject(err); });
-        client.on('timeout', function() { client.destroy(); reject(new Error('Timeout')); });
+        client.on('error', (err) => { client.destroy(); reject(err); });
+        client.on('timeout', () => { client.destroy(); reject(new Error('Timeout impresora')); });
     });
 }
 
-// === LIMPIEZA INICIAL: Omite pendientes de días anteriores ===
-async function limpiarAntiguos() {
-    try {
-        var hoy = obtenerFechaHoy();
-        await supabase
-            .from('ventas')
-            .update({ estado_impresion: 'omitido' })
-            .eq('negocio_id', NEGOCIO_ID)
-            .eq('estado_impresion', 'pendiente')
-            .lt('fecha', hoy);
-        console.log('[OK] Limpieza de impresiones antiguas de días pasados completada');
-    } catch (e) {
-        console.log('[WARN] No se pudo limpiar antiguos: ' + e.message);
+// Evitar concurrencia y duplicados
+const procesandoIds = new Set();
+
+function parsearItems(raw) {
+    if (!raw) return [];
+    if (Array.isArray(raw)) return raw;
+    if (typeof raw === 'string') {
+        try {
+            const parsed = JSON.parse(raw);
+            return Array.isArray(parsed) ? parsed : [];
+        } catch (e) {
+            return [];
+        }
     }
+    return [];
 }
 
-// === POLLING: revisa solo ventas de HOY cada 5 segundos ===
-async function buscarPendientes() {
+const manejarVenta = async (payload) => {
+    const ventaPayload = payload.new;
+    if (!ventaPayload || !ventaPayload.id) return;
+
+    const ventaId = ventaPayload.id;
+    const esUpdate = payload.eventType === 'UPDATE';
+
+    // Evitar procesar el mismo ID concurrentemente
+    if (procesandoIds.has(ventaId)) {
+        console.log(`🔒 Venta ${ventaId} ya en proceso, ignorando evento duplicado`);
+        return;
+    }
+
+    // SI ES UPDATE:
+    // Solo nos interesa si viene marcado como 'pendiente'
+    if (esUpdate && ventaPayload.estado_impresion !== 'pendiente') {
+        return;
+    }
+
+    // SI ES INSERT:
+    // Solo nos interesa si viene como 'pendiente'
+    if (!esUpdate && ventaPayload.estado_impresion !== 'pendiente') {
+        return;
+    }
+
+    procesandoIds.add(ventaId);
+
     try {
-        var hoy = obtenerFechaHoy();
-        var result = await supabase
+        // Consultar SIEMPRE el estado real en Supabase para evitar datos truncados de Realtime
+        const { data: ventaDB, error: errDB } = await supabase
             .from('ventas')
-            .select('*, mesas:mesa_id(numero, piso)')
-            .eq('negocio_id', NEGOCIO_ID)
-            .eq('estado_impresion', 'pendiente')
-            .eq('fecha', hoy);
+            .select('*')
+            .eq('id', ventaId)
+            .single();
 
-        var data = result.data;
-        var error = result.error;
-
-        if (error) {
-            console.log('[ERROR] ' + error.message);
+        if (errDB || !ventaDB) {
+            console.log(`❌ No se pudo cargar venta ${ventaId}: ${errDB?.message}`);
             return;
         }
 
-        if (data && data.length > 0) {
-            console.log('[!] ' + data.length + ' venta(s) pendiente(s) de hoy');
-            for (var i = 0; i < data.length; i++) {
-                var venta = data[i];
-
-                // Si es adicional y no tiene items adicionales, se marca impreso sin enviar a la impresora
-                var isAdicional = Boolean(venta.es_adicional);
-                if (isAdicional && (!venta.items_adicionales || !Array.isArray(venta.items_adicionales) || venta.items_adicionales.length === 0)) {
-                    console.log('[OMITIDO] Venta adicional sin nuevos items: ' + venta.id);
-                    await supabase.from('ventas').update({ estado_impresion: 'impreso', es_adicional: false }).eq('id', venta.id);
-                    continue;
-                }
-
-                console.log('[IMPRIMIENDO] Venta: ' + venta.id + (isAdicional ? ' (Adicional)' : ''));
-                try {
-                    await imprimirTicket(venta);
-                    console.log('[OK] Impreso: ' + venta.id);
-                    await supabase.from('ventas').update({ estado_impresion: 'impreso', es_adicional: false }).eq('id', venta.id);
-                } catch (printError) {
-                    console.log('[ERROR] ' + printError.message);
-                    await supabase.from('ventas').update({ estado_impresion: 'error' }).eq('id', venta.id);
-                }
-            }
+        // Si ya fue impreso por otra instancia o proceso, no hacer nada
+        if (ventaDB.estado_impresion !== 'pendiente') {
+            console.log(`⏭️ Venta ${ventaId} ya no está pendiente (estado: ${ventaDB.estado_impresion})`);
+            return;
         }
-    } catch (err) {
-        console.log('[ERROR] ' + err.message);
+
+        let itemsAImprimir = [];
+        let esAdicional = false;
+
+        if (esUpdate) {
+            // EN UN UPDATE: ES ESTRICTAMENTE UNA COMANDA ADICIONAL.
+            // NUNCA, BAJO NINGUNA CIRCUNSTANCIA, SE IMPRIMEN TODOS LOS ITEMS (venta.items).
+            const itemsAdic = parsearItems(ventaDB.items_adicionales);
+
+            if (ventaDB.es_adicional && itemsAdic.length > 0) {
+                esAdicional = true;
+                itemsAImprimir = itemsAdic;
+            } else {
+                // El UPDATE no tiene nuevos items que imprimir (fue cambio de pago, mesa, etc.)
+                console.log(`⏭️ UPDATE en venta ${ventaId} sin adicionales para cocina. Marcando impreso sin ticket.`);
+                await supabase.from('ventas').update({
+                    estado_impresion: 'impreso',
+                    es_adicional: false,
+                    items_adicionales: []
+                }).eq('id', ventaId);
+                return;
+            }
+        } else {
+            // ES UN INSERT: NUEVO PEDIDO COMPLETO
+            itemsAImprimir = parsearItems(ventaDB.items);
+            esAdicional = false;
+        }
+
+        if (!itemsAImprimir || itemsAImprimir.length === 0) {
+            console.log(`⚠️ Venta ${ventaId} sin items para imprimir.`);
+            await supabase.from('ventas').update({
+                estado_impresion: 'impreso',
+                es_adicional: false,
+                items_adicionales: []
+            }).eq('id', ventaId);
+            return;
+        }
+
+        console.log(`🔔 ${esAdicional ? '*** ADICIONAL ***' : '*** NUEVA COMANDA ***'} para imprimir: ${ventaId} (${itemsAImprimir.length} plato(s))`);
+
+        await imprimirTicket(ventaDB, itemsAImprimir, esAdicional);
+        console.log(`✅ [OK] Impreso correctamente: ${ventaId}`);
+
+        // IMPORTANTE: Limpiar es_adicional e items_adicionales para que no queden datos obsoletos
+        await supabase.from('ventas').update({
+            estado_impresion: 'impreso',
+            es_adicional: false,
+            items_adicionales: []
+        }).eq('id', ventaId);
+
+    } catch (error) {
+        console.error(`❌ Error al imprimir venta ${ventaId}:`, error.message);
+        try {
+            await supabase.from('ventas').update({ estado_impresion: 'error' }).eq('id', ventaId);
+        } catch (e) {}
+    } finally {
+        // Liberar el lock después de 3 segundos para absorber rebotes de realtime
+        setTimeout(() => {
+            procesandoIds.delete(ventaId);
+        }, 3000);
     }
-}
+};
 
-async function iniciarWorker() {
-    await limpiarAntiguos();
-    console.log('[OK] Worker activo. Revisando ventas de hoy cada 5 segundos...');
-    setInterval(buscarPendientes, 5000);
-    buscarPendientes();
-}
-
-iniciarWorker();
+supabase
+  .channel('impresion-pedidos')
+  .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'ventas', filter: `negocio_id=eq.${NEGOCIO_ID}` }, manejarVenta)
+  .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'ventas', filter: `negocio_id=eq.${NEGOCIO_ID}` }, manejarVenta)
+  .subscribe((status) => {
+      if (status === 'SUBSCRIBED') {
+          console.log('🟢 Conectado al servidor. Esperando nuevas comandas y adicionales...');
+      }
+  });

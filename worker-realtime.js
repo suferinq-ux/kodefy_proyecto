@@ -2,18 +2,17 @@ const { createClient } = require('@supabase/supabase-js');
 const net = require('net');
 
 const SUPABASE_URL = 'https://okzncqmhjvsrdhluwuhx.supabase.co';
-const SUPABASE_KEY = process.env.SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9rem5jcW1oanZzcmRobHV3dWh4Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NzI0MDE2NCwiZXhwIjoyMDkyODE2MTY0fQ.2iI3KSEyNOZWxqUQIXOLsJjk2yuQXy2c6lZVlIglVdA';
-const NEGOCIO_ID = process.env.NEGOCIO_ID || 'cba58c29-541f-4388-83b1-ce47c66d9328'; // Reykelt by default
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9rem5jcW1oanZzcmRobHV3dWh4Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NzI0MDE2NCwiZXhwIjoyMDkyODE2MTY0fQ.2iI3KSEyNOZWxqUQIXOLsJjk2yuQXy2c6lZVlIglVdA';
+const NEGOCIO_ID = 'cba58c29-541f-4388-83b1-ce47c66d9328'; // Reykelt
 const PRINTER_IP = process.env.PRINTER_IP || '192.168.18.50';
 const PRINTER_PORT = parseInt(process.env.PRINTER_PORT || '9100');
-const NOMBRE_NEGOCIO = process.env.NOMBRE_NEGOCIO || "MI NEGOCIO";
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const ESC = '\x1b';
 const GS = '\x1d';
 
-const a = (s = '') => String(s).normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[ñÑ]/g, 'N').toUpperCase();
+const a = (s = '') => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[ñÑ]/g, 'N').toUpperCase();
 const pad = n => String(n).padStart(2, '0');
 const fmtFecha = d => `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
 const fmtHora = d => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
@@ -31,6 +30,7 @@ const LINEA = '--------------------------------';
 
 console.log('===========================================');
 console.log('  KODEFY PRINT WORKER (COCINA) - REALTIME');
+console.log('  SISTEMA ANTI-DUPLICADOS ACTIVO');
 console.log('===========================================');
 console.log('Impresora: ' + PRINTER_IP + ':' + PRINTER_PORT);
 console.log('Negocio ID: ' + NEGOCIO_ID);
@@ -64,9 +64,10 @@ async function imprimirTicket(venta, itemsAImprimir, esAdicional) {
         p += ESC + 'a' + '\x01';
         p += ESC + 'E' + '\x01';
         p += GS + '!' + '\x11';
-        p += (NOMBRE_NEGOCIO) + '\n';
+        p += 'REYKELT\n';
         p += GS + '!' + '\x00';
         p += ESC + 'E' + '\x00';
+        p += 'BRASAS & BROASTERS\n';
         p += LINEA + '\n';
 
         // ====== TITULO (doble) ======
@@ -160,7 +161,7 @@ async function imprimirTicket(venta, itemsAImprimir, esAdicional) {
 
         const buffer = Buffer.from(p, 'latin1');
 
-        client.setTimeout(3000);
+        client.setTimeout(4000);
         client.connect(PRINTER_PORT, PRINTER_IP, () => {
             console.log(`🔗 Conectado a la impresora ${PRINTER_IP}`);
             client.write(buffer, (err) => {
@@ -173,46 +174,128 @@ async function imprimirTicket(venta, itemsAImprimir, esAdicional) {
     });
 }
 
+// Evitar concurrencia y duplicados
+const procesandoIds = new Set();
+
+function parsearItems(raw) {
+    if (!raw) return [];
+    if (Array.isArray(raw)) return raw;
+    if (typeof raw === 'string') {
+        try {
+            const parsed = JSON.parse(raw);
+            return Array.isArray(parsed) ? parsed : [];
+        } catch (e) {
+            return [];
+        }
+    }
+    return [];
+}
+
 const manejarVenta = async (payload) => {
-    const venta = payload.new;
+    const ventaPayload = payload.new;
+    if (!ventaPayload || !ventaPayload.id) return;
+
+    const ventaId = ventaPayload.id;
     const esUpdate = payload.eventType === 'UPDATE';
 
-    let esAdicional = false;
-    let itemsAImprimir;
-
-    if (esUpdate) {
-        // Solo imprimir cuando la app ACABA de marcar la comanda pendiente.
-        // Los cobros/pagos u otros UPDATEs (pendiente -> pendiente) NO imprimen.
-        const antes = payload.old || {};
-        const recienPendiente = antes.estado_impresion !== 'pendiente' && venta.estado_impresion === 'pendiente';
-
-        if (!recienPendiente) {
-            console.log(`⏭️ UPDATE sin comanda nueva (${venta.id}) — no se imprime`);
-            return;
-        }
-
-        esAdicional = Boolean(venta.es_adicional) && Array.isArray(venta.items_adicionales) && venta.items_adicionales.length > 0;
-        itemsAImprimir = esAdicional ? venta.items_adicionales : (Array.isArray(venta.items) ? venta.items : []);
-    } else {
-        // INSERT: nueva venta -> imprimir comanda completa
-        if (venta.estado_impresion !== 'pendiente') {
-            console.log(`⏭️ Venta ${venta.id} no pendiente, se omite`);
-            return;
-        }
-        itemsAImprimir = Array.isArray(venta.items) ? venta.items : [];
+    // Evitar procesar el mismo ID concurrentemente
+    if (procesandoIds.has(ventaId)) {
+        console.log(`🔒 Venta ${ventaId} ya en proceso, ignorando evento duplicado`);
+        return;
     }
 
-    if (!itemsAImprimir.length) return;
+    // SI ES UPDATE:
+    // Solo nos interesa si viene marcado como 'pendiente'
+    if (esUpdate && ventaPayload.estado_impresion !== 'pendiente') {
+        return;
+    }
 
-    console.log(`🔔 ${esAdicional ? 'ADICIONAL' : 'NUEVO PEDIDO'} para imprimir:`, venta.id, esAdicional ? `(${itemsAImprimir.length} plato(s) nuevo(s))` : `(${itemsAImprimir.length} item(s))`);
+    // SI ES INSERT:
+    // Solo nos interesa si viene como 'pendiente'
+    if (!esUpdate && ventaPayload.estado_impresion !== 'pendiente') {
+        return;
+    }
+
+    procesandoIds.add(ventaId);
 
     try {
-        await imprimirTicket(venta, itemsAImprimir, esAdicional);
-        console.log('✅ Impreso correctamente:', venta.id);
-        await supabase.from('ventas').update({ estado_impresion: 'impreso' }).eq('id', venta.id);
+        // Consultar SIEMPRE el estado real en Supabase para evitar datos truncados de Realtime
+        const { data: ventaDB, error: errDB } = await supabase
+            .from('ventas')
+            .select('*')
+            .eq('id', ventaId)
+            .single();
+
+        if (errDB || !ventaDB) {
+            console.log(`❌ No se pudo cargar venta ${ventaId}: ${errDB?.message}`);
+            return;
+        }
+
+        // Si ya fue impreso por otra instancia o proceso, no hacer nada
+        if (ventaDB.estado_impresion !== 'pendiente') {
+            console.log(`⏭️ Venta ${ventaId} ya no está pendiente (estado: ${ventaDB.estado_impresion})`);
+            return;
+        }
+
+        let itemsAImprimir = [];
+        let esAdicional = false;
+
+        if (esUpdate) {
+            // EN UN UPDATE: ES ESTRICTAMENTE UNA COMANDA ADICIONAL.
+            // NUNCA, BAJO NINGUNA CIRCUNSTANCIA, SE IMPRIMEN TODOS LOS ITEMS (venta.items).
+            const itemsAdic = parsearItems(ventaDB.items_adicionales);
+
+            if (ventaDB.es_adicional && itemsAdic.length > 0) {
+                esAdicional = true;
+                itemsAImprimir = itemsAdic;
+            } else {
+                // El UPDATE no tiene nuevos items que imprimir (fue cambio de pago, mesa, etc.)
+                console.log(`⏭️ UPDATE en venta ${ventaId} sin adicionales para cocina. Marcando impreso sin ticket.`);
+                await supabase.from('ventas').update({
+                    estado_impresion: 'impreso',
+                    es_adicional: false,
+                    items_adicionales: []
+                }).eq('id', ventaId);
+                return;
+            }
+        } else {
+            // ES UN INSERT: NUEVO PEDIDO COMPLETO
+            itemsAImprimir = parsearItems(ventaDB.items);
+            esAdicional = false;
+        }
+
+        if (!itemsAImprimir || itemsAImprimir.length === 0) {
+            console.log(`⚠️ Venta ${ventaId} sin items para imprimir.`);
+            await supabase.from('ventas').update({
+                estado_impresion: 'impreso',
+                es_adicional: false,
+                items_adicionales: []
+            }).eq('id', ventaId);
+            return;
+        }
+
+        console.log(`🔔 ${esAdicional ? '*** ADICIONAL ***' : '*** NUEVA COMANDA ***'} para imprimir: ${ventaId} (${itemsAImprimir.length} plato(s))`);
+
+        await imprimirTicket(ventaDB, itemsAImprimir, esAdicional);
+        console.log(`✅ [OK] Impreso correctamente: ${ventaId}`);
+
+        // IMPORTANTE: Limpiar es_adicional e items_adicionales para que no queden datos obsoletos
+        await supabase.from('ventas').update({
+            estado_impresion: 'impreso',
+            es_adicional: false,
+            items_adicionales: []
+        }).eq('id', ventaId);
+
     } catch (error) {
-        console.error('❌ Error al imprimir:', error.message);
-        await supabase.from('ventas').update({ estado_impresion: 'error' }).eq('id', venta.id);
+        console.error(`❌ Error al imprimir venta ${ventaId}:`, error.message);
+        try {
+            await supabase.from('ventas').update({ estado_impresion: 'error' }).eq('id', ventaId);
+        } catch (e) {}
+    } finally {
+        // Liberar el lock después de 3 segundos para absorber rebotes de realtime
+        setTimeout(() => {
+            procesandoIds.delete(ventaId);
+        }, 3000);
     }
 };
 

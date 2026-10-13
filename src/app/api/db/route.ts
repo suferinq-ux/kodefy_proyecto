@@ -51,12 +51,14 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Tabla no permitida o no especificada' }, { status: 400 });
         }
 
-        const query = supabase.from(table).insert(data);
+        let query: any = supabase.from(table).insert(data);
         if (options?.select) {
-            query.select(options.select);
+            query = query.select(options.select);
+        } else if (options?.single) {
+            query = query.select('*');
         }
         if (options?.single) {
-            query.single();
+            query = query.single();
         }
 
         const { data: result, error } = await query;
@@ -77,7 +79,7 @@ export async function PUT(request: Request) {
             return NextResponse.json({ error: 'Tabla no permitida o no especificada' }, { status: 400 });
         }
 
-        let query = supabase.from(table).update(data);
+        let query: any = supabase.from(table).update(data);
         
         if (filters) {
             Object.keys(filters).forEach(key => {
@@ -86,10 +88,12 @@ export async function PUT(request: Request) {
         }
 
         if (options?.select) {
-            query.select(options.select);
+            query = query.select(options.select);
+        } else if (options?.single) {
+            query = query.select('*');
         }
         if (options?.single) {
-            query.single();
+            query = query.single();
         }
 
         const { data: result, error } = await query;
@@ -110,7 +114,7 @@ export async function DELETE(request: Request) {
             return NextResponse.json({ error: 'Tabla no permitida o no especificada' }, { status: 400 });
         }
 
-        let query = supabase.from(table).delete();
+        let query: any = supabase.from(table).delete();
         
         if (filters) {
             Object.keys(filters).forEach(key => {
@@ -119,10 +123,12 @@ export async function DELETE(request: Request) {
         }
 
         if (options?.select) {
-            query.select(options.select);
+            query = query.select(options.select);
+        } else if (options?.single) {
+            query = query.select('*');
         }
         if (options?.single) {
-            query.single();
+            query = query.single();
         }
 
         const { data: result, error } = await query;
@@ -143,13 +149,15 @@ export async function PATCH(request: Request) {
             return NextResponse.json({ error: 'Tabla no permitida o no especificada' }, { status: 400 });
         }
 
-        const query = supabase.from(table).upsert(data, options?.onConflict ? { onConflict: options.onConflict } : undefined);
+        let query: any = supabase.from(table).upsert(data, options?.onConflict ? { onConflict: options.onConflict } : undefined);
         
         if (options?.select) {
-            query.select(options.select);
+            query = query.select(options.select);
+        } else if (options?.single) {
+            query = query.select('*');
         }
         if (options?.single) {
-            query.single();
+            query = query.single();
         }
 
         const { data: result, error } = await query;

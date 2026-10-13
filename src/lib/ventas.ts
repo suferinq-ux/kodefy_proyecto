@@ -344,10 +344,21 @@ export const actualizarVenta = async (
         const itemsAnteriores = (ventaActual.items || []) as ItemVenta[];
         const itemsAdicionales: ItemVenta[] = [];
 
-        // Agrupar cantidades anteriores por clave (nombre + detalles)
+        // Función para normalizar clave de comparación de ítems (evita falsos positivos por orden de propiedades o campos undefined)
+        const generarItemKey = (item: ItemVenta | ItemCarrito) => {
+            const pId = item.producto_id || (item.nombre || '').trim().toLowerCase();
+            const det = item.detalles || {};
+            const parte = (det.parte || '').trim().toLowerCase();
+            const trozado = (det.trozado || '').trim().toLowerCase();
+            const notas = (det.notas || '').trim().toLowerCase();
+            const bebida = item.detalle_bebida ? `${item.detalle_bebida.marca || ''}_${item.detalle_bebida.tipo || ''}` : '';
+            return `${pId}__${parte}__${trozado}__${notas}__${bebida}`;
+        };
+
+        // Agrupar cantidades anteriores por clave normalizada
         const prevMap = new Map<string, { item: ItemVenta; totalQty: number }>();
         itemsAnteriores.forEach(item => {
-            const key = `${item.nombre}||${JSON.stringify(item.detalles || {})}`;
+            const key = generarItemKey(item);
             const current = prevMap.get(key);
             if (current) {
                 current.totalQty += item.cantidad;
@@ -356,10 +367,10 @@ export const actualizarVenta = async (
             }
         });
 
-        // Agrupar cantidades nuevas por clave (nombre + detalles)
+        // Agrupar cantidades nuevas por clave normalizada
         const newMap = new Map<string, { item: ItemVenta; totalQty: number }>();
         listaFinalItems.forEach(item => {
-            const key = `${item.nombre}||${JSON.stringify(item.detalles || {})}`;
+            const key = generarItemKey(item);
             const current = newMap.get(key);
             if (current) {
                 current.totalQty += item.cantidad;
@@ -396,6 +407,12 @@ export const actualizarVenta = async (
             updatePayload.estado_impresion = 'pendiente';
             updatePayload.items_adicionales = itemsAdicionales;
             updatePayload.es_adicional = true;
+        } else {
+            // IMPORTANTE: Limpiar campos de impresión adicional para evitar
+            // re-impresiones fantasma de pedidos anteriores de la misma mesa
+            updatePayload.items_adicionales = [];
+            updatePayload.es_adicional = false;
+            // NO cambiar estado_impresion — mantener el que ya tiene ('impreso')
         }
 
         let data;
